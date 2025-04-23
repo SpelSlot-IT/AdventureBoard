@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Adventure Board</title>
+    <link rel="stylesheet" href="/static/css/styles.css" />
+    <link rel="shortcut icon" href="/static/favicon.ico">
+</head>
+
+<body>
+    
+    <div class="header-bar">
+        <div id="icon-container">
+            <button id="icon-button" onclick="refreshAssignments()">🔄</button>
+        </div>
+        <div id="icon-container">
+            <button id="icon-button" onclick="updateKarma()">✨</button>
+        </div>
+
+        <h1>Adventure Board</h1>
+
+        <div id="user-menu" class="user-menu">
+            <button id="login-button" onclick="handleLoginClick()">Login</button>
+            <div id="dropdown" class="dropdown hidden">
+                <a href="#" onclick="openSettings()">Settings</a>
+                <a href="#" onclick="registerNewUser()">Register</a>
+                <a href="#" onclick="logout()">Log Out</a>
+            </div>
+        </div>
+    </div>
+    <hr class="divider" />
+
+    <!-- Week navigation -->
+    <div class="week-nav">
+        <button id="prev-week">⬅️ Previous Week</button>
+        <span id="week-label"></span>
+        <button id="next-week">Next Week ➡️</button>
+    </div>
+
+    <!-- Grid container -->
+    <div class="adventure-grid" id="adventure-grid">
+        <!-- Cards and + button will go here -->
+    </div>
+
+
+
+    <!-- Modal Form -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>Add a New Adventure</h2>
+            <form id="adventure-form">
+                <!-- Add Creator field -->
+                <label for="creator">Creator:</label>
+                <input type="text" id="creator" readonly disabled />
+
+                <label for="title">Title:</label>
+                <input type="text" id="title" placeholder="Adventure Title" required />
+                <textarea id="description" placeholder="Short Description" required></textarea>
+
+                <label for="max-players">Max Players:</label>
+                <input type="number" id="max-players" value="5" min="1" max="10" required />
+
+                <!-- Add Start Date and End Date Fields -->
+                <label for="start-date">Start Date:</label>
+                <input type="date" id="start-date" required />
+
+                <label for="end-date">End Date:</label>
+                <input type="date" id="end-date" required />
+
+                <!-- Add Requested Players Fields -->
+                <h3>Requested Players</h3>
+                <div id="current-players-list"></div>
+
+                <button type="button" id="open-player-select">Select Players</button>
+
+                <div id="player-select-container" class="dropdown-container" style="display: none;">
+                    <div id="player-select-list"></div>
+                </div>
+
+                <button type="submit">Add Adventure</button>
+            </form>
+        </div>
+    </div>
+    <footer class="site-footer">Made with love, for Spelslot ❤️</footer>
+    <script type="text/javascript" src="/static/js/app.js">WakeLockSentinel
+    </script>
+    <script>
+        loadAdventures();
+        attachWeekNav();
+    </script>
+</body>
+
+
+</html>
