@@ -1,5 +1,5 @@
 *.bat
 *.pyc
+*.zip
 /external
 /venv
-.zip
