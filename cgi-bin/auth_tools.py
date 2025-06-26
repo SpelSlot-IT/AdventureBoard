@@ -46,8 +46,8 @@ def authenticate_user(username, user_id, privilege_level, password):
         resp.set_cookie(
             'access_token', token,
             httponly=True,   # inaccessible to JS
-            secure=False,     # only over HTTPS
-            samesite='Strict'  # or 'Lax' depending on your flow
+            secure=True,     # only over HTTPS
+            samesite='Strict'
             )
         return resp, 200
 
