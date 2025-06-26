@@ -13,7 +13,7 @@ body {
     align-items: center;
     justify-content: center;
     height: 100vh;
-    background: linear-gradient(135deg, #2d35d4, #323cff);
+    background: #0e0f0f
 }
 
 .login-container {
@@ -39,10 +39,12 @@ body {
 
 .login-container input {
     padding: 0.75rem 1rem;
-    border: 1px solid #2c2c2c;
-    border-radius: 6px;
+    border: 1px solid #555;
+    border-radius: 8px;
     font-size: 1rem;
     transition: border-color 0.2s;
+    background: #1e1e1e;
+    color: #fff;
 }
 
 .login-container input:focus {

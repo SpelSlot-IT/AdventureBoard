@@ -1,34 +1,60 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const loginForm = document.getElementById('loginForm');
-    const togglePassword = document.getElementById('togglePassword');
-    const passwordInput = document.getElementById('password');
-    const usernameError = document.getElementById('usernameError');
-    const passwordError = document.getElementById('passwordError');
+  const form          = document.getElementById('loginForm');
+  const usernameInput = form.username;
+  const passwordInput = form.password;
+  const toggleBtn     = document.getElementById('togglePassword');
+  const userErr       = document.getElementById('usernameError');
+  const passErr       = document.getElementById('passwordError');
 
-    togglePassword.addEventListener('click', () => {
-        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-        passwordInput.setAttribute('type', type);
-        togglePassword.textContent = type === 'password' ? 'Show' : 'Hide';
-    });
+    // Toggle password visibility
+  toggleBtn.addEventListener('click', () => {
+    const isHidden = passwordInput.type === 'password';
+    passwordInput.type = isHidden ? 'text' : 'password';
+    toggleBtn.textContent = isHidden ? 'Hide' : 'Show';
+  });
 
-    loginForm.addEventListener('submit', (e) => {
-        let valid = true;
+  // Handle login submit
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    userErr.textContent = '';
+    passErr.textContent = '';
 
-        usernameError.textContent = '';
-        passwordError.textContent = '';
+    try {
+      const formData = new URLSearchParams(new FormData(form));
+      const resp     = await fetch('login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData
+      });
+      const data = await resp.json();
 
-        if (!loginForm.username.value.trim()) {
-            usernameError.textContent = 'Username is required';
-            valid = false;
-        }
+      if (!data.success) {
+        // Display field errors or general errors
+        if (data.errors?.username) userErr.textContent = data.errors.username;
+        if (data.errors?.password) passErr.textContent = data.errors.password;
+        if (data.errors?.database) showToast(data.errors.database);
+        return;
+      }
 
-        if (!loginForm.password.value) {
-            passwordError.textContent = 'Password is required';
-            valid = false;
-        }
+      // On successful login, receive JWT token
+      const { token, message, redirect_url } = data;
+      // Store token securely (consider HttpOnly cookie for production)
+      localStorage.setItem('authToken', token);
+      console.log(message);
 
-        if (!valid) {
-            e.preventDefault();
-        }
-    });
+      // Optionally set auth header for future fetch calls
+      // Example: fetch('/protected', { headers: { 'Authorization': `Bearer ${token}` } })
+
+      // Redirect user
+      if (redirect_url) {
+        window.location.href = redirect_url;
+      } else {
+        // Fallback to dashboard
+        window.location.href = 'app';
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      alert('An unexpected error occurred. Please try again later.');
+    }
+  });
 });

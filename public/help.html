@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Adventure Assignment Tutorial</title>
+  <link rel="stylesheet" href="../../static/css/help-styles.css" />
+  <link rel="shortcut icon" href="../../static/favicon.ico">
+</head>
+<body>
+  <header class="site-header">
+    <h1>Adventure Assignment Tutorial</h1>
+  </header>
+
+  <main class="content">
+    <section class="card">
+      <h2>User</h2>
+      <ul>
+        <li>The plus button at the end of the adventure list allows for the creation of a new adventure.</li>
+        <li>An adventure always has a creator, a title, a description, and a start and end date.</li>
+        <li>When creating a new adventure it will always assume it’s a full-month adventure until you set the start and end date.</li>
+        <li>Monthly adventures are highlighted with a purple outline.
+          <ul>
+            <span class="note">Please do not sign up for monthly adventures if you cannot visit the adventure for the whole month.</span>
+          </ul>
+        </li>
+        <li>When creating an adventure one can request players that will be automatically assigned to this adventure. This is helpful if the story requires a specific character to be included.
+          <ul>
+            <span class="note">Please only use this feature if you know that player can actually join the adventure.</span>
+          </ul>
+        </li>
+        <li>An adventure can be edited via the 'More Details' button. (Currently not implemented)</li>
+        <li>Via the arrow buttons other than the current week can be inspected for upcoming adventures.</li>
+        <li>The three medal buttons are used to specify a player's priority for a specific adventure.
+          <ul>
+            <li>Only players that set at least one priority will be assigned for adventures that week.</li>
+            <li>Only one adventure can be chosen per priority per week.</li>
+          </ul>
+        </li>
+        <li>Once the players are assigned to the adventure (this happens every Tuesday or when triggered by an admin), the player can see the assignments in the adventure list. Your own player card is highlighted.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Admin</h2>
+      <ul>
+        <li>By pressing on on your name in the top right corner you can access the admin panel, in there you can do the following:</li>
+        <ul>
+          <li>Force a refresh of the assignments. This will assign all players that set any priorities to the first available adventure. (These refreshes will also happen every Tuesday at a specific time)</li>
+          <li>Refresh the karma of all players. This will add or subtract karma to the players that were assigned to an adventure.</li>
+          <li>Mark which players did not show up. (Currently not implemented)</li>
+          <li>Manually edit the karma of a specific player. (Currently not implemented)</li>
+        </ul>
+        <li>Drag and drop player cards to assign them to a different adventure manually.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Demo Specifics</h2>
+      <ul>
+        <li>It’s not possible to register users other than via the SQL interface.</li>
+        <li>Possible users are:
+          <ul>
+            <li>admin</li>
+            <li>player1</li>
+            <li>player2</li>
+            <li>player3</li>
+            <li>player4</li>
+            <li>player5</li>
+            <li>player6</li>
+            <li>player7</li>
+            <li>player8</li>
+            <li>player9</li>
+          </ul>
+        </li>
+        <li>All passwords will be accepted for all available users.</li>
+        <li>The website is unencrypted. <span class="note">(Please do not use any real passwords)</span></li>
+        <li>Tokens are not passed via HTTPS headers.</li>
+        <li>Acceleration is disabled making the app quite slow.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    Made with love, for Spelslot ❤️
+  </footer>
+</body>
+</html>

@@ -1,23 +1,40 @@
 // ——— Globals & Helpers ———
-var toastContainer = null;
 var currentWeekOffset = 0;
-var  currentUser = null; // track logged in user
+var currentUserName = null; // track logged in user
+var currentPrivilegeLevel = null; // track privilege_level
 var selectedPlayerIds = []; // This will store the IDs of players that the creator selects
 
 
+
+// ——— Initialize on Page Load ———
+window.onload = async () => {
+  currentWeekOffset = 0;    // reset to current week
+  attachWeekNav();          // wire up your Prev/Next buttons
+
+  const stored = localStorage.getItem('username');
+  if (stored) {
+    currentUserName = stored;
+    updateUserUI();
+  }
+  else {
+    await setCurrentUser();
+  }
+
+  loadAdventures();
+};
+
+
 function handleLoginClick() {
-  if (!currentUser) {
-    // Fake login flow – replace this with real logic
-    const username = prompt('Enter username:');
-    if (username) {
-      localStorage.setItem('username', username);
-      currentUser = username;
-      updateUserUI();
-      loadAdventures();
-    }
+  if (!currentUserName) {
+    window.location.href = "login";
   } else {
     toggleDropdown();
   }
+}
+
+function openHelp()
+{
+  window.location.href = "help";
 }
 
 /** Returns [startOfWeek (Mon), endOfWeek (Sun)] for today + offset weeks */
@@ -52,15 +69,16 @@ async function loadAdventures() {
 
   // Build the query string
   const params = new URLSearchParams();
-  params.set('user', currentUser);
+  params.set('user', currentUserName);
+  params.set('adventure_id', null);
   // always include week bounds
   params.set('week_start', weekStart.toISOString().split('T')[0]);
   params.set('week_end', weekEnd.toISOString().split('T')[0]);
 
   // 1) fetch data 
   const [advRes, signupRes] = await Promise.all([
-    fetch(`/api/adventures?${params.toString()}`),
-    fetch(`/api/signups?user=${currentUser}`)
+    fetch(`api/adventures?${params.toString()}`),
+    fetch(`api/signups?user=${currentUserName}`)
   ]);
   const adventures = await advRes.json();
   const userSignups = await signupRes.json();
@@ -83,7 +101,7 @@ async function loadAdventures() {
       const start = new Date(adventure.start_date);
       const end = new Date(adventure.end_date);
       if (weeksBetween(start, end) >= 3) {
-        card.classList.add('adventure-card-long');
+        card.classList.add('long');
       }
 
       const title = adventure.title.length > 16 ? adventure.title.slice(0, 16) + '…' : adventure.title;
@@ -94,7 +112,7 @@ async function loadAdventures() {
 
       const playerList = adventure.players?.length > 0
         ? adventure.players.map(player => `
-                <div class="draggable-player ${player.username === currentUser ? 'own-player' : ''}"
+                <div class="draggable-player ${player.username === currentUserName ? 'own-player' : ''}"
                     draggable="true"
                     data-player-id="${player.id}"
                     data-adventure-id="${adventure.id}">
@@ -115,11 +133,13 @@ async function loadAdventures() {
                 ${playerList}
               </div>
             </p>
-            <button onclick="showToast('Details coming soon!', 'alert')">More Details</button>
-            <div style="margin-top: 10px;">
-              <button class="${getHighlight(1)}" onclick="signUp(${adventure.id}, 1)">🥇</button>
-              <button class="${getHighlight(2)}" onclick="signUp(${adventure.id}, 2)">🥈</button>
-              <button class="${getHighlight(3)}" onclick="signUp(${adventure.id}, 3)">🥉</button>
+            <div >
+              <button style="width: 140px;" onclick="moreDetails(${adventure.id})">More Details</button>
+              <div style="margin-top: 10px;">
+                <button class="${getHighlight(1)}" onclick="signUp(this, ${adventure.id}, 1)">🥇</button>
+                <button class="${getHighlight(2)}" onclick="signUp(this, ${adventure.id}, 2)">🥈</button>
+                <button class="${getHighlight(3)}" onclick="signUp(this, ${adventure.id}, 3)">🥉</button>
+              </div>
             </div>
           `;
 
@@ -142,6 +162,8 @@ async function loadAdventures() {
   });
 }
 
+
+
 // ——— Week Nav Buttons ———
 function attachWeekNav() {
   document.getElementById('prev-week').addEventListener('click', () => {
@@ -154,12 +176,7 @@ function attachWeekNav() {
   });
 }
 
-// ——— Initialize on Page Load ———
-document.addEventListener('DOMContentLoaded', () => {
-  currentWeekOffset = 0;    // ← reset to current week
-  attachWeekNav();          // ← wire up your Prev/Next buttons
-  loadAdventures();         // ← initial load
-});
+
 
 function changeWeek(offset) {
   currentWeekOffset += offset;
@@ -217,132 +234,97 @@ function initializeDateFields() {
 
 
 
-async function signUp(adventureId, priority) {
-  const res = await fetch('/api/signups', {
+async function signUp(btn, adventureId, priority) {
+  const res = await fetch('api/signups', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user: currentUser, adventure_id: adventureId, priority })
+    body: JSON.stringify({ user: currentUserName, adventure_id: adventureId, priority })
   });
 
   if (res.ok) {
     loadAdventures(); // refresh to update button highlights
   } else {
-    showToast('Failed to sign up. Are you logged in?');
+    showToast('Failed to sign up: Are you logged in?');
   }
 }
 
+async function moreDetails(adventure_id) {
+  document.getElementById('modal').style.display = 'block';
+  document.getElementById("open-player-select").style.visibility='hidden';
+  document.getElementById("current-players-list").style.display = 'none';
+  const params = new URLSearchParams();
+  params.set('adventure_id', adventure_id);
+  const res = await fetch(`api/adventures?${params.toString()}`);
+  if (res.ok) {
+    const data = await res.json();
+    document.getElementById('title').textContent = data.adventure.name;
+    document.getElementById('description').textContent = data.adventure.description;
+    document.getElementById('creator').textContent = data.adventure.creator;
+    document.getElementById('start-date').textContent = data.adventure.start_date;
+    document.getElementById('end-date').textContent = data.adventure.end_date;
+    document.getElementById('max-players').textContent = data.adventure.max_players;
 
-
-function showToast(message, type = 'error', customColor = null) {
-  const typeConfig = {
-    error: { emoji: '❌', color: '#ff4d4f' },
-    alert: { emoji: '⚠️', color: '#faad14' },
-    confirm: { emoji: '✅', color: '#52c41a' }
-  };
-
-  if (!toastContainer) {
-    toastContainer = document.createElement('div');
-    toastContainer.className = 'custom-toast-container';
-    document.body.appendChild(toastContainer);
+    // Example condition: lock fields if adventure is archived
+    if (currentUserName !== data.adventure.creator) {
+      const fields = ['title', 'description', 'creator', 'start-date', 'end-date', 'max-players'];
+      fields.forEach(id => {
+        const el = document.getElementById(id);
+        
+        // Disable input fields or make non-editable
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+          el.disabled = true;
+        } else {
+          el.setAttribute('contenteditable', 'false'); // For div/span/etc.
+        }
+      });
+    }
   }
-
-  const toast = document.createElement('div');
-  toast.className = 'custom-toast';
-
-  let emoji = '';
-  let color = customColor;
-
-  if (type !== 'other' && typeConfig[type]) {
-    emoji = typeConfig[type].emoji;
-    color = color || typeConfig[type].color;
-  }
-
-  toast.textContent = `${emoji} ${message}`;
-  toast.style.backgroundColor = color || '#ff4d4f';
-
-  // Add toast to container (at the end)
-  toastContainer.appendChild(toast);
-
-  // Enforce max 10 toasts
-  if (toastContainer.children.length > 10) {
-    const oldest = toastContainer.firstChild;
-    oldest.classList.add('fade-out');
-    setTimeout(() => oldest.remove(), 300); // match transition time
-  }
-
-  // Trigger show animation
-  setTimeout(() => {
-    toast.classList.add('show');
-  }, 100);
-
-  // Auto-remove after 3s
-  setTimeout(() => {
-    toast.classList.remove('show');
-    toast.classList.add('fade-out');
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
 }
-
-
 
 // Open the modal and load available players
 async function openModal() {
+  if (!currentUserName) {
+    showToast("Please login to create a new adventure.", "alert");
+    return;
+  }
   document.getElementById('modal').style.display = 'block';
-  initializeDateFields();
-  document.getElementById('creator').value = currentUser; // set creator name
-  loadPlayersForSelect();
-  loadCurrentRequiredPlayers();  // Load current required players
+  document.getElementById('creator').value = currentUserName; // set creator name
+  document.getElementById("open-player-select").style.visibility='visible';
+  document.getElementById("current-players-list").style.display = 'none';
   initializeDateFields();
 }
 
 // Close the modal
 function closeModal() {
   document.getElementById('modal').style.display = 'none';
-  //initializeDateFields();
+  //initializeDateFields(); // reset date fields
 }
 
-// Toggle the player select dropdown open/close when clicking the "Select Players" button
-document.getElementById('open-player-select').addEventListener('click', () => {
-  const dropdown = document.getElementById('player-select-container');
-  if (dropdown.style.display === 'none' || dropdown.style.display === '') {
-    loadPlayersForSelect();  // Load players each time the dropdown opens
-    dropdown.style.display = 'block';
-  } else {
-    dropdown.style.display = 'none';
-  }
-});
 
 // Load the list of available players for selection
 async function loadPlayersForSelect() {
-  const res = await fetch('/api/users');
-  const users = await res.json();
+  document.getElementById("open-player-select").style.visibility='hidden';
+  const select = document.getElementById('selector')
+  try {
+    const res = await fetch("api/users");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const users = await res.json(); 
 
-  const container = document.getElementById('player-select-list');
-  container.innerHTML = '';  // Clear the list before populating
+    users.forEach(user => {
+      var option = document.createElement("option");
+      option.text = user.username;
+      option.value = user.id;
+      select.add(option);
+    });
 
-  users.forEach(user => {
-    if (user.username !== currentUser) {
-      const checkbox = document.createElement('div');
-      checkbox.className = 'player-checkbox';
-      checkbox.innerHTML = `
-            <label>
-              <input type="checkbox" value="${user.id}" id="player-${user.id}" />
-              ${user.username} (Karma: ${user.karma})
-            </label>
-          `;
-      container.appendChild(checkbox);
+  } catch (err) {
+    showToast("Failed to load user list:" + err);
+  }
 
-      // Mark the checkbox as selected if the player is already in the requested players list
-      if (selectedPlayers.includes(user.id)) {
-        document.getElementById(`player-${user.id}`).checked = true;
-      }
+  $('select').chosen({ width:'100%', max_shown_results: 5 });
+  document.getElementById("current-players-list").style.display = '';
+  
 
-      // Add event listener for checkbox selection
-      document.getElementById(`player-${user.id}`).addEventListener('change', (event) => {
-        handlePlayerSelection(event, user);
-      });
-    }
-  });
 }
 
 // Handle player selection and add/remove them from the requested players list
@@ -381,8 +363,7 @@ document.getElementById('adventure-form').addEventListener('submit', async (e) =
   const maxPlayers = parseInt(document.getElementById('max-players').value);
 
   // Get the selected players
-  const selectedPlayerIds = Array.from(document.querySelectorAll('#current-players-list .selected-player'))
-    .map(playerDiv => playerDiv.querySelector('span').textContent.split(' ')[0]);  // Extract player names (or IDs)
+  const selectedPlayerIds = Array.from(document.querySelector('#selector').selectedOptions).map(option => option.value);
 
   // Get the start and end dates from the form inputs
   const startDate = new Date(document.getElementById('start-date').value);
@@ -404,27 +385,32 @@ document.getElementById('adventure-form').addEventListener('submit', async (e) =
   const adventureData = {
     title,
     short_description: description,
-    creator_id: currentUser, // creator
+    creator_id: currentUserName, // creator
     max_players: maxPlayers,
-    required_players: selectedPlayerIds,
+    requested_players: selectedPlayerIds,
     start_date: startDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
     end_date: endDate.toISOString().split('T')[0] // Format as YYYY-MM-DD
   };
 
   // Send the request to the API
-  const res = await fetch('/api/adventures', {
+  const res = await fetch('api/adventures', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(adventureData)
   });
-
+  const data = await res.json(); // Parse the JSON body
   if (res.ok) {
     document.getElementById('adventure-form').reset();
     closeModal();
     loadAdventures(); // Reload adventures
     showToast('Added adventure', 'confirm');
+  } else if (res.status === 409) {
+    console.warn('Misassigned players:', data.mis_assignments);
+    showToast(data.message || 'Some players could not be assigned.', 'alert');
+    closeModal();
+    loadAdventures(); // Reload adventures
   } else {
-    showToast('Failed to add adventure', 'alert');
+    showToast('Failed to add adventure:'+ data.error);
   }
 });
 
@@ -441,8 +427,8 @@ window.onclick = function (event) {
 function updateUserUI() {
   const loginBtn = document.getElementById('login-button');
   const dropdown = document.getElementById('dropdown');
-  if (currentUser) {
-    loginBtn.textContent = currentUser;
+  if (currentUserName) {
+    loginBtn.textContent = currentUserName;
     loginBtn.classList.add('logged-in');
     dropdown.classList.add('hidden');
   } else {
@@ -457,59 +443,67 @@ function toggleDropdown() {
   dropdown.classList.toggle('hidden');
 }
 
-function logout() {
+async function logout() {
+  try {
+    // 1) Tell the server to clear the cookie
+    await fetch('logout', {
+      method: 'POST',
+      credentials: 'include'
+    });
+  } catch (err) {
+    console.error('Error logging out on server:', err);
+  }
+
+  // 2) Clear any leftover client‐side state
   localStorage.removeItem('username');
-  currentUser = null;
+  currentUserName = null;
+  currentPrivilegeLevel = null;
+
+  // 3) Update the UI
   updateUserUI();
   loadAdventures();
 }
 
-function openSettings() {
-  showToast('Settings page not implemented yet.', 'alert');
+
+function changePassword() {
+  showToast('Password page not implemented yet.', 'alert');
 }
 
 async function registerNewUser() {
-  if (!currentUser) {
+  if (!currentUserName) {
     showToast("No user is logged in.");
     return;
   }
 
   // Try to register the user
-  const res = await fetch('/api/register', {
+  const res = await fetch('api/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: currentUser })
+    body: JSON.stringify({ username: currentUserName })
   });
 
   if (res.ok) {
     const data = await res.json();
-    showToast(`User ${currentUser} registered successfully with ID ${data.user_id}`, 'confirm');
+    showToast(`User ${currentUserName} registered successfully with ID ${data.user_id}`, 'confirm');
   } else {
     const errorData = await res.json();
     showToast(`Error: ${errorData.error}`);
   }
 }
 
-// On load, check for logged-in user
-window.onload = () => {
-  const stored = localStorage.getItem('username');
-  if (stored) {
-    currentUser = stored;
-  }
-  updateUserUI();
-};
+
 
 async function refreshAssignments() {
   try {
-    const res = await fetch('/api/adventure-assignment', {
+    const res = await fetch("api/adventure-assignment", {
       method: 'PUT'
-    }
-    );
+    });
     if (res.ok) {
       loadAdventures();
       showToast('Assignments refreshed.', 'confirm');
     } else {
-      showToast('Failed to assign players.');
+      const data = await res.json();
+      showToast('Failed to assign players: ' + data.message);
     }
   } catch (err) {
     console.error('Error refreshing assignments:', err);
@@ -519,15 +513,16 @@ async function refreshAssignments() {
 
 async function updateKarma() {
   try {
-    const res = await fetch('/api/update-karma');
+    const res = await fetch('api/update-karma');
     if (res.ok) {
       loadAdventures();
       showToast('Karma updated.', 'confirm');
     } else {
-      showToast('Failed to update karma.');
+      const data = await res.json();
+      showToast('Failed to update karma: ' + data.message);
     }
   } catch (err) {
-    console.error('Error refreshing assignments:', err);
+    console.error('Error updating karma:', err);
     showToast('Something went wrong.');
   }
 }
@@ -548,7 +543,7 @@ async function drop(event) {
   const toAdventureId = toPlayerList.dataset.adventureId;
 
   // Update the player's adventure assignment on the backend
-  const res = await fetch('/api/adventure-assignment', {
+  const res = await fetch('api/adventure-assignment', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -562,8 +557,22 @@ async function drop(event) {
     // If successful, reload the adventures to reflect the change
     loadAdventures();
   } else {
-    showToast('Failed to update the assignment.');
+    const data = await res.json();
+    showToast('Failed to update the assignment: ' + data.message);
   }
 }
 
-loadAdventures();
+async function setCurrentUser() {
+  const resp = await fetch('api/me', { credentials: 'include' });
+  if (resp.ok) {
+    const { user_name, privilege_level } = await resp.json();
+    currentUserName = user_name;
+    localStorage.setItem('username', user_name);
+    currentPrivilegeLevel = privilege_level
+    updateUserUI();
+  }
+  if (currentPrivilegeLevel < 1) {
+    document.getElementById('refresh-assignments').classList.add('hidden');
+    document.getElementById('update-karma').classList.add('hidden');
+  }
+}

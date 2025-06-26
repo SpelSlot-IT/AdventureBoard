@@ -27,7 +27,7 @@ def assign_adventures_from_db(connection):
         user_signups[user_id].sort()
 
     sorted_users = sorted(users, key=lambda u: -u['karma'])
-    placed_users = set(user_id for (user_id,) in old_assignments)
+    placed_users = { assignment['user_id'] for assignment in old_assignments }
 
     # Step 3: Assign based on priorities
     for user in sorted_users:
