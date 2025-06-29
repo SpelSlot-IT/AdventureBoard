@@ -19,7 +19,6 @@ window.onload = async () => {
   else {
     await setCurrentUser();
   }
-
   loadAdventures();
 };
 
@@ -117,7 +116,7 @@ async function loadAdventures() {
                     data-player-id="${player.id}"
                     data-adventure-id="${adventure.id}">
                   <span class="player-name">${player.username.slice(0, 16)}</span><br>
-                  <span class="player-karma">${player.karma} ✨</span>
+                  ${player.karma !== undefined && player.karma !== null ? `<span class="player-karma">${player.karma} ✨</span>` : ''}
                 </div>
               `).join('')
         : 'No players assigned yet';
@@ -389,7 +388,9 @@ document.getElementById('adventure-form').addEventListener('submit', async (e) =
     max_players: maxPlayers,
     requested_players: selectedPlayerIds,
     start_date: startDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
-    end_date: endDate.toISOString().split('T')[0] // Format as YYYY-MM-DD
+    end_date: endDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+    is_story_adventure: 0,
+    requested_room: "A"
   };
 
   // Send the request to the API
@@ -493,20 +494,21 @@ async function registerNewUser() {
 
 
 
-async function refreshAssignments() {
+async function makeAssignments(action) {
   try {
-    const res = await fetch("api/adventure-assignment", {
+    const res = await fetch(`api/adventure-assignment/${action}`, {
       method: 'PUT'
     });
+    const data = await res.json();
+
     if (res.ok) {
       loadAdventures();
-      showToast('Assignments refreshed.', 'confirm');
+      showToast(`${action.charAt(0).toUpperCase() + action.slice(1)} triggered.`, 'confirm');
     } else {
-      const data = await res.json();
-      showToast('Failed to assign players: ' + data.message);
+      showToast('Failed to assign players: ' + (data.message || data.error));
     }
   } catch (err) {
-    console.error('Error refreshing assignments:', err);
+    console.error('Error during assignment action:', err);
     showToast('Something went wrong.');
   }
 }
@@ -572,7 +574,9 @@ async function setCurrentUser() {
     updateUserUI();
   }
   if (currentPrivilegeLevel < 1) {
-    document.getElementById('refresh-assignments').classList.add('hidden');
+    document.getElementById('make-assignments').classList.add('hidden');
+    document.getElementById('release-assignments').classList.add('hidden');
+    document.getElementById('reset-assignments').classList.add('hidden');
     document.getElementById('update-karma').classList.add('hidden');
   }
 }

@@ -30,7 +30,9 @@
             <button id="login-button" onclick="handleLoginClick()">Login</button>
             <div id="dropdown" class="dropdown hidden">
                 <a href="#" onclick="changePassword()">Change Password</a>
-                <a href="#" id="refresh-assignments" onclick="refreshAssignments()">Refresh Assignments</a>
+                <a href="#" id="make-assignments" onclick="makeAssignments('assign')">Make Assignments</a>
+                <a href="#" id="release-assignments" onclick="makeAssignments('release')">Release Assignments</a>
+                <a href="#" id="reset-assignments" onclick="makeAssignments('reset')">Reset Assignments</a>
                 <a href="#" id="update-karma" onclick="updateKarma()">Update Karma</a>
                 <a href="#" onclick="logout()">Log Out</a>
             </div>

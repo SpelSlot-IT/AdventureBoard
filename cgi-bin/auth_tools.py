@@ -55,14 +55,16 @@ def authenticate_user(username, user_id, privilege_level, password):
         print(e)
         return jsonify({'success': False, 'error': 'Could not generate auth token'}), 401
     
-def token_required(min_privilege=0, get_token_data=False):
+def token_required(min_privilege=0, lax=False):
     def decorator(f):
         @wraps(f)
         def decorated(*args, **kwargs):
             token = request.cookies.get('access_token') # get http-only token
             if not token:
-                return jsonify({'message': 'You are not logged in'}), 403
-
+                if lax:
+                    return f(None, *args, **kwargs)
+                else:
+                    return jsonify({'message': 'You are not logged in'}), 403
             try:
                 token_data = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
 
@@ -80,9 +82,7 @@ def token_required(min_privilege=0, get_token_data=False):
             except jwt.InvalidTokenError:
                 return jsonify({'message': 'Invalid auth token!'}), 403
 
-            if get_token_data:
-                return f(token_data, *args, **kwargs)
-            return f(*args, **kwargs)
+            return f(token_data, *args, **kwargs)
         return decorated
     return decorator
 

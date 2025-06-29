@@ -1,6 +1,5 @@
 import sys
 import os
-from datetime import date, timedelta
 import configparser
 import re
 
@@ -17,20 +16,30 @@ DB_NAME = config['DB']['name']
 LOCAL = bool(config['APP']['local'])
 VERSION = config['VERSION']['version']
 
+CONFIG = config
+
 
 import site
 # add path to installed packages to PATH:
 site.addsitedir('/mnt/web105/e0/90/517590/htdocs/.local/lib/python3.11/site-packages')
 import webbrowser
 from flask import Flask, jsonify, request, send_from_directory, url_for, render_template
+from flask_apscheduler import APScheduler
 import mysql.connector
 
 from ranking_tools import *
 from auth_tools import *
+from timing_tools import *
+
+# set configuration values
+class Config:
+    SCHEDULER_API_ENABLED = True
 
 # Launch app
 app = Flask(__name__)
-
+ap_scheduler = APScheduler()
+ap_scheduler.init_app(app)
+ap_scheduler.start()
 
 def init_db():
     try:
@@ -61,6 +70,8 @@ def init_db():
                 max_players INT DEFAULT 5 NOT NULL, 
                 start_date DATE NOT NULL,
                 end_date   DATE NOT NULL,
+                is_story_adventure BOOLEAN DEFAULT FALSE,
+                requested_room VARCHAR(4),
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
         """)
@@ -92,6 +103,15 @@ def init_db():
         );
         """)
 
+         # Create release variable
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS variable_storage  (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            release_state BOOLEAN DEFAULT FALSE
+        );
+        """)
+        cursor.execute("INSERT IGNORE INTO variable_storage (id, release_state) VALUES (1, FALSE)")
+
 
 
         # Add default user 'test' if not exists
@@ -103,10 +123,13 @@ def init_db():
     except mysql.connector.Error as err:
         print(f"Error initializing database: {err}")
 
+# Global inits
 init_db()
 
 DB_CONFIG_WITH_DB = {**DB_CONFIG, 'database': DB_NAME}
 
+
+# Basic provider routs
 @app.route('/')
 def system_check():
     return send_from_directory('.', 'index.html')
@@ -201,6 +224,9 @@ def logout():
 
 @app.route('/api/alive', methods=['GET'])
 def alive_check():
+    """
+    Returns a status message if DM is alive and reachable.
+    """
     try:
         connection = mysql.connector.connect(**DB_CONFIG_WITH_DB)
         cursor = connection.cursor()
@@ -214,6 +240,9 @@ def alive_check():
     
 @app.route('/api/me', methods=['GET'])
 def me():
+    """
+    Returns information about the current user.
+    """
     token = request.cookies.get('access_token')
     if not token:
         return jsonify({ 'error': 'Not authenticated' }), 401
@@ -221,7 +250,11 @@ def me():
 
 
 @app.route('/api/users', methods=['GET'])
+@token_required(1)
 def get_all_users():
+    """
+    Returns a list of all users.
+    """
     connection = mysql.connector.connect(**DB_CONFIG_WITH_DB)
     cursor = connection.cursor(dictionary=True)
 
@@ -232,77 +265,95 @@ def get_all_users():
     
     return jsonify(users)
 
+
 @app.route('/api/adventures', methods=['GET'])
-def get_adventures():
-    adventure_id = request.args.get('adventure_id')
-    # Parse optional week_start from query string
-    week_start = request.args.get('week_start')
-    week_end = request.args.get('week_end')
-
-    connection = mysql.connector.connect(**DB_CONFIG_WITH_DB)
-    cursor = connection.cursor(dictionary=True)
-
-    base_query = """
-        SELECT a.id AS adventure_id, a.title, a.short_description, a.user_id, a.max_players,
-            a.start_date, a.end_date,
-            u.id AS player_id, u.username, u.karma
-        FROM adventures a
-        LEFT JOIN adventure_assignments aa ON a.id = aa.adventure_id
-        LEFT JOIN users u ON aa.user_id = u.id
+@token_required(lax=True)
+def get_adventures(token_data):
     """
-
-    conditions = []
-    params = []
-    if adventure_id and adventure_id != 'null':
-        conditions.append("a.id = %s")
-        params.append(adventure_id)
-    elif week_start and week_end:
-        conditions.append("(a.start_date <= %s AND a.end_date >= %s)")
-        params.extend([week_end, week_start])
-
-    if conditions:
-        base_query += " WHERE " + " AND ".join(conditions)
-
+    Returns a list of all adventures in given timeframe. 
+    If release_dt has passed, returns all players assigned to this adventures.
+    """
     try:
-        cursor.execute(base_query, tuple(params))
-        rows = cursor.fetchall()
-        connection.close()
-    except mysql.connector.Error:
-        return jsonify({"error": "Unable to reach database."}), 500
+        adventure_id = request.args.get('adventure_id')
+        # Parse optional week_start from query string
+        week_start = request.args.get('week_start')
+        week_end = request.args.get('week_end')
 
-    # Group players by adventure
-    adventures = {}
-    for row in rows:
-        adv_id = row['adventure_id']
-        if adv_id not in adventures:
-            adventures[adv_id] = {
-                'id':                adv_id,
-                'title':             row['title'],
-                'short_description': row['short_description'],
-                'user_id':           row['user_id'],
-                'max_players':       row['max_players'],
-                'start_date':        row['start_date'].isoformat(),
-                'end_date':          row['end_date'].isoformat(),
-                'players':           []
-            }
-        if row['player_id']:
-            adventures[adv_id]['players'].append({
-                'id':       row['player_id'],
-                'username': row['username'],
-                'karma':    row['karma']
-            })
-    return jsonify(list(adventures.values()))
+        connection = mysql.connector.connect(**DB_CONFIG_WITH_DB)
+        cursor = connection.cursor(dictionary=True)
+
+        base_query = """
+            SELECT a.id AS adventure_id, a.title, a.short_description, a.user_id, a.max_players,
+                a.start_date, a.end_date,
+                u.id AS player_id, u.username, u.karma
+            FROM adventures a
+            LEFT JOIN adventure_assignments aa ON a.id = aa.adventure_id
+            LEFT JOIN users u ON aa.user_id = u.id
+        """
+
+        conditions = []
+        params = []
+        if adventure_id and adventure_id != 'null':
+            conditions.append("a.id = %s")
+            params.append(adventure_id)
+        elif week_start and week_end:
+            conditions.append("(a.start_date <= %s AND a.end_date >= %s)")
+            params.extend([week_end, week_start])
+
+        if conditions:
+            base_query += " WHERE " + " AND ".join(conditions)
+
+        try:
+            cursor.execute(base_query, tuple(params))
+            rows = cursor.fetchall()
+            connection.close()
+        except mysql.connector.Error:
+            return jsonify({"error": "Unable to reach database."}), 500
+        
+        display_players = (token_data and token_data['privilege_level'] >= 1) or check_release() # Only show players if user is admin or release time has passed
+
+        # Group players by adventure
+        adventures = {}
+        for row in rows:
+            adv_id = row['adventure_id']
+            if adv_id not in adventures:
+                adventures[adv_id] = {
+                    'id':                adv_id,
+                    'title':             row['title'],
+                    'short_description': row['short_description'],
+                    'user_id':           row['user_id'],
+                    'max_players':       row['max_players'],
+                    'start_date':        row['start_date'].isoformat(),
+                    'end_date':          row['end_date'].isoformat(),
+                    'players':           []
+                }
+            if display_players and row['player_id']:
+                adventures[adv_id]['players'].append({
+                    'id':       row['player_id'],
+                    'username': row['username'],  
+                })
+                if token_data and token_data['privilege_level'] >= 1:
+                    adventures[adv_id]['players'][-1]['karma'] = row['karma']
+        return jsonify(list(adventures.values())), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/adventures', methods=['POST'])
-@token_required(get_token_data=True)
+@token_required()
 def add_adventure(token_data):
+    """
+    Creates a new adventure.
+    """
     data = request.get_json()
     title = data.get('title')
     description = data.get('short_description')
     creator_id = token_data['user_id']
-    max_players = data.get('max_players')
+    max_players = int(data.get('max_players'))
     start_date = data.get('start_date')
     end_date = data.get('end_date')
+    is_story_adventure = data.get('is_story_adventure') == 1
+    requested_room = data.get('requested_room') 
     requested_players = data.get('requested_players')
 
     
@@ -312,20 +363,13 @@ def add_adventure(token_data):
 
     connection = mysql.connector.connect(**DB_CONFIG_WITH_DB)
     cursor = connection.cursor()
-    try:
-        if  not isinstance(creator_id, int):
-            try:  
-                validate_strings(creator_id)
-                creator_id = get_user_id_by_name(creator_id, cursor)
-            except UserNotFoundError as e:
-                return jsonify({'error': str(e)}), 404    
-    
-        validate_strings([title, description, max_players, start_date, end_date])
+    try:    
+        validate_strings([title, description, max_players, start_date, end_date, requested_room])
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     cursor.execute(
-        "INSERT INTO adventures (title, short_description, user_id, max_players, start_date, end_date) VALUES (%s, %s, %s, %s, %s, %s)",
-        (title, description, creator_id, max_players, start_date, end_date)
+        "INSERT INTO adventures (title, short_description, user_id, max_players, start_date, end_date, is_story_adventure, requested_room) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+        (title, description, creator_id, max_players, start_date, end_date, is_story_adventure, requested_room)
     )
     adventure_id = cursor.lastrowid
     mis_assignments = []
@@ -346,10 +390,138 @@ def add_adventure(token_data):
     
     return jsonify({'message': 'Adventure added successfully', "adventure_id": adventure_id}), 201
 
+@app.route('/api/adventures', methods=['PUT'])
+@token_required()
+def edit_adventure(token_data, adventure_id):
+    """
+    Edits an existing adventure. Only the original creator may update.
+    """
+    data = request.get_json() or {}
+    adventure_id = data.get('adventure_id')
+    user_id = token_data['user_id']
+
+    # Connect & verify ownership
+    connection = mysql.connector.connect(**DB_CONFIG_WITH_DB)
+    cursor = connection.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT user_id FROM adventures WHERE id = %s",
+        (adventure_id,)
+    )
+    row = cursor.fetchone()
+    if not row:
+        cursor.close()
+        connection.close()
+        return jsonify({'error': 'Adventure not found'}), 404
+    creator_id = row['user_id']
+    if token_data['privilege_level'] < 1 and creator_id != user_id:
+        cursor.close()
+        connection.close()
+        return jsonify({'error': 'Unauthorized to edit this adventure'}), 401
+
+    # Pull fields (only update those present)
+    fields = {}
+    if 'title' in data:
+        fields['title'] = data['title']
+    if 'short_description' in data:
+        fields['short_description'] = data['short_description']
+    if 'max_players' in data:
+        fields['max_players'] = int(data['max_players'])
+    if 'start_date' in data:
+        fields['start_date'] = data['start_date']
+    if 'end_date' in data:
+        fields['end_date'] = data['end_date']
+    if 'is_story_adventure' in data:
+        fields['is_story_adventure'] = (data['is_story_adventure'] == 1)
+    if 'requested_room' in data:
+        fields['requested_room'] = data['requested_room']
+
+    # Validate required strings if present
+    try:
+        validate_strings(
+            [v for k, v in fields.items() if isinstance(v, str)]
+        )
+    except ValueError as e:
+        cursor.close()
+        connection.close()
+        return jsonify({'error': str(e)}), 400
+
+    # Build and execute UPDATE
+    if fields:
+        set_clause = ", ".join(f"{k} = %s" for k in fields)
+        params = list(fields.values()) + [adventure_id]
+        cursor.execute(
+            f"UPDATE adventures SET {set_clause} WHERE id = %s",
+            params
+        )
+
+    # Handle reassignment of players if provided
+    mis_assignments = []
+    if 'requested_players' in data:
+        new_players = data['requested_players'] or []
+
+        # Delete old assignments
+        cursor.execute(
+            "DELETE FROM adventure_assignments WHERE adventure_id = %s",
+            (adventure_id,)
+        )
+
+        # Insert new assignments
+        for pid in new_players:
+            try:
+                cursor.execute(
+                    "INSERT INTO adventure_assignments "
+                    "(adventure_id, user_id, appeared, top_three) "
+                    "VALUES (%s, %s, 1, 1)",
+                    (adventure_id, pid)
+                )
+            except mysql.connector.errors.IntegrityError:
+                mis_assignments.append(pid)
+
+    connection.commit()
+    cursor.close()
+    connection.close()
+
+    if mis_assignments:
+        return jsonify({
+            'message': 'Adventure updated; some players could not be assigned.',
+            'mis_assignments': mis_assignments
+        }), 409
+
+    return jsonify({'message': 'Adventure updated successfully'}), 200
+
+@app.route('/api/adventures', methods=['DELETE'])
+@token_required()
+def delete_adventure(token_data):
+    """
+    Deletes an adventure with the given ID.
+    """
+    data = request.get_json()
+    adventure_id = data.get('adventure_id')
+    user_id = token_data['user_id']
+
+    connection = mysql.connector.connect(**DB_CONFIG_WITH_DB)
+    cursor = connection.cursor(dictionary=True)
+    cursor.fetchone()
+
+    cursor.execute("SELECTa.user_id FROM adventures WHERE id = %s", (adventure_id,))
+    creator_id = cursor.fetchone()
+
+    if token_data['privilege_level'] < 1 and creator_id != user_id:
+        cursor.close()
+        connection.close()
+        return jsonify({'error': 'Unauthorized to delete this adventure'}), 401
+    
+    cursor.execute("DELETE FROM adventures WHERE id = %s", (adventure_id,))
+    connection.close()
+    return jsonify({'message': f'adventure {adventure_id} deleted successfully'}), 200
+
 class UserNotFoundError(Exception):
     pass
 
 def get_privilege_level(user_id, cursor):
+    """
+    Returns the privilege level of the user with the given ID.
+    """
     if not isinstance(user_id, int):
         raise ValueError("User ID must be an integer.")
     cursor.execute("SELECT privilege_level FROM users WHERE id = %s", (user_id,))
@@ -362,6 +534,9 @@ def get_privilege_level(user_id, cursor):
         return result[0]
 
 def get_user_id_by_name(username, cursor):
+    """
+    Returns the ID of the user with the given username.
+    """
     cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
     result = cursor.fetchone()
     if not result:
@@ -373,6 +548,11 @@ def get_user_id_by_name(username, cursor):
     
 @app.route('/api/register', methods=['POST'])
 def register_new_user():
+    """
+    DEMO FUNCTION
+    Registers a new user and returns their ID.
+    """
+    #TODO: REMOVE DEMO FUNCTION
     data = request.get_json()
     username = data.get('username')
 
@@ -404,8 +584,11 @@ def register_new_user():
 
 
 @app.route('/api/signups', methods=['POST'])
-@token_required(get_token_data=True)
+@token_required()
 def signups(token_data):
+    """
+    Makes a signup for a specific adventure. Deletes old ones a signup if it already exists.
+    """
     data = request.get_json()
     adventure_id = int(data.get('adventure_id'))
     priority = int(data.get('priority'))
@@ -461,6 +644,9 @@ def signups(token_data):
 
 @app.route('/api/signups', methods=['GET'])
 def get_user_signups():
+    """
+    Returns all the signups (medals 1,2,3) of a specific user.
+    """
     # TODO: Change this function to use the token
     username = request.args.get('user', '')
     connection = mysql.connector.connect(**DB_CONFIG_WITH_DB)
@@ -485,7 +671,7 @@ def get_user_signups():
 
 @app.route('/api/update-karma')
 @token_required(1)
-def update_karma():
+def update_karma(_):
     connection = mysql.connector.connect(**DB_CONFIG_WITH_DB)
     reassign_karma(connection)
 
@@ -493,6 +679,9 @@ def update_karma():
 
 @app.route('/api/adventure-assignment', methods=['GET'])
 def get_adventure_assignment():
+    """
+    Returns a list of players assigned to a single adventure.
+    """
     adventure_id = int(request.args.get('adventure_id'))
     if not adventure_id:
         return jsonify({'error': 'Adventure ID is required'}), 400
@@ -512,10 +701,6 @@ def get_adventure_assignment():
     connection.close()
     return jsonify(players)
 
-def get_next_wednesday():
-    today = date.today()
-    days_ahead = (2 - today.weekday() + 7) % 7  # 2 is Wednesday
-    return today if days_ahead == 0 else today + timedelta(days=days_ahead)
 
 def make_waiting_list(cursor):
     next_wed = get_next_wednesday()
@@ -530,10 +715,10 @@ def make_waiting_list(cursor):
     """, (next_wed_str, next_wed_str))
 
 
-@app.route('/api/adventure-assignment', methods=['PUT'])
-@token_required(1)
 def assign_players_to_adventures():
-    
+    """
+    Assigns when call all players to there respective adventures
+    """
     connection = mysql.connector.connect(**DB_CONFIG_WITH_DB)
     cursor = connection.cursor()
 
@@ -564,30 +749,98 @@ def assign_players_to_adventures():
 
     return jsonify({'message': 'Adventures assigned and saved successfully'}), 200
 
+def check_release():
+    """
+    Returns true/false whether release date has passed.
+    """
+    connection = mysql.connector.connect(**DB_CONFIG_WITH_DB)
+    cursor = connection.cursor()
+    cursor.execute("SELECT release_state FROM variable_storage")
+    release = cursor.fetchone()[0]
+    cursor.close()
+    connection.close()
+
+    return release
+     
+a_d, a_h = CONFIG['TIMING']['assignment_day'].split("@")
+r_d, r_h = CONFIG['TIMING']['assignment_day'].split("@")
+re_d, re_h = CONFIG['TIMING']['assignment_day'].split("@")
+
+@ap_scheduler.task('cron', id='make_assignments', day_of_week=a_d, hour=a_h)
+def make_assignments():
+    assign_players_to_adventures()
+
+@ap_scheduler.task('cron', id='release_assignment', day_of_week=r_d, hour=r_h)
+def release_assignments():
+    connection = mysql.connector.connect(**DB_CONFIG_WITH_DB)
+    cursor = connection.cursor()
+    cursor.execute("UPDATE variable_storage SET release_state = TRUE WHERE id=1")
+    connection.commit()
+    cursor.close()
+    connection.close()
+
+@ap_scheduler.task('cron', id='reset_release', day_of_week=re_d, hour=re_h)
+def reset_release():
+    connection = mysql.connector.connect(**DB_CONFIG_WITH_DB)
+    cursor = connection.cursor()
+    cursor.execute("UPDATE variable_storage SET release_state = FALSE WHERE id=1")
+    connection.commit()
+    cursor.close()
+    connection.close()
+
+@app.route('/api/release', methods=['GET'])
+def get_release():
+    return jsonify({'release': check_release()})
+
+
+@app.route('/api/adventure-assignment/<action>', methods=['PUT'])
+@token_required(1)
+def force_assign_players(_, action):
+    """
+    Allows admin to trigger assignment now.
+    """
+    if action == "release":
+        release_assignments()
+    elif action == "reset":
+        reset_release()
+    elif action == "assign":
+        make_assignments()
+    else:
+        return jsonify({'error': f'Invalid action: {action}'}), 400
+    
+    return jsonify({'message': f'{action.capitalize()} action executed successfully'}), 200
 
 @app.route('/api/adventure-assignment', methods=['PATCH'])
 @token_required(1)
-def update_adventure_assignment():
-    data = request.get_json()
-    player_id = int(data['player_id'])
-    from_adventure_id = int(data['from_adventure_id'])
-    to_adventure_id = int(data['to_adventure_id'])
+def update_adventure_assignment(_):
+    """
+    Updates a single player's assignment to new adventure
+    """
+    try:
+        data = request.get_json()
+        player_id = int(data['player_id'])
+        from_adventure_id = int(data['from_adventure_id'])
+        to_adventure_id = int(data['to_adventure_id'])
 
-    connection = mysql.connector.connect(**DB_CONFIG_WITH_DB)
-    cursor = connection.cursor()
+        connection = mysql.connector.connect(**DB_CONFIG_WITH_DB)
+        cursor = connection.cursor()
 
-    # Update the database to move the player to the new adventure
-    cursor.execute("""
-        UPDATE adventure_assignments
-        SET adventure_id = %s
-        WHERE user_id = %s AND adventure_id = %s
-    """, (to_adventure_id, player_id, from_adventure_id))
-    connection.commit()
+        # Update the database to move the player to the new adventure
+        cursor.execute("""
+            UPDATE adventure_assignments
+            SET adventure_id = %s
+            WHERE user_id = %s AND adventure_id = %s
+        """, (to_adventure_id, player_id, from_adventure_id))
+        connection.commit()
 
-    cursor.close()
-    connection.close()
-    return jsonify({'message': 'Assignment updated successfully'}), 200
+        cursor.close()
+        connection.close()
 
+        return jsonify({'message': 'Assignment updated successfully'}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+        
 
 
 if __name__ == '__main__':
