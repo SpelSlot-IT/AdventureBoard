@@ -89,5 +89,14 @@ def reassign_karma(connection):
         )
     """)
 
+    # +1 karma for playing
+    cursor.execute("""
+        UPDATE users
+        SET karma = karma + 1
+        WHERE id IN (
+            SELECT user_id FROM adventure_assignments WHERE appeared = TRUE
+        )
+    """)
+
     connection.commit()
     print("Karma reassigned successfully.")
