@@ -28,7 +28,13 @@
             </div>
             <button type="submit">Sign In</button>
         </form>
+        <div class="register-redirect">
+            <p>Don't have an account? <a href="register">Register here</a></p>
+        </div>
     </div>
+
+    
+
     <script>
         window.BASEAPI = "{{ url_for('system_check', _external=False) }}";
     </script>

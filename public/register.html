@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <link rel="stylesheet" href="../../static/css/register-styles.css">
+    <link rel="shortcut icon" href="../../static/favicon.ico">
+</head>
+<body>
+    <div class="register-container">
+        <h1>Create an Account</h1>
+        <form id="registerForm" action="/register" method="POST" novalidate>
+            <div>
+                <input type="text" id="username" name="username" placeholder="Username" required>
+                <p class="error-message" id="usernameError"></p>
+            </div>
+            <div>
+                <input type="text" id="characterName" name="character_name" placeholder="Character Name" required>
+                <p class="error-message" id="characterNameError"></p>
+            </div>
+            <div>
+                <input type="text" id="dndAccount" name="dndbeyond_account" placeholder="D&D Beyond Account Name" required>
+                <p class="error-message" id="dndAccountError"></p>
+            </div>
+            <p>After inputting your information you'll ned to login with Google to link your account</p>
+            <button type="submit">Register and login</button>
+        </form>
+
+        <div class="login-redirect">
+            <p>Already have an account? <a href="login">Sign in here</a></p>
+        </div>
+    </div>
+
+    <script type="text/javascript" src="../../static/js/toast.js"></script>
+    <script type="text/javascript" src="../../static/js/register.js"></script>
+</body>
+</html>

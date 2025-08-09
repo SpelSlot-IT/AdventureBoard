@@ -1,0 +1,90 @@
+import re
+from models import *
+from ranking_tools import *
+from flask import jsonify
+from datetime import datetime, timedelta, date
+
+def check_release():
+    """
+    Returns True/False whether the release date has passed.
+    """
+    variable = db.session.query(VariableStorage).first()
+    return variable.release_state if variable else False
+     
+def get_next_wednesday():
+    today = date.today()
+    days_ahead = (2 - today.weekday() + 7) % 7  # 2 is Wednesday
+    return today if days_ahead == 0 else today + timedelta(days=days_ahead)
+
+def make_waiting_list():
+    """
+    Creates a placeholder 'waiting list' adventure with ID -999 if it doesn't exist.
+    """
+    next_wed = get_next_wednesday()
+    
+    try:
+        # Check if the waiting list adventure already exists
+        exists_query = db.session.query(
+            db.session.query(Adventure).filter_by(id=-999).exists()
+        ).scalar()
+
+        if not exists_query:
+            waiting_list = Adventure(
+                id=-999,
+                title='waiting list',
+                max_players=0,
+                short_description='',
+                start_date=next_wed,
+                end_date=next_wed
+            )
+            db.session.add(waiting_list)
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        raise e  # Or log the error / handle it differently if needed
+
+
+def assign_players_to_adventures():
+    """
+    Assigns all players to their respective adventures for upcoming events.
+    """
+
+    try:
+        # 1. Delete old assignments from past adventures
+        db.session.query(AdventureAssignment).join(Adventure).filter(
+            Adventure.end_date < date.today()
+        ).delete(synchronize_session=False)
+
+        # 2. Ensure the upcoming waiting list adventure exists
+        make_waiting_list()
+
+        # 3. Get new adventure assignments (your custom logic)
+        assignments = assign_adventures_from_db()
+
+        # 4. Insert new assignments
+        for adventure_id, player_entries in assignments.items():
+            for user_id, top_three in player_entries:
+                new_assignment = AdventureAssignment(
+                    user_id=user_id,
+                    adventure_id=adventure_id,
+                    top_three=top_three,
+                    appeared=True  # Assuming `appeared=True` by default
+                )
+                db.session.add(new_assignment)
+
+        # 5. Commit changes
+        db.session.commit()
+        return jsonify({'message': 'Adventures assigned and saved successfully'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+def validate_strings(strings):
+    if not isinstance(strings, list):
+        strings = [strings]
+    for string in strings:
+        string = str(string)
+        if not re.match(r'^[a-zA-Z0-9_./\- !?]+$', string):
+            raise ValueError("Strings may only contain letters, numbers, hyphens, spaces, question and exclamation marks, dots and underscores.")
