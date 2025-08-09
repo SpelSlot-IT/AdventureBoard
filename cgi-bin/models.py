@@ -3,10 +3,10 @@ from flask_login import UserMixin, AnonymousUserMixin
 
 db = SQLAlchemy()
 
-
 class Anonymous(AnonymousUserMixin):
   def __init__(self):
     self.privilege_level = -1
+    self.id = -1
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -32,22 +32,23 @@ class User(UserMixin, db.Model):
         if self.display_name is None:
             self.display_name = self.name
 
+
 class Adventure(db.Model):
     __tablename__ = 'adventures'
 
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    title = db.Column(db.String(255), nullable=False)
-    short_description = db.Column(db.Text, nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    max_players = db.Column(db.Integer, nullable=False, default=5)
-    start_date = db.Column(db.Date, nullable=False)
-    end_date = db.Column(db.Date, nullable=False)
-    is_story_adventure = db.Column(db.Boolean, nullable=False, default=False)
-    requested_room = db.Column(db.String(4))
+    id                  = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    title               = db.Column(db.String(255), nullable=False)
+    short_description   = db.Column(db.Text, nullable=False)
+    user_id             = db.Column(db.Integer, db.ForeignKey('users.id'))
+    max_players         = db.Column(db.Integer, nullable=False, default=5)
+    start_date          = db.Column(db.Date, nullable=False)
+    end_date            = db.Column(db.Date, nullable=False)
+    is_story_adventure  = db.Column(db.Boolean, nullable=False, default=False)
+    requested_room      = db.Column(db.String(4))
 
-    creator = db.relationship('User', back_populates='adventures_created')
-    signups = db.relationship('Signup', back_populates='adventure')
-    assignments = db.relationship('AdventureAssignment', back_populates='adventure')
+    creator         = db.relationship('User', back_populates='adventures_created')
+    signups         = db.relationship('Signup', back_populates='adventure')
+    assignments     = db.relationship('AdventureAssignment', back_populates='adventure')
 
     def __repr__(self):
         return f"<Adventure(id={self.id}, title='{self.title}')>"

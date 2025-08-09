@@ -1,242 +1,696 @@
-from flask import Flask, request
-from flask_restx import Api, Resource, fields, reqparse, Namespace, abort
-from flask_login import current_user, login_required
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from flask_marshmallow import Marshmallow
+from flask_smorest import Blueprint, abort
+from marshmallow import validates_schema, ValidationError
+from flask_login import (
+    current_user,
+    login_required,
+    login_user,
+    logout_user,
+)
+from flask.views import MethodView
+from flask import ( 
+    request, 
+    current_app, 
+    url_for, 
+    redirect, 
+    g 
+    )
+from sqlalchemy import text
 from sqlalchemy.orm import joinedload
-from datetime import datetime
-from yourapp import db
-from yourapp.models import Adventure, AdventureAssignment, User
-from yourapp.utils import validate_strings, check_release
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+import requests
+from oauthlib.oauth2 import WebApplicationClient
+import json
 
-app = Flask(__name__)
-api = Api(app, version='1.0', title='Adventures API', description='Manage Adventures')
-adventures_ns = Namespace('adventures', description='Adventure operations')
-api.add_namespace(adventures_ns, path='/api/adventures')
+from models import db, User, Adventure, AdventureAssignment
+from util import *
 
-# Models for marshalling
-user_model = adventures_ns.model('User', {
-    'id': fields.Integer,
-    'username': fields.String,
-    'karma': fields.Integer(attribute='karma', required=False)
-})
+ma = Marshmallow()
 
-assignment_model = adventures_ns.model('Assignment', {
-    'user': fields.Nested(user_model)
-})
+blp_utils = Blueprint("utils", "utils", url_prefix="/api/",
+               description="Utils API: Everything that does not fit in the other categories.")
+blp_adventure = Blueprint("adventures", "adventures", url_prefix="/api/adventures",
+               description="Adventures API: Everything related to adventures. The big boxes with adventure names and descriptions.")
+blp_assignment = Blueprint("adventure-assignment", "adventure-assignment", url_prefix="/api/adventure-assignment",
+               description="Assignment API: Everything related to the assignments of players. The boxes with player names.")
+blp_signup = Blueprint("signups", "signups", url_prefix="/api/signups",
+               description="Signups API: Everything related to the signups of users. Priority medals 1, 2, 3")
 
-adventure_model = adventures_ns.model('Adventure', {
-    'id': fields.Integer(readOnly=True),
-    'title': fields.String(required=True),
-    'short_description': fields.String(required=True),
-    'user_id': fields.Integer,
-    'max_players': fields.Integer,
-    'start_date': fields.String,
-    'end_date': fields.String,
-    'players': fields.List(fields.Nested(user_model))
-})
+api_blueprints = [blp_utils, blp_adventure, blp_assignment, blp_signup]
 
-# Input payload for POST/PUT
-adventure_input = adventures_ns.model('AdventureInput', {
-    'title': fields.String(required=True),
-    'short_description': fields.String(required=True),
-    'max_players': fields.Integer(required=True),
-    'start_date': fields.String(required=True, description='ISO8601 date'),
-    'end_date': fields.String(required=True, description='ISO8601 date'),
-    'is_story_adventure': fields.Boolean,
-    'requested_room': fields.String,
-    'requested_players': fields.List(fields.Integer)
-})
+# ----------------------- Schemas ---------------------------------
 
-# Parser for GET query params
-get_parser = reqparse.RequestParser()
-get_parser.add_argument('adventure_id', type=int, required=False, help='Filter by adventure ID')
-get_parser.add_argument('week_start', type=str, required=False, help='Start of week (ISO8601)')
-get_parser.add_argument('week_end', type=str, required=False, help='End of week (ISO8601)')
+class AliveSchema(ma.Schema):
+    status = ma.String()
+    db = ma.String()
+    version = ma.String()
 
-@adventures_ns.route('')
-class AdventureList(Resource):
-    @adventures_ns.expect(get_parser)
-    @adventures_ns.marshal_list_with(adventure_model)
-    def get(self):
-        '''List adventures, optionally filtered by ID or date range'''
-        args = get_parser.parse_args()
-        adv_id = args.get('adventure_id')
-        ws = args.get('week_start')
-        we = args.get('week_end')
+class RedirectSchema(ma.Schema):
+    redirect_url = ma.Url(required=True)
 
-        query = db.session.query(Adventure).options(
-            joinedload(Adventure.assignments).joinedload(AdventureAssignment.user)
-        )
-        if adv_id:
-            query = query.filter(Adventure.id == adv_id)
-        elif ws and we:
-            try:
-                start_dt = datetime.fromisoformat(ws)
-                end_dt = datetime.fromisoformat(we)
-            except ValueError:
-                abort(400, 'Invalid date format. Use ISO 8601.')
-            query = query.filter(Adventure.start_date <= end_dt, Adventure.end_date >= start_dt)
+class MessageSchema(ma.Schema):
+    message = ma.String(required=True)
 
-        adventures = query.all()
-        display_players = (not current_user.is_anonymous and current_user.privilege_level >= 1) or check_release()
+class AssignmentUpdateSchema(ma.Schema):
+    player_id = ma.Integer(required=True)
+    from_adventure_id = ma.Integer(required=True)
+    to_adventure_id = ma.Integer(required=True)
 
-        result = []
-        for adv in adventures:
-            adv_dict = {
-                'id': adv.id,
-                'title': adv.title,
-                'short_description': adv.short_description,
-                'user_id': adv.user_id,
-                'max_players': adv.max_players,
-                'start_date': adv.start_date.isoformat(),
-                'end_date': adv.end_date.isoformat(),
-                'players': []
-            }
-            if display_players:
-                for assignment in adv.assignments:
-                    user = assignment.user
-                    if user:
-                        player = {
-                            'id': user.id,
-                            'username': user.name
-                        }
-                        if current_user.privilege_level >= 1:
-                            player['karma'] = user.karma
-                        adv_dict['players'].append(player)
-            result.append(adv_dict)
-        return result, 200
+class UserSchema(ma.SQLAlchemyAutoSchema):
+    """Schema for User that excludes the `name` column and exposes
+    `display_name` (as the canonical display identity).
 
-    @login_required
-    @adventures_ns.expect(adventure_input)
-    def post(self):
-        '''Create a new adventure'''
-        data = request.json
-        # validate basic
-        title = data.get('title')
-        desc = data.get('short_description')
-        if not title or not desc:
-            abort(400, 'Missing title or short_description')
+    Only a small set of non-sensitive fields are included by default. If you
+    need to show or hide additional fields (email, google_id, etc.) consider
+    adding parameters or a `hide_fields` pattern as in your original model file.
+    """
 
+    class Meta:
+        model = User
+        include_fk = True
+        load_instance = False
+        sqla_session = db.session
+        # Exclude the database `name` field
+        exclude = ("name","google_id","email")
+
+class SignupSchema(ma.SQLAlchemyAutoSchema):
+    class Meta:
+        model = Signup
+        include_fk = True
+        load_instance = False
+        sqla_session = db.session
+        only = ("user_id", "adventure_id", "priority")
+
+class AdventureQuerySchema(ma.Schema):
+    adventure_id = ma.Integer(allow_none=True)
+    week_start = ma.Date(allow_none=True)
+    week_end = ma.Date(allow_none=True)
+
+    @validates_schema
+    def validate_dates(self, data, **kwargs):
+        sd = data.get("week_start")
+        ed = data.get("week_end")
+        if sd and ed and sd > ed:
+            raise ValidationError("week_start must be <= week_end.")
+
+
+class AdventureSchema(ma.SQLAlchemyAutoSchema):
+    """Auto-schema for Adventure used for both output (dump) and input (load).
+
+    - `players` is a nested list of UserSchema for dumping only.
+    - `requested_players` is a load-only list of ints that the POST endpoint
+       will use to create AdventureAssignment rows.
+
+    Visibility rules are controlled by passing `context` to the schema with
+    keys:
+      - display_players: bool
+      - expose_karma: bool
+
+    post_dump strips or sanitizes the player data based on that context.
+    """
+
+    # players -> nested users (dump only)
+    players = ma.List(ma.Nested(UserSchema), dump_only=True)
+
+    # allow the same schema to accept requested_players during creation
+    requested_players = ma.List(ma.Integer(), load_only=True, allow_none=True)
+
+    class Meta:
+        model = Adventure
+        include_fk = True
+        load_instance = False  # keep loading as dict for explicit DB handling
+        sqla_session = db.session
+        # avoid auto-dumping relationships we don't want
+        exclude = ("assignments", "signups")
+
+    @validates_schema
+    def validate_dates(self, data, **kwargs):
+        sd = data.get("start_date")
+        ed = data.get("end_date")
+        if sd and ed and sd > ed:
+            raise ValidationError("start_date must be <= end_date.")
+
+
+# ----------------------- Routes ----------------------------------
+@blp_adventure.route("")
+class AdventureResource(MethodView):
+
+    @blp_adventure.arguments(AdventureQuerySchema, location="query")
+    @blp_adventure.response(200, AdventureSchema(many=True))
+    def get(self, args):
+        """
+        Returns a list of Adventure objects. 
+        
+        The field `players` will be present only when the requester is allowed (privilege level or `check_release()`).
+        """
         try:
-            validate_strings([title, desc, data.get('requested_room')])
-            max_players = int(data.get('max_players'))
-            sd = datetime.fromisoformat(data['start_date']).date()
-            ed = datetime.fromisoformat(data['end_date']).date()
-        except (ValueError, TypeError) as e:
-            abort(400, f'Invalid input: {e}')
+            adventure_id = args.get("adventure_id")
+            week_start = args.get("week_start")
+            week_end = args.get("week_end")
+            print(type(args.get("week_start")))
+            if not adventure_id and not week_start and not week_end:
+                abort(400, message="Either adventure_id or week_start/week_end must be specified.")
 
-        new_adv = Adventure(
-            title=title,
-            short_description=desc,
-            user_id=current_user.id,
-            max_players=max_players,
-            start_date=sd,
-            end_date=ed,
-            is_story_adventure=data.get('is_story_adventure', False),
-            requested_room=data.get('requested_room')
-        )
-        db.session.add(new_adv)
-        db.session.flush()
+            # Eager-load assignments -> user to avoid N+1 queries
+            query = db.session.query(Adventure).options(
+                joinedload(Adventure.assignments).joinedload(AdventureAssignment.user)
+            )
 
-        mis = []
-        for pid in data.get('requested_players', []):
-            try:
-                assign = AdventureAssignment(
+            if adventure_id is not None:
+                query = query.filter(Adventure.id == int(adventure_id))
+            elif week_start and week_end:
+                query = query.filter(Adventure.start_date <= week_end,
+                                     Adventure.end_date >= week_start)
+
+            adventures = query.all()
+            for adv in adventures:
+                print(type(adv.start_date), adv.start_date)
+                print(type(adv.end_date), adv.end_date)
+
+            # Determine display rights
+            is_admin = (current_user.is_authenticated and current_user.privilege_level >= 1)
+            display_players = is_admin or check_release()
+            exclude = []
+            if not is_admin:
+                exclude = ["karma"]
+            if not display_players:
+                exclude = exclude + ["signups"]
+
+
+            schema = AdventureSchema(many=True, exclude=exclude)
+
+            return schema.dump(adventures)
+
+        except ValidationError as ve:
+            abort(400, message=str(ve))
+        except Exception as e:
+            abort(500, message=str(e))
+
+    # note decorator order: we validate/deserialize the body using AdventureSchema
+    # and then require login
+    @blp_adventure.arguments(AdventureSchema(exclude=("id","user_id")))
+    #@login_required
+    @blp_adventure.response(201, AdventureSchema)
+    def post(self, data):
+        """
+        Create a new adventure.
+
+        Create a new adventure and optionally create AdventureAssignment rows for
+        `requested_players` (the field is load-only on the AdventureSchema). If some
+        player assignments fail (invalid user_id), the adventure itself is still
+        created but a 409 is returned listing `mis_assignments`.
+        """
+        try:
+            # Extract validated fields (data comes from AdventureSchema load)
+            title = data.get("title")
+            short_description = data.get("short_description")
+            max_players = int(data.get("max_players")) if data.get("max_players") is not None else None
+            start_date = data.get("start_date")
+            end_date = data.get("end_date")
+            is_story_adventure = bool(data.get("is_story_adventure", False))
+            requested_room = data.get("requested_room")
+            requested_players = data.get("requested_players", [])
+
+            new_adv = Adventure(
+                title=title,
+                short_description=short_description,
+                user_id=current_user.id,
+                max_players=max_players if max_players is not None else Adventure.max_players.default.arg,
+                start_date=start_date,
+                end_date=end_date,
+                is_story_adventure=is_story_adventure,
+                requested_room=requested_room
+            )
+
+            db.session.add(new_adv)
+            db.session.flush()  # gives new_adv.id without committing
+
+            mis_assignments = []
+            for pid in requested_players:
+                assignment = AdventureAssignment(
                     adventure_id=new_adv.id,
                     user_id=pid,
                     appeared=True,
                     top_three=True
                 )
-                db.session.add(assign)
-                db.session.flush()
-            except IntegrityError:
-                db.session.rollback()
-                mis.append(pid)
+                db.session.add(assignment)
+                try:
+                    db.session.flush()
+                except IntegrityError:
+                    # invalid foreign key or other integrity error for this assignment
+                    db.session.rollback()
+                    mis_assignments.append(pid)
+                    # re-attach new_adv so we can continue adding assignments
+                    db.session.add(new_adv)
 
-        try:
             db.session.commit()
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            abort(500, f'Database error: {e}')
 
-        if mis:
-            return {'message': 'Adventure added, but some players could not be assigned.',
-                    'adventure_id': new_adv.id,
-                    'mis_assignments': mis}, 409
-        return {'message': 'Adventure added successfully', 'adventure_id': new_adv.id}, 201
+            # Prepare response using AdventureSchema and the same visibility rules
+            display_players = (current_user.is_authenticated and current_user.privilege_level >= 1) or \
+                              (check_release() if "check_release" in globals() else False)
+            expose_karma = (current_user.is_authenticated and current_user.privilege_level >= 1)
+
+            schema = AdventureSchema()
+            adv_data = schema.dump(new_adv)
+
+            if mis_assignments:
+                body = {
+                    "message": "Adventure added, but some players could not be assigned.",
+                    "adventure_id": new_adv.id,
+                    "mis_assignments": mis_assignments,
+                    **adv_data,
+                }
+                # return 409 with body (still include the created resource)
+                return jsonify(body), 409
+
+            return adv_data, 201
+
+        except ValidationError as ve:
+            abort(400, message=str(ve))
+        except Exception as e:
+            db.session.rollback()
+            abort(500, message=str(e))
 
     @login_required
-    @adventures_ns.expect(adventure_input)
-    def put(self):
-        '''Update an existing adventure. Provide adventure_id in JSON'''
-        data = request.json or {}
-        adv_id = data.get('adventure_id')
-        if not adv_id:
-            abort(400, 'Missing adventure_id')
-        adv = Adventure.query.get(adv_id)
-        if not adv:
-            abort(404, 'Adventure not found')
-        if current_user.privilege_level < 1 and adv.user_id != current_user.id:
-            abort(401, 'Unauthorized to edit this adventure')
+    @blp_adventure.arguments(AdventureSchema(partial=True, exclude=("id","user_id")))
+    def patch(self, data):
+        """Edit an existing adventure. Only creator or admin can edit."""
+        user_id = current_user.id
+        adventure_id = data.get("id")
 
-        # update fields
-        for field in ['title', 'short_description', 'max_players', 'requested_room']:
+        adventure = Adventure.query.get(adventure_id)
+        if not adventure:
+            abort(404, message="Adventure not found.")
+
+        # Ownership or admin check
+        if current_user.privilege_level < 1 and adventure.user_id != user_id:
+            abort(401, message="Unauthorized to edit this adventure.")
+
+        # Update provided fields
+        for field in ["title", "short_description", "requested_room"]:
             if field in data:
-                setattr(adv, field, data[field])
-        for date_field in ['start_date', 'end_date']:
-            if date_field in data:
-                try:
-                    setattr(adv, date_field, datetime.fromisoformat(data[date_field]).date())
-                except ValueError:
-                    abort(400, f'Invalid {date_field} format')
-        if 'is_story_adventure' in data:
-            adv.is_story_adventure = data['is_story_adventure']
+                setattr(adventure, field, data[field])
 
-        try:
-            validate_strings([v for k, v in data.items() if isinstance(v, str)])
-        except ValueError as e:
-            abort(400, str(e))
+        if "max_players" in data:
+            adventure.max_players = int(data["max_players"])
 
-        mis = []
-        if 'requested_players' in data:
-            AdventureAssignment.query.filter_by(adventure_id=adv_id).delete()
-            for pid in data.get('requested_players', []):
+        if "start_date" in data:
+            try:
+                adventure.start_date = datetime.fromisoformat(data["start_date"]).date()
+            except ValueError:
+                abort(400, message="Invalid start_date format.")
+
+        if "end_date" in data:
+            try:
+                adventure.end_date = datetime.fromisoformat(data["end_date"]).date()
+            except ValueError:
+                abort(400, message="Invalid end_date format.")
+
+        if "is_story_adventure" in data:
+            adventure.is_story_adventure = bool(data["is_story_adventure"])
+
+        mis_assignments = []
+
+        # Player reassignment
+        if "requested_players" in data:
+            new_player_ids = data["requested_players"] or []
+
+            AdventureAssignment.query.filter_by(adventure_id=adventure_id).delete()
+
+            for pid in new_player_ids:
                 try:
-                    assign = AdventureAssignment(adventure_id=adv_id, user_id=pid, appeared=True, top_three=True)
-                    db.session.add(assign)
+                    assignment = AdventureAssignment(
+                        adventure_id=adventure_id,
+                        user_id=pid,
+                        appeared=True,
+                        top_three=True
+                    )
+                    db.session.add(assignment)
                     db.session.flush()
                 except IntegrityError:
                     db.session.rollback()
-                    mis.append(pid)
+                    mis_assignments.append(pid)
 
         try:
             db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            abort(500, message=str(e))
+
+        if mis_assignments:
+            abort(
+                409,
+                message="Adventure updated; some players could not be assigned.",
+                extra={"mis_assignments": mis_assignments}
+            )
+
+        return {"message": "Adventure updated successfully"}
+    
+    @login_required
+    @blp_adventure.arguments(AdventureSchema(partial=True, exclude=("id","user_id")))
+    def delete():
+        """
+        Deletes an adventure with the given ID. Only creator or admin can delete.
+        """
+        data = request.get_json()
+        adventure_id = data.get('adventure_id')
+        user_id = current_user.id
+
+        if not adventure_id:
+            abort(400, message={'error': 'Missing adventure_id'})
+
+        try:
+            adventure = Adventure.query.get(adventure_id)
+            if not adventure:
+                abort(404, message={'error': 'Adventure not found'})
+
+            # Check permission: admin or creator
+            if current_user.privilege_level < 1 and adventure.user_id != user_id:
+                abort(401, message={'error': 'Unauthorized to delete this adventure'})
+
+            db.session.delete(adventure)
+            db.session.commit()
+
+            return {'message': f'Adventure {adventure_id} deleted successfully'}
+
         except SQLAlchemyError as e:
             db.session.rollback()
-            abort(500, f'Database error: {e}')
+            return abort(500, message={'error': f'Database error: {str(e)}'})
 
-        if mis:
-            return {'message': 'Adventure updated; some players could not be assigned.',
-                    'mis_assignments': mis}, 409
-        return {'message': 'Adventure updated successfully'}, 200
+        except Exception as e:
+            return abort(500, message={'error': str(e)})
+
+# --- UTILS ---
+
+@blp_utils.route("/alive")
+class AliveResource(MethodView):
+    @blp_utils.response(200, AliveSchema)
+    def get(self):
+        """Check API and DB connectivity."""
+        try:
+            db.session.execute(text("SELECT 1"))
+            return {
+                "status": "ok",
+                "db": "reachable",
+                "version": current_app.config["VERSION"]["version"],
+            }
+        except SQLAlchemyError as e:
+            abort(
+                500,
+                message=str(e),
+                extra={"version": current_app.config["VERSION"]["version"], "status": "error"},
+            )
+
+@blp_utils.route("/me")
+class MeResource(MethodView):
+    @login_required
+    @blp_utils.response(200, UserSchema(exclude=['karma']))
+    def get(self):
+        """Return current user's details."""
+        return current_user
+
+
+@blp_utils.route("/users")
+class UsersResource(MethodView):
+    @blp_utils.response(200, UserSchema(many=True))
+    def get(self):
+        """Return a list of all users."""
+        try:
+            return db.session.query(User).all()
+        except Exception as e:
+            abort(500, message=str(e))
+
+@blp_utils.route('/update-karma')
+@login_required
+class UpdateKarmaResource(MethodView):
+    @blp_utils.response(200, MessageSchema)
+    def get():
+        """
+        Force an update of the karma of all players regarding the normal update rules.
+        """
+        if current_user.privilege_level < 1:
+            abort(401, message={'error': 'Unauthorized'})
+        reassign_karma()
+
+        return {'message': 'Karma updated successfully'}, 200
+    
+@blp_utils.route('/release')
+class ReleaseResource(MethodView):
+    @blp_utils.response(200, MessageSchema)
+    def get():
+        """
+        Returns the current release status.
+        """
+        return {'release': check_release()}, 200
+
+@blp_utils.route("/login")
+class LoginResource(MethodView):
+    @blp_utils.response(200, RedirectSchema)
+    def get(self):
+        """
+        Requests a login from Google. Redirects to Google.
+        """
+        # Find out what URL to hit for Google login
+        if 'client' not in g:
+            g.client = WebApplicationClient(current_app.config["GOOGLE"]["client_id"])
+            g.google_provider_cfg = requests.get(current_app.config["GOOGLE"]["discovery_url"]).json()
+        authorization_endpoint = g.google_provider_cfg["authorization_endpoint"]
+
+        # Use library to construct the request for login and provide
+        # scopes that let you retrieve user's profile from Google
+        request_uri = g.client.prepare_request_uri(
+            authorization_endpoint,
+            redirect_uri=request.base_url + "/callback",
+            scope=["openid", "email", "profile"],
+        )
+        return redirect(request_uri)
+    
+@blp_utils.route("/login/callback")
+class CallbackResource(MethodView):
+    @blp_utils.response(200, RedirectSchema)
+    def get(self):
+        """
+        Endpoint for Google to redirect to after login.
+        """
+        if 'client' not in g:
+            abort(500, message="Google client not initialized. Call /login first")    
+        try:
+            # Get authorization code Google sent back to you
+            code = request.args.get("code")
+
+            # Find out what URL to hit to get tokens that allow you to ask for
+            # things on behalf of a user
+            token_endpoint = g.google_provider_cfg["token_endpoint"]
+
+            # Prepare and send request to get tokens! Yay tokens!
+            token_url, headers, body = g.client.prepare_token_request(
+                token_endpoint,
+                authorization_response=request.url,
+                redirect_url=request.base_url,
+                code=code,
+            )
+            token_response = requests.post(
+                token_url,
+                headers=headers,
+                data=body,
+                auth=(g.config["GOOGLE"]["client_id"], g.config["GOOGLE"]["client_secret"]),
+            )
+
+            # Parse the tokens!
+            g.client.parse_request_body_response(json.dumps(token_response.json()))
+
+            # Now that we have tokens (yay) let's find and hit URL
+            # from Google that gives you user's profile information,
+            # including their Google Profile Image and Email
+            userinfo_endpoint = g.google_provider_cfg["userinfo_endpoint"]
+            uri, headers, body = g.client.add_token(userinfo_endpoint)
+            userinfo_response = requests.get(uri, headers=headers, data=body)
+
+            # We want to make sure their email is verified.
+            # The user authenticated with Google, authorized our
+            # app, and now we've verified their email through Google!
+            if userinfo_response.json().get("email_verified"):
+                unique_id = userinfo_response.json()["sub"]
+                users_email = userinfo_response.json()["email"]
+                picture = userinfo_response.json()["picture"]
+                users_name = userinfo_response.json()["given_name"]
+            else:
+                return "User email not available or not verified by Google.", 400
+
+            # Create a user in our db with the information provided by Google
+            # 1) See if Google’s user_id is already in our table
+            existing = User.query.filter_by(google_id=unique_id).first()
+
+            if existing:
+                # They’re already in our DB — use that
+                login_user(existing)
+            else:
+                # Not found → create and commit
+                new_user = User(
+                    google_id=unique_id,
+                    name=users_name,
+                    email=users_email,
+                    profile_pic=picture)
+                db.session.add(new_user)
+                db.session.commit()
+                login_user(new_user, fresh=True) 
+
+            # Send user back to homepage
+            return redirect(url_for("dashboard"))
+
+        except Exception as e:
+            return str(e)+f" - {unique_id} {users_name}", 500
+
+
+
+
+@blp_utils.route('/logout')
+class LockoutResource(MethodView):
+    @login_required
+    @blp_utils.response(200, RedirectSchema)
+    def get(self):
+        """
+        Logout the current user.
+        """
+        logout_user()
+        return redirect(url_for("home"))    
+    
+# --- ASSIGNMENTS ---
+@blp_assignment.route('/')
+class AssignmentResource(MethodView):
+    @blp_assignment.response(200,UserSchema(many=True, exclude=['karma', 'privilege_level', 'email', 'profile_pic']))
+    def get(self):
+        """
+        Returns a list of players assigned to a single adventure.
+        """
+        try:
+            adventure_id = request.args.get('adventure_id', type=int)
+            if not adventure_id:
+                return jsonify({'error': 'Adventure ID is required'}), 400
+            assignments = AdventureAssignment.query.filter_by(adventure_id=adventure_id).join(User).all()
+            users = [assignment.user for assignment in assignments if assignment.user]
+
+            return users, 200
+
+        except Exception as e:
+            return abort(500, message={'error': str(e)})
 
     @login_required
-    def delete(self):
-        '''Delete an adventure by ID. Provide adventure_id in JSON'''
-        data = request.json or {}
-        adv_id = data.get('adventure_id')
-        if not adv_id:
-            abort(400, 'Missing adventure_id')
-        adv = Adventure.query.get(adv_id)
-        if not adv:
-            abort(404, 'Adventure not found')
-        if current_user.privilege_level < 1 and adv.user_id != current_user.id:
-            abort(401, 'Unauthorized to delete this adventure')
+    @blp_assignment.arguments(MessageSchema)
+    @blp_assignment.response(200, MessageSchema)
+    def put(self, args):
+        """
+        Executes an admin action.
+        """
+        # Admin check
+        if current_user.privilege_level < 1:
+            abort(401, message="Unauthorized")
+        
+        action = args['message']
+
+        if action == "release":
+            release_assignments()
+        elif action == "reset":
+            reset_release()
+        elif action == "assign":
+            assign_players_to_adventures()
+        else:
+            abort(400, message=f"Invalid action: {action}")
+
+        return {'message': f'{action.capitalize()} action executed successfully'}, 200
+    
+    @blp_assignment.arguments(AssignmentUpdateSchema)
+    @login_required
+    def patch(self, args):
+        """
+        Moves a players assignment from one adventure to another.
+        """
+        if current_user.privilege_level < 1:
+            abort(401, message="Unauthorized")
+
+        player_id = args['player_id']
+        from_adventure_id = args['from_adventure_id']
+        to_adventure_id = args['to_adventure_id']
+
+        assignment = db.session.query(AdventureAssignment).filter_by(
+            user_id=player_id,
+            adventure_id=from_adventure_id
+        ).first()
+
+        if not assignment:
+            abort(404, message="Assignment not found")
+
+        assignment.adventure_id = to_adventure_id
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            abort(400, message=str(e))
+
+        return {'message': 'Assignment updated successfully'}, 200
+
+# --- SIGNUP ---
+@blp_signup.route('/')
+class SignupResource(MethodView):
+    @login_required
+    @blp_signup.response(200, SignupSchema(many=True))
+    def get(self):
+        """
+        Returns all the signups (priority medals 1, 2, 3) of the authenticated user.
+        """
+        if current_user.privilege_level < 0:
+            abort(401, message="Unauthorized")
 
         try:
-            db.session.delete(adv)
+            signups = Signup.query.filter_by(user_id=current_user.id).all()
+            return signups
+
+        except SQLAlchemyError as e:
+            abort(500, message=f"Database error: {str(e)}")
+
+        except Exception as e:
+            abort(500, message=str(e))
+
+    @blp_signup.response(200, MessageSchema)
+    def post(self, data):
+        """
+        Makes a signup for a specific adventure.
+        Deletes old ones if a signup already exists.
+        Acts as a toggle: if the same signup exists, it removes it.
+        """
+        adventure_id = data["adventure_id"]
+        priority = data["priority"]
+        user_id = current_user.id
+
+        try:
+            # Check if exact same signup already exists (toggle behavior)
+            existing_signup = Signup.query.filter_by(
+                user_id=user_id,
+                adventure_id=adventure_id,
+                priority=priority
+            ).first()
+
+            if existing_signup:
+                db.session.delete(existing_signup)
+                message = 'Signup removed'
+            else:
+                # Remove any existing signup with same priority (regardless of adventure)
+                Signup.query.filter_by(user_id=user_id, priority=priority).delete()
+
+                # Remove any existing signup for same adventure (regardless of priority)
+                Signup.query.filter_by(user_id=user_id, adventure_id=adventure_id).delete()
+
+                # Add new signup
+                new_signup = Signup(user_id=user_id, adventure_id=adventure_id, priority=priority)
+                db.session.add(new_signup)
+                message = 'Signup registered'
+
             db.session.commit()
-            return {'message': f'Adventure {adv_id} deleted successfully'}, 200
+            return {"message": message}, 200
+
         except SQLAlchemyError as e:
             db.session.rollback()
-            abort(500, f'Database error: {e}')
+            abort(500, message=f"Database error: {str(e)}")
+
+        except Exception as e:
+            abort(500, message=str(e))

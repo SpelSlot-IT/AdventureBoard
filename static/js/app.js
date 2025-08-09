@@ -69,7 +69,6 @@ async function loadAdventures() {
   // Build the query string
   const params = new URLSearchParams();
   params.set('user', currentUserName);
-  params.set('adventure_id', null);
   // always include week bounds
   params.set('week_start', weekStart.toISOString().split('T')[0]);
   params.set('week_end', weekEnd.toISOString().split('T')[0]);

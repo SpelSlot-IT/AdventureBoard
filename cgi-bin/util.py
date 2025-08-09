@@ -4,6 +4,8 @@ from ranking_tools import *
 from flask import jsonify
 from datetime import datetime, timedelta, date
 
+
+
 def check_release():
     """
     Returns True/False whether the release date has passed.
@@ -43,6 +45,24 @@ def make_waiting_list():
         db.session.rollback()
         raise e  # Or log the error / handle it differently if needed
 
+def release_assignments():
+    try:
+        variable = db.session.query(VariableStorage).filter_by(id=1).first()
+        variable.release_state = True
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+    
+def reset_release():
+    try:
+        variable = db.session.query(VariableStorage).filter_by(id=1).first()
+        variable.release_state = False
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500    
+    
 
 def assign_players_to_adventures():
     """
@@ -79,12 +99,3 @@ def assign_players_to_adventures():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
-
-
-def validate_strings(strings):
-    if not isinstance(strings, list):
-        strings = [strings]
-    for string in strings:
-        string = str(string)
-        if not re.match(r'^[a-zA-Z0-9_./\- !?]+$', string):
-            raise ValueError("Strings may only contain letters, numbers, hyphens, spaces, question and exclamation marks, dots and underscores.")
