@@ -1,0 +1,31 @@
+{
+  "VERSION": {
+    "version": "0.9.0"
+  },
+  "APP": {
+    "secret_key": "the-very-secret-key",
+    "timeout_hours": 2,
+    "local": true
+  },
+  "DB": {
+    "host": "localhost",
+    "user": "user",
+    "password": "password",
+    "database": "database"
+  },
+  "TIMING": {
+    "assignment_day": "Sun@12",
+    "release_day": "Mon@12",
+    "reset_day": "Thu@00"
+  },
+  "GOOGLE": {
+    "discovery_url": "https://accounts.google.com/.well-known/openid-configuration",
+    "client_id": "0",
+    "client_secret": "0" 
+  },
+  "API_TITLE": "Adventure Board API",
+  "OPENAPI_URL_PREFIX": "/openapi",
+  "OPENAPI_VERSION": "3.0.2",
+  "OPENAPI_SWAGGER_UI_PATH": "/docs",
+  "OPENAPI_SWAGGER_UI_URL": "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
+}

@@ -25,7 +25,7 @@ window.onload = async () => {
 
 function handleLoginClick() {
   if (!currentUserName) {
-    window.location.href = "login";
+    window.location.href = "api/login";
   } else {
     toggleDropdown();
   }
@@ -69,7 +69,6 @@ async function loadAdventures() {
   // Build the query string
   const params = new URLSearchParams();
   params.set('user', currentUserName);
-  params.set('adventure_id', null);
   // always include week bounds
   params.set('week_start', weekStart.toISOString().split('T')[0]);
   params.set('week_end', weekEnd.toISOString().split('T')[0]);
@@ -384,7 +383,6 @@ document.getElementById('adventure-form').addEventListener('submit', async (e) =
   const adventureData = {
     title,
     short_description: description,
-    creator_id: currentUserName, // creator
     max_players: maxPlayers,
     requested_players: selectedPlayerIds,
     start_date: startDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
@@ -447,8 +445,8 @@ function toggleDropdown() {
 async function logout() {
   try {
     // 1) Tell the server to clear the cookie
-    await fetch('logout', {
-      method: 'POST',
+    await fetch('api/logout', {
+      method: 'GET',
       credentials: 'include'
     });
   } catch (err) {

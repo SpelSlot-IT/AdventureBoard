@@ -1,0 +1,26 @@
+{
+  "VERSION": {
+    "version": "0.7.2"
+  },
+  "APP": {
+    "secret_key": "the-very-secret-key",
+    "timeout_hours": 2,
+    "local": true
+  },
+  "DB": {
+    "host": "database-5017798672.webspace-host.com",
+    "user": "dbu1066934",
+    "password": "vW7pcArfrd",
+    "database": "dbs14203424"
+  },
+  "TIMING": {
+    "assignment_day": "Sun@12",
+    "release_day": "Mon@12",
+    "reset_day": "Thu@00"
+  },
+  "GOOGLE": {
+    "discovery_url": "https://accounts.google.com/.well-known/openid-configuration",
+    "client_id": "20216327048-4r9rb9bo940s4i57m9hujj5cpda695vt.apps.googleusercontent.com",
+    "client_secret": "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"
+  }
+}

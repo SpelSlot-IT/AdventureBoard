@@ -1,102 +1,77 @@
 from collections import defaultdict
+from models import User, Adventure, AdventureAssignment, Signup
+from provider import db
 
-def assign_adventures_from_db(connection):
-    cursor = connection.cursor(dictionary=True)
-
-    # Step 1: Fetch data
-    cursor.execute("SELECT id, karma FROM users")
-    users = cursor.fetchall()
-
-    cursor.execute("SELECT id, max_players FROM adventures")
-    adventures = cursor.fetchall()
-
-    cursor.execute("SELECT user_id FROM adventure_assignments")
-    old_assignments = cursor.fetchall()
-
-    cursor.execute("SELECT user_id, adventure_id, priority FROM signups")
-    signups = cursor.fetchall()
+def assign_adventures_from_db():
+    # Step 1: Fetch all required data
+    users = db.session.query(User.id, User.karma).all()
+    adventures = db.session.query(Adventure.id, Adventure.max_players).all()
+    old_assignments = {row.user_id for row in db.session.query(AdventureAssignment.user_id).distinct()}
+    signups = db.session.query(Signup.user_id, Signup.adventure_id, Signup.priority).all()
 
     # Step 2: Organize data
-    adventure_capacity = {adv['id']: adv['max_players'] for adv in adventures}
+    adventure_capacity = {adv.id: adv.max_players for adv in adventures}
     assignments = defaultdict(list)
 
+    # Map user_id to list of (priority, adventure_id), sorted by priority
     user_signups = defaultdict(list)
     for signup in signups:
-        user_signups[signup['user_id']].append((signup['priority'], signup['adventure_id']))
-    for user_id in user_signups:
-        user_signups[user_id].sort()
+        user_signups[signup.user_id].append((signup.priority, signup.adventure_id))
+    for uid in user_signups:
+        user_signups[uid].sort()  # Sort by priority (1, 2, 3)
 
-    sorted_users = sorted(users, key=lambda u: -u['karma'])
-    placed_users = { assignment['user_id'] for assignment in old_assignments }
+    sorted_users = sorted(users, key=lambda u: -u.karma)
+    placed_users = set(old_assignments)
 
-    # Step 3: Assign based on priorities
+    # Step 3: Try assigning based on priority signups
     for user in sorted_users:
-        uid = user['id']
-        if uid in placed_users or uid not in user_signups: 
+        uid = user.id
+        if uid in placed_users or uid not in user_signups:
             continue
-        for _, adv_id in user_signups.get(uid, []):
-            if len(assignments[adv_id]) < adventure_capacity[adv_id]:
-                assignments[adv_id].append((uid,True))
+        for _, adv_id in user_signups[uid]:
+            if len(assignments[adv_id]) < adventure_capacity.get(adv_id, 0):
+                assignments[adv_id].append((uid, True))  # True = top three
                 placed_users.add(uid)
                 break
 
-    # Step 4: Fill remaining free spots
+    # Step 4: Fill remaining users into free spots or waiting list
     for user in sorted_users:
-        uid = user['id']
-        # Don't sign up players that are signed up for an adventure or already placed
-        if uid in placed_users or uid not in user_signups: 
+        uid = user.id
+        if uid in placed_users or uid not in user_signups:
             continue
-        for adv_id in adventure_capacity:
-            if len(assignments[adv_id]) < adventure_capacity[adv_id]:
-                assignments[adv_id].append((uid, False))
+        placed = False
+        for adv_id, capacity in adventure_capacity.items():
+            if len(assignments[adv_id]) < capacity:
+                assignments[adv_id].append((uid, False))  # False = not top three
                 placed_users.add(uid)
+                placed = True
                 break
-        # Assign the rest to the waiting list
-        else:
-            # Only if the inner loop didn't place them
+        if not placed:
+            # Place in waiting list (special adventure with id -999)
             assignments[-999].append((uid, False))
 
-    cursor.close()
     return assignments
 
-def reassign_karma(connection):
-    cursor = connection.cursor()
+def reassign_karma():
 
     # +100 karma for creating an adventure
-    cursor.execute("""
-        UPDATE users
-        SET karma = karma + 100
-        WHERE id IN (
-            SELECT DISTINCT user_id FROM adventures
-        )
-    """)
+    creators = db.session.query(User).join(Adventure).distinct()
+    for user in creators:
+        user.karma += 100
 
     # -100 karma for not appearing
-    cursor.execute("""
-        UPDATE users
-        SET karma = karma - 100
-        WHERE id IN (
-            SELECT user_id FROM adventure_assignments WHERE appeared = FALSE
-        )
-    """)
+    non_appearances = db.session.query(User).join(AdventureAssignment).filter(AdventureAssignment.appeared == False)
+    for user in non_appearances:
+        user.karma -= 100
 
     # +10 karma for being assigned to something not in top three
-    cursor.execute("""
-        UPDATE users
-        SET karma = karma + 10
-        WHERE id IN (
-            SELECT user_id FROM adventure_assignments WHERE top_three = FALSE
-        )
-    """)
+    off_prefs = db.session.query(User).join(AdventureAssignment).filter(AdventureAssignment.top_three == False)
+    for user in off_prefs:
+        user.karma += 10
 
     # +1 karma for playing
-    cursor.execute("""
-        UPDATE users
-        SET karma = karma + 1
-        WHERE id IN (
-            SELECT user_id FROM adventure_assignments WHERE appeared = TRUE
-        )
-    """)
+    played = db.session.query(User).join(AdventureAssignment).filter(AdventureAssignment.appeared == True)
+    for user in played:
+        user.karma += 1
 
-    connection.commit()
-    print("Karma reassigned successfully.")
+    db.session.commit()

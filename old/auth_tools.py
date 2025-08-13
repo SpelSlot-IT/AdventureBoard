@@ -1,30 +1,14 @@
-from flask import jsonify, request
-#from ldap3 import Server, Connection, ALL, NTLM, SIMPLE, ALL_ATTRIBUTES 
+from flask import jsonify, request, current_app
 import jwt
 import datetime
 from functools import wraps
-import configparser
-
-config = configparser.ConfigParser()
-config.read('config.ini')
-
-LDAP_SERVER = config['LDAP']['server']
-BASE_DN = config['LDAP']['base_dn']
-
-SECRET_KEY = config['APP']['secret_key']
-TIMEOUT_HOURS = int(config['APP']['timeout_hours'])
 
 
 def authenticate_user(username, user_id, privilege_level, password):
     if not username or not password:
         return jsonify({'error': 'Missing credentials'}), 400
 
-    user_dn = f"uid={username},{BASE_DN}"
-
     try:
-        #server = Server(LDAP_SERVER, get_info=ALL)
-        #conn = Connection(server, user=user_dn, password=password, authentication=SIMPLE, auto_bind=True)
-        #conn.unbind()
         i = 0
     except Exception as e:
         print(e)
@@ -36,9 +20,9 @@ def authenticate_user(username, user_id, privilege_level, password):
             'user_name': username,
             'user_id': user_id,
             'privilege_level': privilege_level,
-            'exp': datetime.datetime.now() + datetime.timedelta(hours=TIMEOUT_HOURS)
+            'exp': datetime.datetime.now() + datetime.timedelta(hours=int(current_app.config['APP']['timeout_hours']))
         }, 
-        key = SECRET_KEY, 
+        key = current_app.config['APP']['secret_key'], 
         algorithm ='HS256'
         )
 
@@ -66,7 +50,7 @@ def token_required(min_privilege=0, lax=False):
                 else:
                     return jsonify({'message': 'You are not logged in'}), 403
             try:
-                token_data = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+                token_data = jwt.decode(token, current_app.config['APP']['secret_key'], algorithms=['HS256'])
 
                 # Optional: PyJWT will raise if expired, but you can double-check manually if needed
                 exp = datetime.datetime.fromtimestamp(token_data.get('exp'))
@@ -88,7 +72,7 @@ def token_required(min_privilege=0, lax=False):
 
 def get_user_info_by_token(token):
     try:
-        token_data = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+        token_data = jwt.decode(token, current_app.config['APP']['secret_key'], algorithms=['HS256'])
     except jwt.PyJWTError:
         return jsonify({ 'error': 'Invalid token' }), 401
 
