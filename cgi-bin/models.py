@@ -1,7 +1,7 @@
-from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin, AnonymousUserMixin
+from provider import db
+from sqlalchemy import func
 
-db = SQLAlchemy()
 
 class Anonymous(AnonymousUserMixin):
   def __init__(self):
@@ -11,14 +11,17 @@ class Anonymous(AnonymousUserMixin):
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
 
-    id              = db.Column(db.Integer, autoincrement=True, primary_key=True)
-    google_id       = db.Column(db.String(100), nullable=False, unique=True)
-    name            = db.Column(db.String(255), nullable=False)
-    display_name    = db.Column(db.String(255), nullable=True)
-    privilege_level = db.Column(db.Integer, nullable=False, default=0)
-    email           = db.Column(db.String(255), nullable=True)
-    profile_pic     = db.Column(db.String(255), nullable=True)
-    karma           = db.Column(db.Integer, default=1000)
+    id                  = db.Column(db.Integer, autoincrement=True, primary_key=True)
+    google_id           = db.Column(db.String(100), nullable=False, unique=True)
+    name                = db.Column(db.String(255), nullable=False)
+    display_name        = db.Column(db.String(255), nullable=True)
+    world_builder_name  = db.Column(db.String(255), nullable=True)
+    dnd_beyond_name     = db.Column(db.String(255), nullable=True)
+    dnd_beyond_campaign = db.Column(db.Integer, nullable=True)
+    privilege_level     = db.Column(db.Integer, nullable=False, default=0)
+    email               = db.Column(db.String(255), nullable=True)
+    profile_pic         = db.Column(db.String(255), nullable=True)
+    karma               = db.Column(db.Integer, default=1000)
 
     adventures_created  = db.relationship('Adventure', back_populates='creator', lazy='dynamic')
     signups             = db.relationship('Signup', back_populates='user', lazy='dynamic')
@@ -31,6 +34,42 @@ class User(UserMixin, db.Model):
         super().__init__(**kwargs)
         if self.display_name is None:
             self.display_name = self.name
+
+    def is_finished(self):
+        return self.world_builder_name and self.dnd_beyond_name and self.display_name
+    
+    
+    @classmethod
+    def assign_campaign(cls):
+        """
+        Return an integer campaign id:
+         - 1..5 if any have < 6 users
+         - otherwise 6
+        """
+        for campaign_id in range(1, 6):
+            count = db.session.query(func.count(cls.id))\
+                .filter(cls.dnd_beyond_campaign == campaign_id)\
+                .scalar()
+            if count < 6:
+                return campaign_id
+        return 6
+
+    @classmethod
+    def create(cls, commit=True, **kwargs):
+        """
+        Factory to create a User and assign campaign if not provided.
+
+        Usage:
+            user = User.create(google_id='x', name='Alice', email='a@b.com')
+        """
+        if kwargs.get("dnd_beyond_campaign") is None:
+            kwargs["dnd_beyond_campaign"] = cls.assign_campaign()
+
+        user = cls(**kwargs)
+        db.session.add(user)
+        if commit:
+            db.session.commit()
+        return user
 
 
 class Adventure(db.Model):

@@ -1,24 +1,11 @@
-import os
 import site
 # add path to installed packages to PATH:
 site.addsitedir('/mnt/web105/e0/90/517590/htdocs/.local/lib/python3.11/site-packages')
-import webbrowser
-import requests
 import json
-from flask import Flask, jsonify, request, send_from_directory, url_for, render_template,  redirect
-from flask_apscheduler import APScheduler
-from flask_login import (
-    LoginManager,
-    current_user,
-    login_required,
-    login_user,
-    logout_user,
-)
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from flask import Flask, jsonify, send_from_directory, url_for, render_template, g
 from flask_smorest import Api
 
-
-
+from provider import db, ma, ap_scheduler, login_manager, google_oauth
 from models import *
 from util import *
 from api import *
@@ -54,13 +41,14 @@ for blp in api_blueprints:
     api.register_blueprint(blp)
 
 # --- APScheduler setup --- 
-ap_scheduler = APScheduler()
 ap_scheduler.init_app(app)
 ap_scheduler.start()
 
+# --- Google OAuth setup ---
+google_oauth.init_app(app)
+
 # --- User session management setup --- 
 # https://flask-login.readthedocs.io/en/latest
-login_manager = LoginManager()
 login_manager.init_app(app)
 # Flask-Login helper to retrieve a user from our db
 @login_manager.user_loader
@@ -90,31 +78,10 @@ def dashboard():
 def send_help():
     return send_from_directory('../public', 'help.html')
 
-
-# --- DEVELOPMENT: Site map routs ---
-def has_no_empty_params(rule):
-    defaults = rule.defaults if rule.defaults is not None else ()
-    arguments = rule.arguments if rule.arguments is not None else ()
-    return len(defaults) >= len(arguments)
-
-@app.route("/site-map")
-def site_map():
-    links = []
-    for rule in app.url_map.iter_rules():
-        # Filter out rules we can't navigate to in a browser
-        # and rules that require parameters
-        if "GET" in rule.methods and has_no_empty_params(rule):
-            url = url_for(rule.endpoint, **(rule.defaults or {}))
-            links.append((url, rule.endpoint))
-    # links is now a list of url, endpoint tuples
-    return jsonify(links)
-
-
 # --- Cron ---   
 a_d, a_h = config['TIMING']['assignment_day'].split("@")
-r_d, r_h = config['TIMING']['assignment_day'].split("@")
-re_d, re_h = config['TIMING']['assignment_day'].split("@")
-
+r_d, r_h = config['TIMING']['release_day'].split("@")
+re_d, re_h = config['TIMING']['reset_day'].split("@")
 
 @ap_scheduler.task('cron', id='make_assignments', day_of_week=a_d, hour=a_h)
 def cron_make_assignments():
@@ -131,6 +98,8 @@ def cron_reset_release():
 # --- Local ---
 if __name__ == '__main__':
     # will only be executed if run local
+    import webbrowser
+    import os
     app.secret_key = os.urandom(24)
     webbrowser.open("https://localhost:5000/")
     app.run(ssl_context='adhoc')

@@ -1,5 +1,6 @@
 from collections import defaultdict
-from models import db, User, Adventure, AdventureAssignment, Signup
+from models import User, Adventure, AdventureAssignment, Signup
+from provider import db
 
 def assign_adventures_from_db():
     # Step 1: Fetch all required data

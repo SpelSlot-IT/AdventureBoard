@@ -1,10 +1,9 @@
-import re
-from models import *
-from ranking_tools import *
 from flask import jsonify
 from datetime import datetime, timedelta, date
+from flask import current_app
 
-
+from models import *
+from ranking_tools import *
 
 def check_release():
     """
@@ -99,3 +98,11 @@ def assign_players_to_adventures():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+    
+def has_no_empty_params(rule):
+    defaults = rule.defaults if rule.defaults is not None else ()
+    arguments = rule.arguments if rule.arguments is not None else ()
+    return len(defaults) >= len(arguments)
+
+def get_google():
+    return current_app.extensions["google_oauth"].client, current_app.extensions["google_oauth"].provider_cfg

@@ -1,4 +1,3 @@
-from flask_marshmallow import Marshmallow
 from flask_smorest import Blueprint, abort
 from marshmallow import validates_schema, ValidationError
 from flask_login import (
@@ -18,25 +17,26 @@ from flask import (
 from sqlalchemy import text
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-import requests
-from oauthlib.oauth2 import WebApplicationClient
 import json
+import requests
 
 from models import db, User, Adventure, AdventureAssignment
 from util import *
+from provider import ma, ap_scheduler
 
-ma = Marshmallow()
 
 blp_utils = Blueprint("utils", "utils", url_prefix="/api/",
                description="Utils API: Everything that does not fit in the other categories.")
-blp_adventure = Blueprint("adventures", "adventures", url_prefix="/api/adventures",
+blp_adventures = Blueprint("adventures", "adventures", url_prefix="/api/adventures",
                description="Adventures API: Everything related to adventures. The big boxes with adventure names and descriptions.")
-blp_assignment = Blueprint("adventure-assignment", "adventure-assignment", url_prefix="/api/adventure-assignment",
-               description="Assignment API: Everything related to the assignments of players. The boxes with player names.")
-blp_signup = Blueprint("signups", "signups", url_prefix="/api/signups",
+blp_assignments = Blueprint("player-assignment", "player-assignment", url_prefix="/api/player-assignments",
+               description="Assignment API: Everything related to the assignments of players to adventures. The boxes with player names.")
+blp_signups = Blueprint("signups", "signups", url_prefix="/api/signups",
                description="Signups API: Everything related to the signups of users. Priority medals 1, 2, 3")
+blp_users = Blueprint("users", "users", url_prefix="/api/users",
+               description="Users API: Everything related to the users.")
 
-api_blueprints = [blp_utils, blp_adventure, blp_assignment, blp_signup]
+api_blueprints = [blp_utils, blp_users, blp_adventures, blp_assignments, blp_signups]
 
 # ----------------------- Schemas ---------------------------------
 
@@ -50,6 +50,16 @@ class RedirectSchema(ma.Schema):
 
 class MessageSchema(ma.Schema):
     message = ma.String(required=True)
+
+class JobSchema(ma.Schema):
+    id = ma.Str(required=True)
+    name = ma.Str(required=True)
+    next_run_time = ma.DateTime(allow_none=True)
+    trigger = ma.Str(required=True)
+
+class SiteMapLinkSchema(ma.Schema):
+    url = ma.Url(required=True)
+    endpoint = ma.Str(required=True)
 
 class AssignmentUpdateSchema(ma.Schema):
     player_id = ma.Integer(required=True)
@@ -132,11 +142,261 @@ class AdventureSchema(ma.SQLAlchemyAutoSchema):
 
 
 # ----------------------- Routes ----------------------------------
-@blp_adventure.route("")
+
+# --- UTILS ---
+
+@blp_utils.route("/alive")
+class AliveResource(MethodView):
+    @blp_utils.response(200, AliveSchema)
+    def get(self):
+        """Check API and DB connectivity."""
+        try:
+            db.session.execute(text("SELECT 1"))
+            return {
+                "status": "ok",
+                "db": "reachable",
+                "version": current_app.config["VERSION"]["version"],
+            }
+        except SQLAlchemyError as e:
+            abort(
+                500,
+                message=str(e),
+                extra={"version": current_app.config["VERSION"]["version"], "status": "error"},
+            )
+    
+@blp_utils.route("/site-map")
+class SiteMapResource(MethodView):
+    @blp_utils.response(200, SiteMapLinkSchema(many=True))
+    def get(self):
+        """
+        Returns a list of all available endpoints (not only api).
+        """
+        links = []
+        for rule in current_app.url_map.iter_rules():
+            # Filter out rules we can't navigate to in a browser
+            # and rules that require parameters
+            if "GET" in rule.methods and has_no_empty_params(rule):
+                url = url_for(rule.endpoint, **(rule.defaults or {}))
+                links.append((url, rule.endpoint))
+        # links is now a list of url, endpoint tuples
+        return jsonify(links)
+
+@blp_utils.route("/scheduler")
+class SchedulerResource(MethodView):
+    @blp_utils.response(200, JobSchema(many=True))
+    def get(self):
+        """
+        Returns a list of all scheduled jobs.
+        """
+        return ap_scheduler.get_jobs()
+
+@blp_utils.route('/update-karma')
+@login_required
+class UpdateKarmaResource(MethodView):
+    @blp_utils.response(200, MessageSchema)
+    def get():
+        """
+        Force an update of the karma of all players regarding the normal update rules.
+        """
+        if current_user.privilege_level < 1:
+            abort(401, message={'error': 'Unauthorized'})
+        reassign_karma()
+
+        return {'message': 'Karma updated successfully'}, 200
+    
+@blp_utils.route('/release')
+class ReleaseResource(MethodView):
+    @blp_utils.response(200, MessageSchema)
+    def get():
+        """
+        Returns the current release status.
+        """
+        return {'release': check_release()}, 200
+    
+
+@blp_utils.route("/login")
+class LoginResource(MethodView):
+    @blp_utils.response(200, RedirectSchema)
+    def get(self):
+        """
+        Requests a login from Google. Redirects to Google.
+        """
+        client, google_provider_cfg = get_google()
+        # Find out what URL to hit for Google login            
+        authorization_endpoint = google_provider_cfg["authorization_endpoint"]
+
+        # Use library to construct the request for login and provide
+        # scopes that let you retrieve user's profile from Google
+        request_uri = client.prepare_request_uri(
+            authorization_endpoint,
+            redirect_uri=request.base_url + "/callback",
+            scope=["openid", "email", "profile"],
+        )
+        return redirect(request_uri)
+    
+@blp_utils.route("/login/callback")
+class CallbackResource(MethodView):
+    @blp_utils.response(200, RedirectSchema)
+    def get(self):
+        """
+        Endpoint for Google to redirect to after login.
+        """
+        try:
+            # Get authorization code Google sent back to you
+            code = request.args.get("code")
+            client, google_provider_cfg = get_google()
+
+            # Find out what URL to hit to get tokens that allow you to ask for
+            # things on behalf of a user
+            token_endpoint = google_provider_cfg["token_endpoint"]
+
+            # Prepare and send request to get tokens! Yay tokens!
+            token_url, headers, body = client.prepare_token_request(
+                token_endpoint,
+                authorization_response=request.url,
+                redirect_url=request.base_url,
+                code=code,
+            )
+            token_response = requests.post(
+                token_url,
+                headers=headers,
+                data=body,
+                auth=(current_app.config["GOOGLE"]["client_id"], current_app.config["GOOGLE"]["client_secret"]),
+            )
+
+            # Parse the tokens!
+            client.parse_request_body_response(json.dumps(token_response.json()))
+
+            # Now that we have tokens (yay) let's find and hit URL
+            # from Google that gives you user's profile information,
+            # including their Google Profile Image and Email
+            userinfo_endpoint = google_provider_cfg["userinfo_endpoint"]
+            uri, headers, body = client.add_token(userinfo_endpoint)
+            userinfo_response = requests.get(uri, headers=headers, data=body)
+
+            # We want to make sure their email is verified.
+            # The user authenticated with Google, authorized our
+            # app, and now we've verified their email through Google!
+            if userinfo_response.json().get("email_verified"):
+                unique_id = userinfo_response.json()["sub"]
+                users_email = userinfo_response.json()["email"]
+                picture = userinfo_response.json()["picture"]
+                users_name = userinfo_response.json()["given_name"]
+            else:
+                return "User email not available or not verified by Google.", 400
+
+            # Create a user in our db with the information provided by Google
+            # 1) See if Google’s user_id is already in our table
+            existing = User.query.filter_by(google_id=unique_id).first()
+
+            if existing:
+                # They’re already in our DB — use that
+                login_user(existing)
+            else:
+                # Not found → create and commit
+                new_user = User.create(
+                    google_id=unique_id,
+                    name=users_name,
+                    email=users_email,
+                    profile_pic=picture)
+                db.session.add(new_user)
+                db.session.commit()
+                login_user(new_user, fresh=True) 
+
+            # Send user back to homepage
+            return redirect(url_for("dashboard"))
+
+        except Exception as e:
+            return str(e)+f" - {unique_id} {users_name}", 500
+
+@blp_utils.route('/logout')
+class LockoutResource(MethodView):
+    @login_required
+    @blp_utils.response(200, RedirectSchema)
+    def get(self):
+        """
+        Logout the current user.
+        """
+        logout_user()
+        return redirect(url_for("home"))    
+    
+# --- USERS ---
+@blp_users.route("")
+class UsersListResource(MethodView):
+    @blp_users.response(200, UserSchema(many=True, exclude=['karma']))
+    def get(self):
+        """Return list of all users."""
+        try:
+            return User.query.all()
+        except SQLAlchemyError as e:
+            abort(500, message=f"Database error: {str(e)}")
+
+@blp_users.route("/<int:user_id>")
+class UserResource(MethodView):
+    @blp_users.response(200, UserSchema(exclude=['karma'])) 
+    def get(self, user_id):
+        """Return single user by id."""
+        try:
+            user = User.query.get(user_id) 
+            if not user:
+                abort(404, message="User not found")
+            return user
+        except SQLAlchemyError as e:
+            abort(500, message=f"Database error: {str(e)}")
+
+    @blp_users.arguments(UserSchema(partial=True, only=["display_name", "world_builder_name", "dnd_beyond_name", "email"]))
+    @blp_users.response(200, UserSchema(exclude=['karma']))
+    def patch(self, data, user_id):
+        """
+        Partially update a user. Only fields present in the JSON body will be changed.
+        """
+        try:
+            user = User.query.get(user_id)
+            if not user:
+                abort(404, message="User not found")
+
+            for key, val in data.items():
+                    setattr(user, key, val)
+
+            db.session.commit()
+            return user
+
+        except IntegrityError as e:
+            db.session.rollback()
+            # typically triggered by unique constraint (e.g. email already exists)
+            abort(409, message=f"Conflict: {str(e.orig) if hasattr(e, 'orig') else str(e)}")
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            abort(500, message=f"Database error: {str(e)}")
+    
+    @blp_utils.response(201)
+    def post(self, user_id):
+        """
+        DEMO: Login as the user specified by id
+
+        THIS WILL BE REMOVED
+        ---
+        TODO: REMOVE
+        """
+        login_user(User.query.get(user_id))
+        return
+    
+
+@blp_users.route("/me")
+class MeResource(MethodView):
+    @login_required
+    @blp_utils.response(200, UserSchema(exclude=['karma']))
+    def get(self):
+        """Return current user's details."""
+        return current_user
+
+# --- ADVENTURES ---
+@blp_adventures.route("")
 class AdventureResource(MethodView):
 
-    @blp_adventure.arguments(AdventureQuerySchema, location="query")
-    @blp_adventure.response(200, AdventureSchema(many=True))
+    @blp_adventures.arguments(AdventureQuerySchema, location="query")
+    #@blp_adventure.response(200, AdventureSchema(many=True))
     def get(self, args):
         """
         Returns a list of Adventure objects. 
@@ -147,7 +407,6 @@ class AdventureResource(MethodView):
             adventure_id = args.get("adventure_id")
             week_start = args.get("week_start")
             week_end = args.get("week_end")
-            print(type(args.get("week_start")))
             if not adventure_id and not week_start and not week_end:
                 abort(400, message="Either adventure_id or week_start/week_end must be specified.")
 
@@ -163,16 +422,14 @@ class AdventureResource(MethodView):
                                      Adventure.end_date >= week_start)
 
             adventures = query.all()
-            for adv in adventures:
-                print(type(adv.start_date), adv.start_date)
-                print(type(adv.end_date), adv.end_date)
 
             # Determine display rights
             is_admin = (current_user.is_authenticated and current_user.privilege_level >= 1)
             display_players = is_admin or check_release()
             exclude = []
             if not is_admin:
-                exclude = ["karma"]
+                #exclude = ["karma"]
+                pass
             if not display_players:
                 exclude = exclude + ["signups"]
 
@@ -183,14 +440,16 @@ class AdventureResource(MethodView):
 
         except ValidationError as ve:
             abort(400, message=str(ve))
-        except Exception as e:
-            abort(500, message=str(e))
+
+        except SQLAlchemyError as e:
+            abort(500, message=f"Database error: {str(e)}")
 
     # note decorator order: we validate/deserialize the body using AdventureSchema
     # and then require login
-    @blp_adventure.arguments(AdventureSchema(exclude=("id","user_id")))
-    #@login_required
-    @blp_adventure.response(201, AdventureSchema)
+    @blp_adventures.arguments(AdventureSchema(exclude=("id","user_id")))
+    @login_required
+    @blp_adventures.response(201, AdventureSchema) 
+    @blp_adventures.alt_response(409)
     def post(self, data):
         """
         Create a new adventure.
@@ -261,7 +520,7 @@ class AdventureResource(MethodView):
                     **adv_data,
                 }
                 # return 409 with body (still include the created resource)
-                return jsonify(body), 409
+                return body, 409
 
             return adv_data, 201
 
@@ -272,7 +531,7 @@ class AdventureResource(MethodView):
             abort(500, message=str(e))
 
     @login_required
-    @blp_adventure.arguments(AdventureSchema(partial=True, exclude=("id","user_id")))
+    @blp_adventures.arguments(AdventureSchema(partial=True, exclude=("id","user_id")))
     def patch(self, data):
         """Edit an existing adventure. Only creator or admin can edit."""
         user_id = current_user.id
@@ -285,6 +544,7 @@ class AdventureResource(MethodView):
         # Ownership or admin check
         if current_user.privilege_level < 1 and adventure.user_id != user_id:
             abort(401, message="Unauthorized to edit this adventure.")
+            
 
         # Update provided fields
         for field in ["title", "short_description", "requested_room"]:
@@ -347,7 +607,7 @@ class AdventureResource(MethodView):
         return {"message": "Adventure updated successfully"}
     
     @login_required
-    @blp_adventure.arguments(AdventureSchema(partial=True, exclude=("id","user_id")))
+    @blp_adventures.arguments(AdventureSchema(partial=True, exclude=("id","user_id")))
     def delete():
         """
         Deletes an adventure with the given ID. Only creator or admin can delete.
@@ -380,185 +640,10 @@ class AdventureResource(MethodView):
         except Exception as e:
             return abort(500, message={'error': str(e)})
 
-# --- UTILS ---
-
-@blp_utils.route("/alive")
-class AliveResource(MethodView):
-    @blp_utils.response(200, AliveSchema)
-    def get(self):
-        """Check API and DB connectivity."""
-        try:
-            db.session.execute(text("SELECT 1"))
-            return {
-                "status": "ok",
-                "db": "reachable",
-                "version": current_app.config["VERSION"]["version"],
-            }
-        except SQLAlchemyError as e:
-            abort(
-                500,
-                message=str(e),
-                extra={"version": current_app.config["VERSION"]["version"], "status": "error"},
-            )
-
-@blp_utils.route("/me")
-class MeResource(MethodView):
-    @login_required
-    @blp_utils.response(200, UserSchema(exclude=['karma']))
-    def get(self):
-        """Return current user's details."""
-        return current_user
-
-
-@blp_utils.route("/users")
-class UsersResource(MethodView):
-    @blp_utils.response(200, UserSchema(many=True))
-    def get(self):
-        """Return a list of all users."""
-        try:
-            return db.session.query(User).all()
-        except Exception as e:
-            abort(500, message=str(e))
-
-@blp_utils.route('/update-karma')
-@login_required
-class UpdateKarmaResource(MethodView):
-    @blp_utils.response(200, MessageSchema)
-    def get():
-        """
-        Force an update of the karma of all players regarding the normal update rules.
-        """
-        if current_user.privilege_level < 1:
-            abort(401, message={'error': 'Unauthorized'})
-        reassign_karma()
-
-        return {'message': 'Karma updated successfully'}, 200
-    
-@blp_utils.route('/release')
-class ReleaseResource(MethodView):
-    @blp_utils.response(200, MessageSchema)
-    def get():
-        """
-        Returns the current release status.
-        """
-        return {'release': check_release()}, 200
-
-@blp_utils.route("/login")
-class LoginResource(MethodView):
-    @blp_utils.response(200, RedirectSchema)
-    def get(self):
-        """
-        Requests a login from Google. Redirects to Google.
-        """
-        # Find out what URL to hit for Google login
-        if 'client' not in g:
-            g.client = WebApplicationClient(current_app.config["GOOGLE"]["client_id"])
-            g.google_provider_cfg = requests.get(current_app.config["GOOGLE"]["discovery_url"]).json()
-        authorization_endpoint = g.google_provider_cfg["authorization_endpoint"]
-
-        # Use library to construct the request for login and provide
-        # scopes that let you retrieve user's profile from Google
-        request_uri = g.client.prepare_request_uri(
-            authorization_endpoint,
-            redirect_uri=request.base_url + "/callback",
-            scope=["openid", "email", "profile"],
-        )
-        return redirect(request_uri)
-    
-@blp_utils.route("/login/callback")
-class CallbackResource(MethodView):
-    @blp_utils.response(200, RedirectSchema)
-    def get(self):
-        """
-        Endpoint for Google to redirect to after login.
-        """
-        if 'client' not in g:
-            abort(500, message="Google client not initialized. Call /login first")    
-        try:
-            # Get authorization code Google sent back to you
-            code = request.args.get("code")
-
-            # Find out what URL to hit to get tokens that allow you to ask for
-            # things on behalf of a user
-            token_endpoint = g.google_provider_cfg["token_endpoint"]
-
-            # Prepare and send request to get tokens! Yay tokens!
-            token_url, headers, body = g.client.prepare_token_request(
-                token_endpoint,
-                authorization_response=request.url,
-                redirect_url=request.base_url,
-                code=code,
-            )
-            token_response = requests.post(
-                token_url,
-                headers=headers,
-                data=body,
-                auth=(g.config["GOOGLE"]["client_id"], g.config["GOOGLE"]["client_secret"]),
-            )
-
-            # Parse the tokens!
-            g.client.parse_request_body_response(json.dumps(token_response.json()))
-
-            # Now that we have tokens (yay) let's find and hit URL
-            # from Google that gives you user's profile information,
-            # including their Google Profile Image and Email
-            userinfo_endpoint = g.google_provider_cfg["userinfo_endpoint"]
-            uri, headers, body = g.client.add_token(userinfo_endpoint)
-            userinfo_response = requests.get(uri, headers=headers, data=body)
-
-            # We want to make sure their email is verified.
-            # The user authenticated with Google, authorized our
-            # app, and now we've verified their email through Google!
-            if userinfo_response.json().get("email_verified"):
-                unique_id = userinfo_response.json()["sub"]
-                users_email = userinfo_response.json()["email"]
-                picture = userinfo_response.json()["picture"]
-                users_name = userinfo_response.json()["given_name"]
-            else:
-                return "User email not available or not verified by Google.", 400
-
-            # Create a user in our db with the information provided by Google
-            # 1) See if Google’s user_id is already in our table
-            existing = User.query.filter_by(google_id=unique_id).first()
-
-            if existing:
-                # They’re already in our DB — use that
-                login_user(existing)
-            else:
-                # Not found → create and commit
-                new_user = User(
-                    google_id=unique_id,
-                    name=users_name,
-                    email=users_email,
-                    profile_pic=picture)
-                db.session.add(new_user)
-                db.session.commit()
-                login_user(new_user, fresh=True) 
-
-            # Send user back to homepage
-            return redirect(url_for("dashboard"))
-
-        except Exception as e:
-            return str(e)+f" - {unique_id} {users_name}", 500
-
-
-
-
-@blp_utils.route('/logout')
-class LockoutResource(MethodView):
-    @login_required
-    @blp_utils.response(200, RedirectSchema)
-    def get(self):
-        """
-        Logout the current user.
-        """
-        logout_user()
-        return redirect(url_for("home"))    
-    
 # --- ASSIGNMENTS ---
-@blp_assignment.route('/')
+@blp_assignments.route('')
 class AssignmentResource(MethodView):
-    @blp_assignment.response(200,UserSchema(many=True, exclude=['karma', 'privilege_level', 'email', 'profile_pic']))
+    @blp_assignments.response(200,UserSchema(many=True, exclude=['karma', 'privilege_level', 'email', 'profile_pic']))
     def get(self):
         """
         Returns a list of players assigned to a single adventure.
@@ -576,8 +661,8 @@ class AssignmentResource(MethodView):
             return abort(500, message={'error': str(e)})
 
     @login_required
-    @blp_assignment.arguments(MessageSchema)
-    @blp_assignment.response(200, MessageSchema)
+    @blp_assignments.arguments(MessageSchema)
+    @blp_assignments.response(200, MessageSchema)
     def put(self, args):
         """
         Executes an admin action.
@@ -599,7 +684,7 @@ class AssignmentResource(MethodView):
 
         return {'message': f'{action.capitalize()} action executed successfully'}, 200
     
-    @blp_assignment.arguments(AssignmentUpdateSchema)
+    @blp_assignments.arguments(AssignmentUpdateSchema)
     @login_required
     def patch(self, args):
         """
@@ -630,10 +715,10 @@ class AssignmentResource(MethodView):
         return {'message': 'Assignment updated successfully'}, 200
 
 # --- SIGNUP ---
-@blp_signup.route('/')
+@blp_signups.route('')
 class SignupResource(MethodView):
     @login_required
-    @blp_signup.response(200, SignupSchema(many=True))
+    @blp_signups.response(200, SignupSchema(many=True))
     def get(self):
         """
         Returns all the signups (priority medals 1, 2, 3) of the authenticated user.
@@ -651,7 +736,7 @@ class SignupResource(MethodView):
         except Exception as e:
             abort(500, message=str(e))
 
-    @blp_signup.response(200, MessageSchema)
+    @blp_signups.response(200, MessageSchema)
     def post(self, data):
         """
         Makes a signup for a specific adventure.
