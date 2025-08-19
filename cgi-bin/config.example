@@ -27,5 +27,8 @@
   "OPENAPI_URL_PREFIX": "/openapi",
   "OPENAPI_VERSION": "3.0.2",
   "OPENAPI_SWAGGER_UI_PATH": "/docs",
-  "OPENAPI_SWAGGER_UI_URL": "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
+  "OPENAPI_SWAGGER_UI_URL": "https://cdn.jsdelivr.net/npm/swagger-ui-dist/",
+    "API_SPEC_OPTIONS": {
+    "servers": [{"url": "https://example.com/dnd/cgi-bin/app.cgi"}]
+  }
 }

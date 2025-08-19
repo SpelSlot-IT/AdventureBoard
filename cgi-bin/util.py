@@ -9,7 +9,8 @@ def check_release():
     """
     Returns True/False whether the release date has passed.
     """
-    variable = db.session.query(VariableStorage).first()
+    stmt = db.select(VariableStorage).limit(1)
+    variable = db.session.execute(stmt).scalar_one_or_none()
     return variable.release_state if variable else False
      
 def get_next_wednesday():
@@ -25,9 +26,10 @@ def make_waiting_list():
     
     try:
         # Check if the waiting list adventure already exists
-        exists_query = db.session.query(
-            db.session.query(Adventure).filter_by(id=-999).exists()
-        ).scalar()
+        stmt = db.select(
+            db.exists().where(Adventure.id == -999)
+        )
+        exists_query = db.session.execute(stmt).scalar()
 
         if not exists_query:
             waiting_list = Adventure(
@@ -46,8 +48,13 @@ def make_waiting_list():
 
 def release_assignments():
     try:
-        variable = db.session.query(VariableStorage).filter_by(id=1).first()
-        variable.release_state = True
+        stmt = (
+            db.update(VariableStorage)
+            .where(VariableStorage.id == 1)
+            .values(release_state=True)
+            .execution_options(synchronize_session="fetch")  # keeps ORM objects in sync
+        )
+        db.session.execute(stmt)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -55,8 +62,13 @@ def release_assignments():
     
 def reset_release():
     try:
-        variable = db.session.query(VariableStorage).filter_by(id=1).first()
-        variable.release_state = False
+        stmt = (
+            db.update(VariableStorage)
+            .where(VariableStorage.id == 1)
+            .values(release_state=False)
+            .execution_options(synchronize_session="fetch")  # keeps ORM objects in sync
+        )
+        db.session.execute(stmt)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -70,14 +82,16 @@ def assign_players_to_adventures():
 
     try:
         # 1. Delete old assignments from past adventures
-        db.session.query(AdventureAssignment).join(Adventure).filter(
-            Adventure.end_date < date.today()
-        ).delete(synchronize_session=False)
+        # Build a select for old adventure IDs
+        old_adventure_ids = db.select(Adventure.id).where(Adventure.end_date < date.today())
 
+        # Use ORM-level delete via session
+        stmt = db.delete(AdventureAssignment).where(AdventureAssignment.adventure_id.in_(old_adventure_ids))
+        db.session.execute(stmt)
         # 2. Ensure the upcoming waiting list adventure exists
         make_waiting_list()
 
-        # 3. Get new adventure assignments (your custom logic)
+        # 3. Get new adventure assignments
         assignments = assign_adventures_from_db()
 
         # 4. Insert new assignments

@@ -62,6 +62,8 @@ function updateWeekLabel() {
   document.getElementById('week-label').textContent = `Week of ${fmt(start)} – ${fmt(end)}`;
 }
 
+
+
 async function loadAdventures() {
   updateWeekLabel();
   const [weekStart, weekEnd] = getWeekRange(currentWeekOffset);
@@ -79,7 +81,15 @@ async function loadAdventures() {
     fetch(`api/signups?user=${currentUserName}`)
   ]);
   const adventures = await advRes.json();
-  const userSignups = await signupRes.json();
+  // Check if signupRes is OK before parsing
+  let userSignups = [];
+  if (signupRes.ok) {
+    userSignups = await signupRes.json();
+  } else if (signupRes.status === 401) {
+    console.log('User not logged in, skipping signups');
+  } else {
+    console.error('Signup fetch failed:', signupRes.status);
+  }
 
   // 2) clear grid
   const container = document.getElementById('adventure-grid');
@@ -105,8 +115,9 @@ async function loadAdventures() {
       const title = adventure.title.length > 16 ? adventure.title.slice(0, 16) + '…' : adventure.title;
       const desc = adventure.short_description.length > 64 ? adventure.short_description.slice(0, 64) + '…' : adventure.short_description;
 
-      const signedPriority = userSignups[adventure.id];
-      const getHighlight = (prio) => signedPriority === prio ? 'highlighted' : '';
+      const signed = userSignups.find(s => s.adventure_id === adventure.id);
+      const signedPriority = signed?.priority; // undefined if not signed
+      const getHighlight = (prio) => (signedPriority === prio ? 'highlighted' : '');
 
       const playerList = adventure.players?.length > 0
         ? adventure.players.map(player => `
@@ -230,22 +241,6 @@ function initializeDateFields() {
   endDateInput.value = getLastWednesdayOfMonth();
 }
 
-
-
-async function signUp(btn, adventureId, priority) {
-  const res = await fetch('api/signups', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user: currentUserName, adventure_id: adventureId, priority })
-  });
-
-  if (res.ok) {
-    loadAdventures(); // refresh to update button highlights
-  } else {
-    showToast('Failed to sign up: Are you logged in?');
-  }
-}
-
 async function moreDetails(adventure_id) {
   document.getElementById('modal').style.display = 'block';
   document.getElementById("open-player-select").style.visibility='hidden';
@@ -298,6 +293,19 @@ function closeModal() {
   //initializeDateFields(); // reset date fields
 }
 
+async function signUp(btn, adventureId, priority) {
+  const res = await fetch('api/signups', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({adventure_id: adventureId, priority: priority})
+  });
+
+  if (res.ok) {
+    loadAdventures(); // refresh to update button highlights
+  } else {
+    showToast('Failed to sign up: Are you logged in?');
+  }
+}
 
 // Load the list of available players for selection
 async function loadPlayersForSelect() {
@@ -468,34 +476,14 @@ function changePassword() {
   showToast('Password page not implemented yet.', 'alert');
 }
 
-async function registerNewUser() {
-  if (!currentUserName) {
-    showToast("No user is logged in.");
-    return;
-  }
-
-  // Try to register the user
-  const res = await fetch('api/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: currentUserName })
-  });
-
-  if (res.ok) {
-    const data = await res.json();
-    showToast(`User ${currentUserName} registered successfully with ID ${data.user_id}`, 'confirm');
-  } else {
-    const errorData = await res.json();
-    showToast(`Error: ${errorData.error}`);
-  }
-}
-
-
-
 async function makeAssignments(action) {
   try {
-    const res = await fetch(`api/adventure-assignment/${action}`, {
-      method: 'PUT'
+    const res = await fetch('api/player-assignments', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ message: action })  // message must match the key expected by the schema
     });
     const data = await res.json();
 
@@ -543,7 +531,7 @@ async function drop(event) {
   const toAdventureId = toPlayerList.dataset.adventureId;
 
   // Update the player's adventure assignment on the backend
-  const res = await fetch('api/adventure-assignment', {
+  const res = await fetch('api/player-assignments', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -563,18 +551,37 @@ async function drop(event) {
 }
 
 async function setCurrentUser() {
-  const resp = await fetch('api/me', { credentials: 'include' });
-  if (resp.ok) {
-    const { user_name, privilege_level } = await resp.json();
-    currentUserName = user_name;
-    localStorage.setItem('username', user_name);
-    currentPrivilegeLevel = privilege_level
+  try {
+    const resp = await fetch('api/users/me', { credentials: 'include' });
+    if (!resp.ok) {
+      // Not logged in / unauthorized or server error — hide admin controls by default
+      hideAdminControls();
+      return;
+    }
+
+    const data = await resp.json();
+    // fallback to `name` if display_name is missing/null, and default privilege to 0
+    const displayName = data.display_name;
+    const privilege = Number.isFinite(data.privilege_level)
+      ? parseInt(data.privilege_level, 10)
+      : (data.privilege_level != null ? Number(data.privilege_level) : 0);
+
+    currentUserName = displayName;
+    localStorage.setItem('username', displayName);
+    currentPrivilegeLevel = Number.isFinite(privilege) ? privilege : 0;
     updateUserUI();
+
+    if (currentPrivilegeLevel < 1) {
+      hideAdminControls();
+    }
+  } catch (err) {
+    console.error('Error fetching api/users/me:', err);
+    // conservative default: hide admin controls
+    hideAdminControls();
   }
-  if (currentPrivilegeLevel < 1) {
-    document.getElementById('make-assignments').classList.add('hidden');
-    document.getElementById('release-assignments').classList.add('hidden');
-    document.getElementById('reset-assignments').classList.add('hidden');
-    document.getElementById('update-karma').classList.add('hidden');
-  }
+}
+
+function hideAdminControls() {
+  ['make-assignments', 'release-assignments', 'reset-assignments', 'update-karma']
+    .forEach(id => document.getElementById(id)?.classList.add('hidden'));
 }

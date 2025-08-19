@@ -53,7 +53,7 @@ login_manager.init_app(app)
 # Flask-Login helper to retrieve a user from our db
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(user_id)
+    return db.session.get(User, user_id)
 login_manager.anonymous_user = Anonymous
 
 

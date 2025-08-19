@@ -46,13 +46,14 @@ class User(UserMixin, db.Model):
          - 1..5 if any have < 6 users
          - otherwise 6
         """
-        for campaign_id in range(1, 6):
-            count = db.session.query(func.count(cls.id))\
-                .filter(cls.dnd_beyond_campaign == campaign_id)\
-                .scalar()
-            if count < 6:
+        MAX_USERS_PER_CAMPAIGN = 6
+        NUM_CAMPAIGNS = 5
+        for campaign_id in range(1, NUM_CAMPAIGNS+1):
+            stmt = db.select(func.count(cls.id)).where(cls.dnd_beyond_campaign == campaign_id)
+            count = db.session.scalar(stmt)
+            if count < MAX_USERS_PER_CAMPAIGN:
                 return campaign_id
-        return 6
+        return NUM_CAMPAIGNS+1
 
     @classmethod
     def create(cls, commit=True, **kwargs):

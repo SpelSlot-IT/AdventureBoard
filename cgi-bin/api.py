@@ -14,7 +14,7 @@ from flask import (
     redirect, 
     g 
     )
-from sqlalchemy import text
+from sqlalchemy import text, delete
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 import json
@@ -89,7 +89,7 @@ class SignupSchema(ma.SQLAlchemyAutoSchema):
         include_fk = True
         load_instance = False
         sqla_session = db.session
-        only = ("user_id", "adventure_id", "priority")
+        exclude = ("id", "user_id")
 
 class AdventureQuerySchema(ma.Schema):
     adventure_id = ma.Integer(allow_none=True)
@@ -102,7 +102,14 @@ class AdventureQuerySchema(ma.Schema):
         ed = data.get("week_end")
         if sd and ed and sd > ed:
             raise ValidationError("week_start must be <= week_end.")
+        
+class AdventureAssignmentSchema(ma.SQLAlchemyAutoSchema):
+    class Meta:
+        model = AdventureAssignment
+        include_fk = True
+        exclude = ("adventure_id","top_three","user_id")
 
+    user = ma.Nested(UserSchema, dump_only=True)
 
 class AdventureSchema(ma.SQLAlchemyAutoSchema):
     """Auto-schema for Adventure used for both output (dump) and input (load).
@@ -110,17 +117,10 @@ class AdventureSchema(ma.SQLAlchemyAutoSchema):
     - `players` is a nested list of UserSchema for dumping only.
     - `requested_players` is a load-only list of ints that the POST endpoint
        will use to create AdventureAssignment rows.
-
-    Visibility rules are controlled by passing `context` to the schema with
-    keys:
-      - display_players: bool
-      - expose_karma: bool
-
-    post_dump strips or sanitizes the player data based on that context.
     """
 
-    # players -> nested users (dump only)
-    players = ma.List(ma.Nested(UserSchema), dump_only=True)
+    # assignments -> nested users (dump only)
+    assignments = ma.List(ma.Nested(AdventureAssignmentSchema), dump_only=True)
 
     # allow the same schema to accept requested_players during creation
     requested_players = ma.List(ma.Integer(), load_only=True, allow_none=True)
@@ -130,8 +130,7 @@ class AdventureSchema(ma.SQLAlchemyAutoSchema):
         include_fk = True
         load_instance = False  # keep loading as dict for explicit DB handling
         sqla_session = db.session
-        # avoid auto-dumping relationships we don't want
-        exclude = ("assignments", "signups")
+        exclude = ("signups",)
 
     @validates_schema
     def validate_dates(self, data, **kwargs):
@@ -140,6 +139,10 @@ class AdventureSchema(ma.SQLAlchemyAutoSchema):
         if sd and ed and sd > ed:
             raise ValidationError("start_date must be <= end_date.")
 
+class ConflictResponseSchema(ma.Schema):
+    message = ma.Str(required=True)
+    mis_assignments = ma.List(ma.Integer(), required=True)
+    adventure = ma.Nested(AdventureSchema)
 
 # ----------------------- Routes ----------------------------------
 
@@ -241,73 +244,72 @@ class CallbackResource(MethodView):
         """
         Endpoint for Google to redirect to after login.
         """
-        try:
-            # Get authorization code Google sent back to you
-            code = request.args.get("code")
-            client, google_provider_cfg = get_google()
 
-            # Find out what URL to hit to get tokens that allow you to ask for
-            # things on behalf of a user
-            token_endpoint = google_provider_cfg["token_endpoint"]
+        # Get authorization code Google sent back to you
+        code = request.args.get("code")
+        client, google_provider_cfg = get_google()
 
-            # Prepare and send request to get tokens! Yay tokens!
-            token_url, headers, body = client.prepare_token_request(
-                token_endpoint,
-                authorization_response=request.url,
-                redirect_url=request.base_url,
-                code=code,
-            )
-            token_response = requests.post(
-                token_url,
-                headers=headers,
-                data=body,
-                auth=(current_app.config["GOOGLE"]["client_id"], current_app.config["GOOGLE"]["client_secret"]),
-            )
+        # Find out what URL to hit to get tokens that allow you to ask for
+        # things on behalf of a user
+        token_endpoint = google_provider_cfg["token_endpoint"]
 
-            # Parse the tokens!
-            client.parse_request_body_response(json.dumps(token_response.json()))
+        # Prepare and send request to get tokens! Yay tokens!
+        token_url, headers, body = client.prepare_token_request(
+            token_endpoint,
+            authorization_response=request.url,
+            redirect_url=request.base_url,
+            code=code,
+        )
+        token_response = requests.post(
+            token_url,
+            headers=headers,
+            data=body,
+            auth=(current_app.config["GOOGLE"]["client_id"], current_app.config["GOOGLE"]["client_secret"]),
+        )
 
-            # Now that we have tokens (yay) let's find and hit URL
-            # from Google that gives you user's profile information,
-            # including their Google Profile Image and Email
-            userinfo_endpoint = google_provider_cfg["userinfo_endpoint"]
-            uri, headers, body = client.add_token(userinfo_endpoint)
-            userinfo_response = requests.get(uri, headers=headers, data=body)
+        # Parse the tokens!
+        client.parse_request_body_response(json.dumps(token_response.json()))
 
-            # We want to make sure their email is verified.
-            # The user authenticated with Google, authorized our
-            # app, and now we've verified their email through Google!
-            if userinfo_response.json().get("email_verified"):
-                unique_id = userinfo_response.json()["sub"]
-                users_email = userinfo_response.json()["email"]
-                picture = userinfo_response.json()["picture"]
-                users_name = userinfo_response.json()["given_name"]
-            else:
-                return "User email not available or not verified by Google.", 400
+        # Now that we have tokens (yay) let's find and hit URL
+        # from Google that gives you user's profile information,
+        # including their Google Profile Image and Email
+        userinfo_endpoint = google_provider_cfg["userinfo_endpoint"]
+        uri, headers, body = client.add_token(userinfo_endpoint)
+        userinfo_response = requests.get(uri, headers=headers, data=body)
 
-            # Create a user in our db with the information provided by Google
-            # 1) See if Google’s user_id is already in our table
-            existing = User.query.filter_by(google_id=unique_id).first()
+        # We want to make sure their email is verified.
+        # The user authenticated with Google, authorized our
+        # app, and now we've verified their email through Google!
+        if userinfo_response.json().get("email_verified"):
+            unique_id = userinfo_response.json()["sub"]
+            users_email = userinfo_response.json()["email"]
+            picture = userinfo_response.json()["picture"]
+            users_name = userinfo_response.json()["given_name"]
+        else:
+            return "User email not available or not verified by Google.", 400
 
-            if existing:
-                # They’re already in our DB — use that
-                login_user(existing)
-            else:
-                # Not found → create and commit
-                new_user = User.create(
-                    google_id=unique_id,
-                    name=users_name,
-                    email=users_email,
-                    profile_pic=picture)
-                db.session.add(new_user)
-                db.session.commit()
-                login_user(new_user, fresh=True) 
+        # Create a user in our db with the information provided by Google
+        # 1) See if Google’s user_id is already in our table
+        stmt = db.select(User).where(User.google_id == unique_id)
+        existing = db.session.scalars(stmt).first()
 
-            # Send user back to homepage
-            return redirect(url_for("dashboard"))
+        if existing:
+            # They’re already in our DB — use that
+            login_user(existing)
+        else:
+            # Not found → create and commit
+            new_user = User.create(
+                google_id=unique_id,
+                name=users_name,
+                email=users_email,
+                profile_pic=picture)
+            db.session.add(new_user)
+            db.session.commit()
+            login_user(new_user, fresh=True) 
 
-        except Exception as e:
-            return str(e)+f" - {unique_id} {users_name}", 500
+        # Send user back to homepage
+        return redirect(url_for("dashboard"))
+
 
 @blp_utils.route('/logout')
 class LockoutResource(MethodView):
@@ -327,7 +329,7 @@ class UsersListResource(MethodView):
     def get(self):
         """Return list of all users."""
         try:
-            return User.query.all()
+            return db.session.execute(db.select(User)).scalars().all()
         except SQLAlchemyError as e:
             abort(500, message=f"Database error: {str(e)}")
 
@@ -337,7 +339,7 @@ class UserResource(MethodView):
     def get(self, user_id):
         """Return single user by id."""
         try:
-            user = User.query.get(user_id) 
+            user = db.session.get(User, user_id)
             if not user:
                 abort(404, message="User not found")
             return user
@@ -351,7 +353,7 @@ class UserResource(MethodView):
         Partially update a user. Only fields present in the JSON body will be changed.
         """
         try:
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
             if not user:
                 abort(404, message="User not found")
 
@@ -379,7 +381,7 @@ class UserResource(MethodView):
         ---
         TODO: REMOVE
         """
-        login_user(User.query.get(user_id))
+        login_user(db.session.get(User, user_id), fresh=True)
         return
     
 
@@ -396,7 +398,7 @@ class MeResource(MethodView):
 class AdventureResource(MethodView):
 
     @blp_adventures.arguments(AdventureQuerySchema, location="query")
-    #@blp_adventure.response(200, AdventureSchema(many=True))
+    #@blp_adventures.response(200, AdventureSchema(many=True))
     def get(self, args):
         """
         Returns a list of Adventure objects. 
@@ -411,17 +413,19 @@ class AdventureResource(MethodView):
                 abort(400, message="Either adventure_id or week_start/week_end must be specified.")
 
             # Eager-load assignments -> user to avoid N+1 queries
-            query = db.session.query(Adventure).options(
+            stmt = db.select(Adventure).options(
                 joinedload(Adventure.assignments).joinedload(AdventureAssignment.user)
             )
 
             if adventure_id is not None:
-                query = query.filter(Adventure.id == int(adventure_id))
+                stmt = db.select(Adventure).where(Adventure.id == int(adventure_id))
             elif week_start and week_end:
-                query = query.filter(Adventure.start_date <= week_end,
-                                     Adventure.end_date >= week_start)
+                stmt = db.select(Adventure).where(
+                    Adventure.start_date <= week_end,
+                    Adventure.end_date >= week_start
+                )
 
-            adventures = query.all()
+            adventures = db.session.scalars(stmt).all()
 
             # Determine display rights
             is_admin = (current_user.is_authenticated and current_user.privilege_level >= 1)
@@ -431,12 +435,10 @@ class AdventureResource(MethodView):
                 #exclude = ["karma"]
                 pass
             if not display_players:
-                exclude = exclude + ["signups"]
-
-
-            schema = AdventureSchema(many=True, exclude=exclude)
-
-            return schema.dump(adventures)
+                #exclude = exclude + ["assignments"]
+                pass
+            
+            return AdventureSchema(many=True, exclude=exclude).dump(adventures)
 
         except ValidationError as ve:
             abort(400, message=str(ve))
@@ -446,85 +448,54 @@ class AdventureResource(MethodView):
 
     # note decorator order: we validate/deserialize the body using AdventureSchema
     # and then require login
-    @blp_adventures.arguments(AdventureSchema(exclude=("id","user_id")))
     @login_required
-    @blp_adventures.response(201, AdventureSchema) 
-    @blp_adventures.alt_response(409)
+    @blp_adventures.arguments(AdventureSchema(exclude=("id","user_id")))
+    @blp_adventures.response(201, AdventureSchema()) 
+    @blp_adventures.alt_response(409, schema=ConflictResponseSchema())
     def post(self, data):
         """
-        Create a new adventure.
-
-        Create a new adventure and optionally create AdventureAssignment rows for
-        `requested_players` (the field is load-only on the AdventureSchema). If some
-        player assignments fail (invalid user_id), the adventure itself is still
-        created but a 409 is returned listing `mis_assignments`.
+        Create a new adventure
         """
         try:
-            # Extract validated fields (data comes from AdventureSchema load)
-            title = data.get("title")
-            short_description = data.get("short_description")
-            max_players = int(data.get("max_players")) if data.get("max_players") is not None else None
-            start_date = data.get("start_date")
-            end_date = data.get("end_date")
-            is_story_adventure = bool(data.get("is_story_adventure", False))
-            requested_room = data.get("requested_room")
-            requested_players = data.get("requested_players", [])
+            requested_players = data.pop("requested_players", [])
 
             new_adv = Adventure(
-                title=title,
-                short_description=short_description,
                 user_id=current_user.id,
-                max_players=max_players if max_players is not None else Adventure.max_players.default.arg,
-                start_date=start_date,
-                end_date=end_date,
-                is_story_adventure=is_story_adventure,
-                requested_room=requested_room
+                **data
             )
-
             db.session.add(new_adv)
-            db.session.flush()  # gives new_adv.id without committing
+            db.session.flush()  # new_adv.id available
 
             mis_assignments = []
             for pid in requested_players:
-                assignment = AdventureAssignment(
-                    adventure_id=new_adv.id,
-                    user_id=pid,
-                    appeared=True,
-                    top_three=True
-                )
-                db.session.add(assignment)
                 try:
-                    db.session.flush()
+                    with db.session.begin_nested():  # savepoint per assignment
+                        assignment = AdventureAssignment(
+                            adventure_id=new_adv.id,
+                            user_id=pid,
+                            appeared=True,
+                            top_three=True
+                        )
+                        db.session.add(assignment)
+                        db.session.flush()
                 except IntegrityError:
-                    # invalid foreign key or other integrity error for this assignment
                     db.session.rollback()
                     mis_assignments.append(pid)
-                    # re-attach new_adv so we can continue adding assignments
-                    db.session.add(new_adv)
 
             db.session.commit()
-
-            # Prepare response using AdventureSchema and the same visibility rules
-            display_players = (current_user.is_authenticated and current_user.privilege_level >= 1) or \
-                              (check_release() if "check_release" in globals() else False)
-            expose_karma = (current_user.is_authenticated and current_user.privilege_level >= 1)
-
-            schema = AdventureSchema()
-            adv_data = schema.dump(new_adv)
-
             if mis_assignments:
-                body = {
+                conflict_payload = ConflictResponseSchema().dump({
                     "message": "Adventure added, but some players could not be assigned.",
-                    "adventure_id": new_adv.id,
-                    "mis_assignments": mis_assignments,
-                    **adv_data,
-                }
-                # return 409 with body (still include the created resource)
-                return body, 409
+                    "adventure": new_adv,
+                    "mis_assignments": mis_assignments
+                })
+                return conflict_payload, 409
 
-            return adv_data, 201
+            # Normal success: return the model instance (decorator will dump it)
+            return new_adv
 
         except ValidationError as ve:
+            db.session.rollback()
             abort(400, message=str(ve))
         except Exception as e:
             db.session.rollback()
@@ -537,7 +508,7 @@ class AdventureResource(MethodView):
         user_id = current_user.id
         adventure_id = data.get("id")
 
-        adventure = Adventure.query.get(adventure_id)
+        adventure = db.session.get(Adventure, adventure_id)
         if not adventure:
             abort(404, message="Adventure not found.")
 
@@ -575,7 +546,9 @@ class AdventureResource(MethodView):
         if "requested_players" in data:
             new_player_ids = data["requested_players"] or []
 
-            AdventureAssignment.query.filter_by(adventure_id=adventure_id).delete()
+            db.session.execute(
+                delete(AdventureAssignment).where(AdventureAssignment.adventure_id == adventure_id)
+            )
 
             for pid in new_player_ids:
                 try:
@@ -620,7 +593,7 @@ class AdventureResource(MethodView):
             abort(400, message={'error': 'Missing adventure_id'})
 
         try:
-            adventure = Adventure.query.get(adventure_id)
+            adventure = db.session.get(Adventure, adventure_id)
             if not adventure:
                 abort(404, message={'error': 'Adventure not found'})
 
@@ -652,7 +625,10 @@ class AssignmentResource(MethodView):
             adventure_id = request.args.get('adventure_id', type=int)
             if not adventure_id:
                 return jsonify({'error': 'Adventure ID is required'}), 400
-            assignments = AdventureAssignment.query.filter_by(adventure_id=adventure_id).join(User).all()
+            stmt = db.select(AdventureAssignment).join(User).where(
+                AdventureAssignment.adventure_id == adventure_id
+            )
+            assignments = db.session.scalars(stmt).all()
             users = [assignment.user for assignment in assignments if assignment.user]
 
             return users, 200
@@ -697,10 +673,11 @@ class AssignmentResource(MethodView):
         from_adventure_id = args['from_adventure_id']
         to_adventure_id = args['to_adventure_id']
 
-        assignment = db.session.query(AdventureAssignment).filter_by(
-            user_id=player_id,
-            adventure_id=from_adventure_id
-        ).first()
+        stmt = db.select(AdventureAssignment).where(
+            AdventureAssignment.user_id == player_id,
+            AdventureAssignment.adventure_id == from_adventure_id
+        )
+        assignment = db.session.scalars(stmt).first()
 
         if not assignment:
             abort(404, message="Assignment not found")
@@ -727,7 +704,8 @@ class SignupResource(MethodView):
             abort(401, message="Unauthorized")
 
         try:
-            signups = Signup.query.filter_by(user_id=current_user.id).all()
+            stmt = db.select(Signup).where(Signup.user_id == current_user.id)
+            signups = db.session.scalars(stmt).all()
             return signups
 
         except SQLAlchemyError as e:
@@ -736,7 +714,9 @@ class SignupResource(MethodView):
         except Exception as e:
             abort(500, message=str(e))
 
-    @blp_signups.response(200, MessageSchema)
+    @login_required
+    @blp_signups.arguments(SignupSchema())
+    @blp_signups.response(200, MessageSchema())
     def post(self, data):
         """
         Makes a signup for a specific adventure.
@@ -749,21 +729,27 @@ class SignupResource(MethodView):
 
         try:
             # Check if exact same signup already exists (toggle behavior)
-            existing_signup = Signup.query.filter_by(
-                user_id=user_id,
-                adventure_id=adventure_id,
-                priority=priority
-            ).first()
+            stmt = db.select(Signup).where(
+                Signup.user_id == user_id,
+                Signup.adventure_id == adventure_id,
+                Signup.priority == priority
+            )
+
+            existing_signup = db.session.scalars(stmt).first()
 
             if existing_signup:
                 db.session.delete(existing_signup)
                 message = 'Signup removed'
             else:
-                # Remove any existing signup with same priority (regardless of adventure)
-                Signup.query.filter_by(user_id=user_id, priority=priority).delete()
+               # Remove any existing signup with same priority (regardless of adventure)
+                db.session.execute(
+                    delete(Signup).where(Signup.user_id == user_id, Signup.priority == priority)
+                )
 
                 # Remove any existing signup for same adventure (regardless of priority)
-                Signup.query.filter_by(user_id=user_id, adventure_id=adventure_id).delete()
+                db.session.execute(
+                    delete(Signup).where(Signup.user_id == user_id, Signup.adventure_id == adventure_id)
+                )
 
                 # Add new signup
                 new_signup = Signup(user_id=user_id, adventure_id=adventure_id, priority=priority)

@@ -4,29 +4,16 @@ from provider import db
 
 def assign_adventures_from_db():
     # Step 1: Fetch all required data
-    users = db.session.query(User.id, User.karma).all()
-    adventures = db.session.query(Adventure.id, Adventure.max_players).all()
-    old_assignments = {row.user_id for row in db.session.query(AdventureAssignment.user_id).distinct()}
-    signups = db.session.query(Signup.user_id, Signup.adventure_id, Signup.priority).all()
+    users = db.session.execute(db.select(User.id, User.karma).order_by(User.karma.desc())).scalars().all() # MAKE SORTED BY KARMA
+    adventures = db.session.execute(db.select(Adventure.id, Adventure.max_players)).scalars().all()
+    old_assignments = set(db.session.execute(db.select(AdventureAssignment.user_id).distinct()).scalars().all())
+    signups = db.session.execute(db.select(Signup.user_id, Signup.adventure_id, Signup.priority)).scalars().all()
 
-    # Step 2: Organize data
-    adventure_capacity = {adv.id: adv.max_players for adv in adventures}
-    assignments = defaultdict(list)
-
-    # Map user_id to list of (priority, adventure_id), sorted by priority
-    user_signups = defaultdict(list)
-    for signup in signups:
-        user_signups[signup.user_id].append((signup.priority, signup.adventure_id))
-    for uid in user_signups:
-        user_signups[uid].sort()  # Sort by priority (1, 2, 3)
-
-    sorted_users = sorted(users, key=lambda u: -u.karma)
-    placed_users = set(old_assignments)
-
+    placed_users = old_assignments
     # Step 3: Try assigning based on priority signups
-    for user in sorted_users:
+    for user in users:
         uid = user.id
-        if uid in placed_users or uid not in user_signups:
+        if uid in placed_users or uid not in signups:
             continue
         for _, adv_id in user_signups[uid]:
             if len(assignments[adv_id]) < adventure_capacity.get(adv_id, 0):
@@ -55,22 +42,30 @@ def assign_adventures_from_db():
 def reassign_karma():
 
     # +100 karma for creating an adventure
-    creators = db.session.query(User).join(Adventure).distinct()
+    creators = session.execute(
+        select(User).join(Adventure).distinct()
+    ).scalars().all()
     for user in creators:
         user.karma += 100
 
     # -100 karma for not appearing
-    non_appearances = db.session.query(User).join(AdventureAssignment).filter(AdventureAssignment.appeared == False)
+    non_appearances = session.execute(
+        select(User).join(AdventureAssignment).where(AdventureAssignment.appeared.is_(False))
+    ).scalars().all()
     for user in non_appearances:
         user.karma -= 100
 
     # +10 karma for being assigned to something not in top three
-    off_prefs = db.session.query(User).join(AdventureAssignment).filter(AdventureAssignment.top_three == False)
+    off_prefs = session.execute(
+        select(User).join(AdventureAssignment).where(AdventureAssignment.top_three.is_(False))
+    ).scalars().all()
     for user in off_prefs:
         user.karma += 10
 
     # +1 karma for playing
-    played = db.session.query(User).join(AdventureAssignment).filter(AdventureAssignment.appeared == True)
+    played = session.execute(
+        select(User).join(AdventureAssignment).where(AdventureAssignment.appeared.is_(True))
+    ).scalars().all()
     for user in played:
         user.karma += 1
 
