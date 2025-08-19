@@ -64,6 +64,90 @@ function updateWeekLabel() {
 
 
 
+// ===== Helper utilities (include these once in your file) =====
+const DEFAULT_AVATAR = 'https://www.gravatar.com/avatar/?d=mp&s=64';
+
+function escapeHtml(str) {
+  if (str === undefined || str === null) return '';
+  return String(str)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function truncate(str, len = 16) {
+  if (!str) return '';
+  return str.length > len ? str.slice(0, len - 1) + '…' : str;
+}
+
+function normalizeFromPlayersArray(player) {
+  return {
+    id: player.id ?? player.user_id ?? null,
+    username: player.username ?? player.display_name ?? player.name ?? 'Unknown',
+    karma: player.karma ?? (player.user && player.user.karma) ?? null,
+    profile_pic: player.profile_pic ?? (player.user && player.user.profile_pic) ?? null,
+    appeared: player.appeared ?? false
+  };
+}
+
+function normalizeFromAssignmentsArray(assignment) {
+  const u = assignment.user ?? {};
+  return {
+    id: u.id ?? assignment.id ?? null,
+    username: u.display_name ?? u.username ?? 'Unknown',
+    karma: u.karma ?? null,
+    profile_pic: u.profile_pic ?? null,
+    appeared: !!assignment.appeared
+  };
+}
+
+/**
+ * Build HTML string for player list.
+ * Supports adventure.players[] or adventure.assignments[].
+ * @param {Object} adventure
+ * @param {string} currentUserName
+ * @returns {string}
+ */
+function buildPlayerListHtml(adventure, currentUserName = '') {
+  if (!adventure) return 'No players assigned yet';
+
+  let participants = [];
+
+  if (Array.isArray(adventure.players) && adventure.players.length > 0) {
+    participants = adventure.players.map(normalizeFromPlayersArray);
+  } else if (Array.isArray(adventure.assignments) && adventure.assignments.length > 0) {
+    participants = adventure.assignments.map(normalizeFromAssignmentsArray);
+  }
+
+  if (!participants.length) return 'No players assigned yet';
+
+  return participants.map(player => {
+    const safeId = escapeHtml(player.id ?? '');
+    const safeAdvId = escapeHtml(adventure.id ?? '');
+    const safeName = escapeHtml(player.username);
+    const avatar = escapeHtml(player.profile_pic || DEFAULT_AVATAR);
+    const isOwn = player.username === currentUserName ? 'own-player' : '';
+
+    return `
+      <div class="draggable-player ${isOwn}"
+           draggable="true"
+           data-player-id="${safeId}"
+           data-adventure-id="${safeAdvId}"
+           title="${safeName}">
+        <img class="player-avatar" src="${avatar}" alt="${safeName}'s avatar" width="36" height="36" />
+        <div class="player-meta">
+          <span class="player-name">${escapeHtml(truncate(player.username, 16))}</span><br>
+          ${player.karma != null ? `<span class="player-karma">${escapeHtml(player.karma)} ✨</span>` : ''}
+          ${player.appeared ? `<span class="player-appeared" aria-label="Appeared" title="Appeared"> ✅</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ===== Modified loadAdventures (integrated) =====
 async function loadAdventures() {
   updateWeekLabel();
   const [weekStart, weekEnd] = getWeekRange(currentWeekOffset);
@@ -112,42 +196,36 @@ async function loadAdventures() {
         card.classList.add('long');
       }
 
-      const title = adventure.title.length > 16 ? adventure.title.slice(0, 16) + '…' : adventure.title;
-      const desc = adventure.short_description.length > 64 ? adventure.short_description.slice(0, 64) + '…' : adventure.short_description;
+      // safe title/desc handling
+      const titleRaw = adventure.title ?? '';
+      const descRaw = adventure.short_description ?? '';
+      const title = escapeHtml(titleRaw.length > 16 ? titleRaw.slice(0, 16) + '…' : titleRaw);
+      const desc = escapeHtml(descRaw.length > 64 ? descRaw.slice(0, 64) + '…' : descRaw);
 
       const signed = userSignups.find(s => s.adventure_id === adventure.id);
       const signedPriority = signed?.priority; // undefined if not signed
       const getHighlight = (prio) => (signedPriority === prio ? 'highlighted' : '');
 
-      const playerList = adventure.players?.length > 0
-        ? adventure.players.map(player => `
-                <div class="draggable-player ${player.username === currentUserName ? 'own-player' : ''}"
-                    draggable="true"
-                    data-player-id="${player.id}"
-                    data-adventure-id="${adventure.id}">
-                  <span class="player-name">${player.username.slice(0, 16)}</span><br>
-                  ${player.karma !== undefined && player.karma !== null ? `<span class="player-karma">${player.karma} ✨</span>` : ''}
-                </div>
-              `).join('')
-        : 'No players assigned yet';
+      // use the helper to build the player list markup
+      const playerListHtml = buildPlayerListHtml(adventure, currentUserName);
 
       card.innerHTML = `
             <h2>${title}</h2>
             <p>${desc}</p>
             <p><strong>Players:</strong>
               <div class="player-list" 
-                  data-adventure-id="${adventure.id}" 
+                  data-adventure-id="${escapeHtml(adventure.id)}" 
                   ondrop="drop(event)" 
                   ondragover="allowDrop(event)">
-                ${playerList}
+                ${playerListHtml}
               </div>
             </p>
             <div >
-              <button style="width: 140px;" onclick="moreDetails(${adventure.id})">More Details</button>
+              <button style="width: 140px;" onclick="moreDetails(${escapeHtml(adventure.id)})">More Details</button>
               <div style="margin-top: 10px;">
-                <button class="${getHighlight(1)}" onclick="signUp(this, ${adventure.id}, 1)">🥇</button>
-                <button class="${getHighlight(2)}" onclick="signUp(this, ${adventure.id}, 2)">🥈</button>
-                <button class="${getHighlight(3)}" onclick="signUp(this, ${adventure.id}, 3)">🥉</button>
+                <button class="${getHighlight(1)}" onclick="signUp(this, ${escapeHtml(adventure.id)}, 1)">🥇</button>
+                <button class="${getHighlight(2)}" onclick="signUp(this, ${escapeHtml(adventure.id)}, 2)">🥈</button>
+                <button class="${getHighlight(3)}" onclick="signUp(this, ${escapeHtml(adventure.id)}, 3)">🥉</button>
               </div>
             </div>
           `;
@@ -162,14 +240,37 @@ async function loadAdventures() {
   addCard.innerHTML = `<button class="plus-btn" onclick="openModal()">+</button>`;
   container.appendChild(addCard);
 
-  // 5) re-attach drag handlers
+  // 5) re-attach drag handlers for all generated .draggable-player elements
   container.querySelectorAll('.draggable-player').forEach(el => {
     el.addEventListener('dragstart', e => {
-      e.dataTransfer.setData('playerId', e.target.dataset.playerId);
-      e.dataTransfer.setData('fromAdventureId', e.target.dataset.adventureId);
+      // e.target might be child (img or span) so fetch closest draggable-player
+      const dragEl = e.currentTarget;
+      const playerId = dragEl.dataset.playerId;
+      const fromAdventureId = dragEl.dataset.adventureId;
+
+      // set both legacy keys and a json payload for flexibility
+      try {
+        e.dataTransfer.setData('application/json', JSON.stringify({
+          playerId,
+          fromAdventureId
+        }));
+      } catch (err) {
+        // Some browsers may throw for unsupported types in certain contexts; ignore safely
+      }
+      e.dataTransfer.setData('playerId', playerId ?? '');
+      e.dataTransfer.setData('fromAdventureId', fromAdventureId ?? '');
+      e.dataTransfer.effectAllowed = 'move';
+
+      // visual cue
+      dragEl.classList.add('dragging');
+    });
+
+    el.addEventListener('dragend', (e) => {
+      e.currentTarget.classList.remove('dragging');
     });
   });
 }
+
 
 
 
