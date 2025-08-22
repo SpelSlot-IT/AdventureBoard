@@ -1,0 +1,18 @@
+name: adventureboard-mysql
+
+services:
+  db:
+    image: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "password"
+      MYSQL_USER: "user"
+      MYSQL_PASS: "password"
+    # (this is just an example, not intended to be a production configuration)
+    ports:
+      - 3306:3306
+    volumes:
+      - datavolume:/var/lib/mysql
+
+volumes:
+  datavolume:
