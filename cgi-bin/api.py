@@ -288,14 +288,14 @@ class CallbackResource(MethodView):
         else:
             return "User email not available or not verified by Google.", 400
 
-        # Create a user in our db with the information provided by Google
-        # 1) See if Google’s user_id is already in our table
+        # See if Google’s user_id is already in our table
         stmt = db.select(User).where(User.google_id == unique_id)
         existing = db.session.scalars(stmt).first()
 
         if existing:
             # They’re already in our DB — use that
-            login_user(existing)
+            user = existing
+            
         else:
             # Not found → create and commit
             new_user = User.create(
@@ -305,10 +305,15 @@ class CallbackResource(MethodView):
                 profile_pic=picture)
             db.session.add(new_user)
             db.session.commit()
-            login_user(new_user, fresh=True) 
+            user = new_user
 
-        # Send user back to homepage
-        return redirect(url_for("dashboard"))
+        login_user(user)
+
+        # Send user back to homepage or if he has not yet finished setup set him to edit his profile
+        if user.is_setup():
+            return redirect(url_for("dashboard"))
+        else:
+            return redirect(url_for("edit_profile"))
 
 
 @blp_utils.route('/logout')
@@ -432,10 +437,10 @@ class AdventureResource(MethodView):
             display_players = is_admin or check_release()
             exclude = []
             if not is_admin:
-                #exclude = ["karma"]
+                exclude = ["assignments.user.karma"]
                 pass
             if not display_players:
-                #exclude = exclude + ["assignments"]
+                exclude = exclude + ["assignments"]
                 pass
             
             return AdventureSchema(many=True, exclude=exclude).dump(adventures)
@@ -616,7 +621,7 @@ class AdventureResource(MethodView):
 # --- ASSIGNMENTS ---
 @blp_assignments.route('')
 class AssignmentResource(MethodView):
-    @blp_assignments.response(200,UserSchema(many=True, exclude=['karma', 'privilege_level', 'email', 'profile_pic']))
+    @blp_assignments.response(200,UserSchema(many=True, exclude=['karma', 'privilege_level', 'email', ]))
     def get(self):
         """
         Returns a list of players assigned to a single adventure.

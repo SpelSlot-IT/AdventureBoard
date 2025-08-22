@@ -5,16 +5,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Adventure Board</title>
-    <link rel="stylesheet" href="../../static/css/styles.css" />
-    <link rel="shortcut icon" href="../../static/favicon.ico">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
     <!-- JQuery -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
 
     <!-- Chosen -->
-    <link href='../../external/chosen/chosen.min.css' rel='stylesheet' type='text/css'>
-    <script src='../../external/chosen/chosen.jquery.min.js' type='text/javascript'></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chosen-js/chosen.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chosen-js/chosen.jquery.min.js"></script>
 
+    <!-- Custom JS -->
+    <script type="text/javascript" src="{{ url_for('static', filename='js/util.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/app.js') }}"></script>
 </head>
 
 <body>
@@ -29,7 +32,7 @@
         <div id="user-menu" class="user-menu">
             <button id="login-button" onclick="handleLoginClick()">Login</button>
             <div id="dropdown" class="dropdown hidden">
-                <a href="#" onclick="changePassword()">Change Password</a>
+                <a href="#" onclick="changePassword()">Edit Profile</a>
                 <a href="#" id="make-assignments" onclick="makeAssignments('assign')">Make Assignments</a>
                 <a href="#" id="release-assignments" onclick="makeAssignments('release')">Release Assignments</a>
                 <a href="#" id="reset-assignments" onclick="makeAssignments('reset')">Reset Assignments</a>
@@ -100,12 +103,7 @@
         </div>
     </div>
     <footer class="site-footer">Made with love, for Spelslot ❤️</footer>
-    <script>
-        window.BASEAPI = "{{ url_for('system_check', _external=False) }}";
-    </script>
-    <script type="text/javascript" src="../../static/js/toast.js"></script>
-    <script type="text/javascript" src="../../static/js/app.js">
-    </script>
+
 </body>
 
 

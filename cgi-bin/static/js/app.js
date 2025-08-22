@@ -64,23 +64,8 @@ function updateWeekLabel() {
 
 
 
-// ===== Helper utilities (include these once in your file) =====
+// Helper
 const DEFAULT_AVATAR = 'https://www.gravatar.com/avatar/?d=mp&s=64';
-
-function escapeHtml(str) {
-  if (str === undefined || str === null) return '';
-  return String(str)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
-function truncate(str, len = 16) {
-  if (!str) return '';
-  return str.length > len ? str.slice(0, len - 1) + '…' : str;
-}
 
 function normalizeFromPlayersArray(player) {
   return {
@@ -124,10 +109,10 @@ function buildPlayerListHtml(adventure, currentUserName = '') {
   if (!participants.length) return 'No players assigned yet';
 
   return participants.map(player => {
-    const safeId = escapeHtml(player.id ?? '');
-    const safeAdvId = escapeHtml(adventure.id ?? '');
-    const safeName = escapeHtml(player.username);
-    const avatar = escapeHtml(player.profile_pic || DEFAULT_AVATAR);
+    const safeId = Util.escapeHtml(player.id ?? '');
+    const safeAdvId = Util.escapeHtml(adventure.id ?? '');
+    const safeName = Util.escapeHtml(player.username);
+    const avatar = Util.escapeHtml(player.profile_pic || DEFAULT_AVATAR);
     const isOwn = player.username === currentUserName ? 'own-player' : '';
 
     return `
@@ -138,8 +123,8 @@ function buildPlayerListHtml(adventure, currentUserName = '') {
            title="${safeName}">
         <img class="player-avatar" src="${avatar}" alt="${safeName}'s avatar" width="36" height="36" />
         <div class="player-meta">
-          <span class="player-name">${escapeHtml(truncate(player.username, 16))}</span><br>
-          ${player.karma != null ? `<span class="player-karma">${escapeHtml(player.karma)} ✨</span>` : ''}
+          <span class="player-name">${Util.escapeHtml(Util.truncate(player.username, 16))}</span><br>
+          ${player.karma != null ? `<span class="player-karma">${Util.escapeHtml(player.karma)} ✨</span>` : ''}
           ${player.appeared ? `<span class="player-appeared" aria-label="Appeared" title="Appeared"> ✅</span>` : ''}
         </div>
       </div>
@@ -161,7 +146,7 @@ async function loadAdventures() {
 
   // 1) fetch data 
   const [advRes, signupRes] = await Promise.all([
-    fetch(`api/adventures?${params.toString()}`),
+    fetch(`api/adventures?${params.toString()} `),
     fetch(`api/signups?user=${currentUserName}`)
   ]);
   const adventures = await advRes.json();
@@ -199,8 +184,8 @@ async function loadAdventures() {
       // safe title/desc handling
       const titleRaw = adventure.title ?? '';
       const descRaw = adventure.short_description ?? '';
-      const title = escapeHtml(titleRaw.length > 16 ? titleRaw.slice(0, 16) + '…' : titleRaw);
-      const desc = escapeHtml(descRaw.length > 64 ? descRaw.slice(0, 64) + '…' : descRaw);
+      const title = Util.escapeHtml(titleRaw.length > 16 ? titleRaw.slice(0, 16) + '…' : titleRaw);
+      const desc = Util.escapeHtml(descRaw.length > 64 ? descRaw.slice(0, 64) + '…' : descRaw);
 
       const signed = userSignups.find(s => s.adventure_id === adventure.id);
       const signedPriority = signed?.priority; // undefined if not signed
@@ -214,18 +199,18 @@ async function loadAdventures() {
             <p>${desc}</p>
             <p><strong>Players:</strong>
               <div class="player-list" 
-                  data-adventure-id="${escapeHtml(adventure.id)}" 
+                  data-adventure-id="${Util.escapeHtml(adventure.id)}" 
                   ondrop="drop(event)" 
                   ondragover="allowDrop(event)">
                 ${playerListHtml}
               </div>
             </p>
             <div >
-              <button style="width: 140px;" onclick="moreDetails(${escapeHtml(adventure.id)})">More Details</button>
+              <button style="width: 140px;" onclick="moreDetails(${Util.escapeHtml(adventure.id)})">More Details</button>
               <div style="margin-top: 10px;">
-                <button class="${getHighlight(1)}" onclick="signUp(this, ${escapeHtml(adventure.id)}, 1)">🥇</button>
-                <button class="${getHighlight(2)}" onclick="signUp(this, ${escapeHtml(adventure.id)}, 2)">🥈</button>
-                <button class="${getHighlight(3)}" onclick="signUp(this, ${escapeHtml(adventure.id)}, 3)">🥉</button>
+                <button class="${getHighlight(1)}" onclick="signUp(this, ${Util.escapeHtml(adventure.id)}, 1)">🥇</button>
+                <button class="${getHighlight(2)}" onclick="signUp(this, ${Util.escapeHtml(adventure.id)}, 2)">🥈</button>
+                <button class="${getHighlight(3)}" onclick="signUp(this, ${Util.escapeHtml(adventure.id)}, 3)">🥉</button>
               </div>
             </div>
           `;
@@ -378,7 +363,7 @@ async function moreDetails(adventure_id) {
 // Open the modal and load available players
 async function openModal() {
   if (!currentUserName) {
-    showToast("Please login to create a new adventure.", "alert");
+    Util.showToast("Please login to create a new adventure.", "alert");
     return;
   }
   document.getElementById('modal').style.display = 'block';
@@ -404,7 +389,7 @@ async function signUp(btn, adventureId, priority) {
   if (res.ok) {
     loadAdventures(); // refresh to update button highlights
   } else {
-    showToast('Failed to sign up: Are you logged in?');
+    Util.showToast('Failed to sign up: Are you logged in?');
   }
 }
 
@@ -425,7 +410,7 @@ async function loadPlayersForSelect() {
     });
 
   } catch (err) {
-    showToast("Failed to load user list:" + err);
+    Util.showToast("Failed to load user list:" + err);
   }
 
   $('select').chosen({ width:'100%', max_shown_results: 5 });
@@ -479,12 +464,12 @@ document.getElementById('adventure-form').addEventListener('submit', async (e) =
 
   // Validate the inputs
   if (!title || !description || selectedPlayerIds.length > maxPlayers) {
-    showToast('Please fill out all fields and select the correct number of players.', 'alert');
+    Util.showToast('Please fill out all fields and select the correct number of players.', 'alert');
     return;
   }
 
   if (endDate < startDate) {
-    showToast('End date must be later or equal than the start date.', 'alert');
+    Util.showToast('End date must be later or equal than the start date.', 'alert');
     return;
   }
   // Create the adventure object to send to the server
@@ -511,14 +496,14 @@ document.getElementById('adventure-form').addEventListener('submit', async (e) =
     document.getElementById('adventure-form').reset();
     closeModal();
     loadAdventures(); // Reload adventures
-    showToast('Added adventure', 'confirm');
+    Util.showToast('Added adventure', 'confirm');
   } else if (res.status === 409) {
     console.warn('Misassigned players:', data.mis_assignments);
-    showToast(data.message || 'Some players could not be assigned.', 'alert');
+    Util.showToast(data.message || 'Some players could not be assigned.', 'alert');
     closeModal();
     loadAdventures(); // Reload adventures
   } else {
-    showToast('Failed to add adventure:'+ data.error);
+    Util.showToast('Failed to add adventure:'+ data.error);
   }
 });
 
@@ -574,7 +559,7 @@ async function logout() {
 
 
 function changePassword() {
-  showToast('Password page not implemented yet.', 'alert');
+  Util.showToast('Password page not implemented yet.', 'alert');
 }
 
 async function makeAssignments(action) {
@@ -590,13 +575,13 @@ async function makeAssignments(action) {
 
     if (res.ok) {
       loadAdventures();
-      showToast(`${action.charAt(0).toUpperCase() + action.slice(1)} triggered.`, 'confirm');
+      Util.showToast(`${action.charAt(0).toUpperCase() + action.slice(1)} triggered.`, 'confirm');
     } else {
-      showToast('Failed to assign players: ' + (data.message || data.error));
+      Util.showToast('Failed to assign players: ' + (data.message || data.error));
     }
   } catch (err) {
     console.error('Error during assignment action:', err);
-    showToast('Something went wrong.');
+    Util.showToast('Something went wrong.');
   }
 }
 
@@ -605,14 +590,14 @@ async function updateKarma() {
     const res = await fetch('api/update-karma');
     if (res.ok) {
       loadAdventures();
-      showToast('Karma updated.', 'confirm');
+      Util.showToast('Karma updated.', 'confirm');
     } else {
       const data = await res.json();
-      showToast('Failed to update karma: ' + data.message);
+      Util.showToast('Failed to update karma: ' + data.message);
     }
   } catch (err) {
     console.error('Error updating karma:', err);
-    showToast('Something went wrong.');
+    Util.showToast('Something went wrong.');
   }
 }
 
@@ -647,7 +632,7 @@ async function drop(event) {
     loadAdventures();
   } else {
     const data = await res.json();
-    showToast('Failed to update the assignment: ' + data.message);
+    Util.showToast('Failed to update the assignment: ' + data.message);
   }
 }
 

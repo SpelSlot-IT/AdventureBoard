@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>User profile — simple editor</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; background:#f6f8fa; color:#111; padding:24px; }
+    .card { background:#fff; border-radius:8px; padding:18px; max-width:760px; margin: 0 auto; box-shadow:0 6px 18px rgba(17,17,17,0.06); }
+    .row { display:flex; gap:16px; align-items:center; margin-bottom:12px; }
+    .avatar { width:96px; height:96px; border-radius:8px; object-fit:cover; border:1px solid #e6e9ee; }
+    label { display:block; font-size:0.9rem; margin-bottom:6px; color:#333; }
+    input[type="text"], input[type="number"] { width:100%; padding:8px 10px; border-radius:6px; border:1px solid #ddd; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; width:100%; }
+    .controls { display:flex; gap:8px; margin-top:16px; }
+    button { padding:8px 12px; border-radius:8px; border:0; cursor:pointer; background:#0366d6; color:#fff; }
+    button.secondary { background:#e1e4ea; color:#111; }
+    .muted { color:#666; font-size:0.9rem; }
+    .message { margin-top:12px; padding:10px; border-radius:6px; }
+    .message.ok { background:#e6ffed; color:#065f3b; }
+    .message.err { background:#ffecec; color:#7a1414; }
+    .small { font-size:0.85rem; color:#444; }
+    .full-width { width:100%; }
+  </style>
+</head>
+<body>
+  <div class="card" id="app">
+    <h1>User profile</h1>
+    <p class="muted">Click <strong>Edit</strong> to change fields and <strong>Save</strong> to save.</p>
+
+    <div id="loading" class="small">Loading…</div>
+
+    <form id="user-form" style="display:none" onsubmit="return false;">
+      <div class="row">
+        <img id="profile-pic" class="avatar" src="" alt="Profile picture" />
+        <div style="flex:1">
+          <label for="display_name">Display name</label>
+          <input id="display_name" name="display_name" type="text" disabled />
+
+          <div style="margin-top:8px">
+            <label for="profile_pic">Profile picture URL</label>
+            <input id="profile_pic" name="profile_pic" type="text" disabled />
+            <div class="small muted">Paste an image URL and click <strong>Edit → Save</strong> to update.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid" style="margin-top:12px">
+        <div>
+          <label for="world_builder_name">World builder name</label>
+          <input id="world_builder_name" name="world_builder_name" type="text" disabled />
+        </div>
+        <div>
+          <label for="dnd_beyond_name">D&D Beyond name</label>
+          <input id="dnd_beyond_name" name="dnd_beyond_name" type="text" disabled />
+        </div>
+
+        <div>
+          <label for="dnd_beyond_campaign">D&D Beyond campaign (id)</label>
+          <input id="dnd_beyond_campaign" name="dnd_beyond_campaign" type="number" min="0" disabled />
+        </div>
+        <div>
+          <label for="privilege_level">Privilege level</label>
+          <input id="privilege_level" name="privilege_level" type="number" min="0" disabled />
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="edit-btn" type="button">Edit</button>
+        <button id="save-btn" type="button" class="secondary" disabled>Save</button>
+        <button id="cancel-btn" type="button" class="secondary" disabled>Cancel</button>
+      </div>
+
+      <div id="message-area"></div>
+    </form>
+  </div>
+
+  <script type="text/javascript" src="../../static/js/util.js"></script>
+  <script type="text/javascript" src="../../static/js/profile.js"></script>
+</body>
+</html>

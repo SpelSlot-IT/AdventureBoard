@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Display field errors or general errors
         if (data.errors?.username) userErr.textContent = data.errors.username;
         if (data.errors?.password) passErr.textContent = data.errors.password;
-        if (data.errors?.database) showToast(data.errors.database);
+        if (data.errors?.database) Util.showToast(data.errors.database);
         return;
       }
 

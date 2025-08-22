@@ -4,6 +4,7 @@ site.addsitedir('/mnt/web105/e0/90/517590/htdocs/.local/lib/python3.11/site-pack
 import json
 from flask import Flask, jsonify, send_from_directory, url_for, render_template, g
 from flask_smorest import Api
+from flask_talisman import Talisman
 
 from provider import db, ma, ap_scheduler, login_manager, google_oauth
 from models import *
@@ -56,28 +57,26 @@ def load_user(user_id):
     return db.session.get(User, user_id)
 login_manager.anonymous_user = Anonymous
 
+# --- Security headers ---
+talisman = Talisman(app)
+talisman.content_security_policy = config['APP']['content_security_policy']
 
 # --- Basic provider routs ---
 @app.route('/')
 def system_check():
     return send_from_directory('.', 'index.html')
 
-@app.route('/static/<path:path>')
-def send_static(path):
-    return send_from_directory('../static', path)
-
-@app.route('/external/<path:path>')
-def send_external(path):
-    return send_from_directory('../external', path)
-
 @app.route('/app')
 def dashboard():
-    return send_from_directory('../public', 'app.html')
+    return render_template('app.html')
 
 @app.route('/help')
 def send_help():
-    return send_from_directory('../public', 'help.html')
+    return render_template('help.html')
 
+@app.route('/profile/<int:user_id>')
+def view_profile(user_id):
+    return render_template('profile.html')
 # --- Cron ---   
 a_d, a_h = config['TIMING']['assignment_day'].split("@")
 r_d, r_h = config['TIMING']['release_day'].split("@")
@@ -101,7 +100,7 @@ if __name__ == '__main__':
     import webbrowser
     import os
     app.secret_key = os.urandom(24)
-    webbrowser.open("https://localhost:5000/")
+    webbrowser.open("https://localhost:5000/app")
     app.run(ssl_context='adhoc')
 
 

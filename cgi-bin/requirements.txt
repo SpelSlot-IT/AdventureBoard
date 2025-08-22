@@ -7,4 +7,5 @@ PyMySQL
 oauthlib
 marshmallow-sqlalchemy
 flask-marshmallow
-flask_smorest    
+flask_smorest
+flask_talisman

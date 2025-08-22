@@ -5,7 +5,12 @@
   "APP": {
     "secret_key": "the-very-secret-key",
     "timeout_hours": 2,
-    "local": true
+    "content_security_policy": {
+      "default-src": "'self'",
+      "script-src": ["'self'", "https://cdn.jsdelivr.net", "https://ajax.googleapis.com"],
+      "style-src": ["'self'", "'unsafe-inline'"],
+      "img-src": ["'self'", "https://lh3.googleusercontent.com"]
+    }
   },
   "DB": {
     "host": "localhost",

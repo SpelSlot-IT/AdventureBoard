@@ -71,6 +71,16 @@ class User(UserMixin, db.Model):
         if commit:
             db.session.commit()
         return user
+    
+    def is_setup(self) -> bool:
+        """Check if all required fields are filled in."""
+        return all([
+            bool(self.display_name and self.display_name.strip()),
+            bool(self.world_builder_name and self.world_builder_name.strip()),
+            bool(self.dnd_beyond_name and self.dnd_beyond_name.strip()),
+            self.dnd_beyond_campaign is not None
+        ])
+
 
 
 class Adventure(db.Model):
