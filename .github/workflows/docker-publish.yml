@@ -18,10 +18,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Downcase REPO
+        run: |
+          export IMAGE_NAME=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+
       - name: Build Docker image
         run: |
-          docker build -t ghcr.io/${{ github.repository.lowercase }}:latest .
+          docker build -t ghcr.io/${IMAGE_NAME}:latest .
 
       - name: Push Docker image
         run: |
-          docker push ghcr.io/${{ github.repository.lowercase }}:latest
+          docker push ghcr.io/${{ github.repository }}:latest
