@@ -24,8 +24,9 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t ghcr.io/${REPO}:latest .
+          echo "Building image: ghcr.io/${REPO}:latest"
+          docker build -t ghcr.io/${REPO}:latest board
 
       - name: Push Docker image
         run: |
-          docker push ghcr.io/${{ github.repository }}:latest
+          docker push ghcr.io/${REPO}:latest
