@@ -20,9 +20,9 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 import json
 import requests
 
-from models import db, User, Adventure, AdventureAssignment
-from util import *
-from provider import ma, ap_scheduler
+from .models import db, User, Adventure, AdventureAssignment
+from .util import *
+from .provider import ma, ap_scheduler
 
 
 blp_utils = Blueprint("utils", "utils", url_prefix="/api/",
@@ -313,7 +313,7 @@ class CallbackResource(MethodView):
         if user.is_setup():
             return redirect(url_for("dashboard"))
         else:
-            return redirect(url_for("edit_profile"))
+            return redirect(url_for("view_own_profile"))
 
 
 @blp_utils.route('/logout')

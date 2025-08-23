@@ -21,7 +21,17 @@
     .message.err { background:#ffecec; color:#7a1414; }
     .small { font-size:0.85rem; color:#444; }
     .full-width { width:100%; }
+    .readonly-field {
+      display: inline-block;
+      padding: 4px 8px;
+      background: #f5f5f5;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      min-width: 50px;
+    }
   </style>
+
+
 </head>
 <body>
   <div class="card" id="app">
@@ -40,7 +50,7 @@
           <div style="margin-top:8px">
             <label for="profile_pic">Profile picture URL</label>
             <input id="profile_pic" name="profile_pic" type="text" disabled />
-            <div class="small muted">Paste an image URL and click <strong>Edit → Save</strong> to update.</div>
+            <div class="small muted">Non google images are not supported yet</div>
           </div>
         </div>
       </div>
@@ -56,14 +66,13 @@
         </div>
 
         <div>
-          <label for="dnd_beyond_campaign">D&D Beyond campaign (id)</label>
-          <input id="dnd_beyond_campaign" name="dnd_beyond_campaign" type="number" min="0" disabled />
+          <label>D&D Beyond campaign (id)</label>
+          <span id="dnd_beyond_campaign_display" class="readonly-field"></span>
         </div>
         <div>
-          <label for="privilege_level">Privilege level</label>
-          <input id="privilege_level" name="privilege_level" type="number" min="0" disabled />
+          <label>Privilege level</label>
+          <span id="privilege_level_display" class="readonly-field"></span>
         </div>
-      </div>
 
       <div class="controls">
         <button id="edit-btn" type="button">Edit</button>
@@ -74,8 +83,9 @@
       <div id="message-area"></div>
     </form>
   </div>
-
-  <script type="text/javascript" src="../../static/js/util.js"></script>
-  <script type="text/javascript" src="../../static/js/profile.js"></script>
+  <div id="profile-container" data-user-id="{{ user_id }}"></div>
+  <!-- Custom JS -->
+  <script type="text/javascript" src="{{ url_for('static', filename='js/util.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('static', filename='js/profile.js') }}"></script>
 </body>
 </html>

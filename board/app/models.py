@@ -1,7 +1,10 @@
 from flask_login import UserMixin, AnonymousUserMixin
-from provider import db
 from sqlalchemy import func
 
+from .provider import db
+
+def custom_name_resolver(schema):
+    return schema.__class__.__name__ + "Schema"
 
 class Anonymous(AnonymousUserMixin):
   def __init__(self):

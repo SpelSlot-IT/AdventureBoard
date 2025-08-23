@@ -9,3 +9,6 @@ marshmallow-sqlalchemy
 flask-marshmallow
 flask_smorest
 flask_talisman
+gunicorn
+requests
+cryptography

@@ -1,7 +1,9 @@
 *.bat
+__pycache__/
 *.pyc
 *.zip
 *.json
+*.pem
 /external
 /venv
-
+*.env

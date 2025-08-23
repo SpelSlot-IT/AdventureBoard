@@ -2,8 +2,8 @@ from flask import jsonify
 from datetime import datetime, timedelta, date
 from flask import current_app
 
-from models import *
-from ranking_tools import *
+from .models import *
+from .ranking_tools import *
 
 def check_release():
     """
