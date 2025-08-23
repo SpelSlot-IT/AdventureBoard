@@ -111,6 +111,11 @@ class AdventureAssignmentSchema(ma.SQLAlchemyAutoSchema):
 
     user = ma.Nested(UserSchema, dump_only=True)
 
+class AdventureAssignmentUpdateSchema(ma.Schema):
+    user_id = ma.Integer(required=True)
+    adventure_id = ma.Integer(required=True)
+    appeared = ma.Boolean(required=True)
+
 class AdventureSchema(ma.SQLAlchemyAutoSchema):
     """Auto-schema for Adventure used for both output (dump) and input (load).
 
@@ -664,6 +669,45 @@ class AssignmentResource(MethodView):
             abort(400, message=f"Invalid action: {action}")
 
         return {'message': f'{action.capitalize()} action executed successfully'}, 200
+    
+    @login_required
+    @blp_assignments.arguments(AdventureAssignmentUpdateSchema)
+    @blp_assignments.response(200, MessageSchema)
+    def post(self, args):
+        """
+        Updates the 'appeared' value for an AdventureAssignment for a given user.
+        Expects JSON body: { "user_id": int, "adventure_id": int, "appeared": <new_value> }
+        """
+       
+        user_id = args['user_id']
+        adventure_id = args['adventure_id']
+        new_value = args['appeared']
+
+        if not user_id or not adventure_id:
+            return jsonify({'error': 'Both user_id and adventure_id are required'}), 400
+
+        # Fetch the assignment
+        assignment = db.session.scalar(
+            db.select(AdventureAssignment).where(
+                AdventureAssignment.user_id == user_id,
+                AdventureAssignment.adventure_id == adventure_id
+            )
+        )
+
+        if not assignment:
+            return jsonify({'error': 'Assignment not found'}), 404
+
+        # Update the value
+        assignment.appeared = new_value
+        try:
+            db.session.commit()
+
+            return jsonify({'message': 'Assignment updated successfully'}), 200
+
+        except Exception as e:
+            db.session.rollback()
+            return abort(500, message={'error': str(e)})
+        
     
     @blp_assignments.arguments(AssignmentUpdateSchema)
     @login_required

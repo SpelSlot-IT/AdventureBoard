@@ -22,7 +22,52 @@ window.onload = async () => {
   loadAdventures();
 };
 
+// ——— Set buttons ———
+document.addEventListener("DOMContentLoaded", () => {
+  // Header buttons
+  document.getElementById("icon-button").addEventListener("click", openHelp);
+  document.getElementById("login-button").addEventListener("click", handleLoginClick);
 
+  // Dropdown actions
+  document.getElementById("edit-profile").addEventListener("click", (e) => {
+    e.preventDefault();
+    changePassword();
+  });
+
+  document.getElementById("make-assignments").addEventListener("click", (e) => {
+    e.preventDefault();
+    makeAssignments("assign");
+  });
+
+  document.getElementById("release-assignments").addEventListener("click", (e) => {
+    e.preventDefault();
+    makeAssignments("release");
+  });
+
+  document.getElementById("reset-assignments").addEventListener("click", (e) => {
+    e.preventDefault();
+    makeAssignments("reset");
+  });
+
+  document.getElementById("update-karma").addEventListener("click", (e) => {
+    e.preventDefault();
+    updateKarma();
+  });
+
+  document.getElementById("logout").addEventListener("click", (e) => {
+    e.preventDefault();
+    logout();
+  });
+
+  // Modal
+  document.getElementById("close-modal").addEventListener("click", closeModal);
+
+  // Load players
+  document.getElementById("open-player-select").addEventListener("click", loadPlayersForSelect);
+});
+
+
+// ——— Functions ———
 function handleLoginClick() {
   if (!currentUserName) {
     window.location.href = "api/login";
@@ -116,21 +161,77 @@ function buildPlayerListHtml(adventure, currentUserName = '') {
     const isOwn = player.username === currentUserName ? 'own-player' : '';
 
     return `
-      <div class="draggable-player ${isOwn}"
-           draggable="true"
-           data-player-id="${safeId}"
-           data-adventure-id="${safeAdvId}"
-           title="${safeName}">
-        <img class="player-avatar" src="${avatar}" alt="${safeName}'s avatar" width="36" height="36" />
-        <div class="player-meta">
-          <span class="player-name">${Util.escapeHtml(Util.truncate(player.username, 16))}</span><br>
-          ${player.karma != null ? `<span class="player-karma">${Util.escapeHtml(player.karma)} ✨</span>` : ''}
-          ${player.appeared ? `<span class="player-appeared" aria-label="Appeared" title="Appeared"> ✅</span>` : ''}
-        </div>
-      </div>
-    `;
+  <div class="draggable-player ${isOwn}"
+       draggable="true"
+       data-player-id="${safeId}"
+       data-adventure-id="${safeAdvId}"
+       title="${safeName}"
+       data-click="profile">
+    <img class="player-avatar" src="${avatar}" alt="${safeName}'s avatar" width="36" height="36" />
+    <div class="player-meta">
+      <span class="player-name">${Util.escapeHtml(Util.truncate(player.username, 16))}</span><br>
+      ${player.karma != null ? `<span class="player-karma">${Util.escapeHtml(player.karma)} ✨</span>` : ''}
+      ${
+        player.appeared === true
+          ? `<span class="player-appeared toggle-appeared" aria-label="Appeared" title="Appeared"> ✅</span>`
+          : player.appeared === false
+            ? `<span class="player-appeared toggle-appeared" aria-label="Not appeared" title="Not appeared"> ❌</span>`
+            : '' // nothing if missing
+      }
+    </div>
+  </div>
+`;
+
   }).join('');
 }
+
+document.addEventListener('click', async (e) => {
+  const playerEl = e.target.closest('.draggable-player');
+  if (!playerEl) return;
+
+  const user_id = playerEl.dataset.playerId;
+  const adventure_id = playerEl.dataset.adventureId;
+
+  // ✅/❌ toggler
+  if (e.target.classList.contains('toggle-appeared')) {
+    e.stopPropagation();
+
+    const current = e.target.textContent.trim();
+    let appearedNow;
+
+    if (current === '✅') {
+      appearedNow = false; // flip to ❌
+      e.target.textContent = '❌';
+    } else {
+      appearedNow = true; // flip to ✅ (also covers ❌ or "no icon" case)
+      e.target.textContent = '✅';
+    }
+
+    try {
+      await fetch('api/player-assignments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id,
+          adventure_id,
+          appeared: appearedNow
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to update signup:', err);
+      // Rollback UI on error
+      e.target.textContent = current;
+    }
+    return;
+  }
+
+  // 👤 Profile click (ignore checkmark)
+  if (playerEl.dataset.click === 'profile') {
+    window.location.href = `profile/${user_id}`;
+  }
+});
+
+
 
 // ===== Modified loadAdventures (integrated) =====
 async function loadAdventures() {
@@ -555,11 +656,6 @@ async function logout() {
   // 3) Update the UI
   updateUserUI();
   loadAdventures();
-}
-
-
-function changePassword() {
-  Util.showToast('Password page not implemented yet.', 'alert');
 }
 
 async function makeAssignments(action) {

@@ -1,5 +1,5 @@
 # Core framework
-Flask>=2.0.0,<3.0.0
+Flask>=2.0.0
 
 # Database
 Flask-SQLAlchemy>=3.0.0

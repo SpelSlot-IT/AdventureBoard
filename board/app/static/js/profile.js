@@ -15,32 +15,15 @@
   const profilePicInput = document.querySelector('input[name="profile_pic"]');
   const editBtn = document.getElementById('edit-btn');
   const saveBtn = document.getElementById('save-btn');
-  const cancelBtn = document.getElementById('cancel-btn');
+  const backBtn = document.getElementById('back-btn');
 
   let currentUser = null;
   let originalData = null;
   let saving = false;
 
-  function showMessage(msg, type = 'ok') {
-    messageArea.innerHTML = `<div class="message ${type === 'ok' ? 'ok' : 'err'}">${escapeHtml(msg)}</div>`;
-    setTimeout(() => {
-      if (messageArea.firstChild) messageArea.firstChild.style.opacity = '0.9';
-    }, 4000);
-  }
-
-  function escapeHtml(s = '') {
-    return String(s)
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
-  }
-
   function setFormEnabled(enabled) {
     form.querySelectorAll('input').forEach(i => i.disabled = !enabled);
     saveBtn.disabled = !enabled;
-    cancelBtn.disabled = !enabled;
     editBtn.disabled = enabled;
   }
 
@@ -73,7 +56,7 @@
   async function loadUser() {
     loadingEl.textContent = 'Loading…';
     try {
-      const url = userId === "me" ? "/api/users/me" : `/api/users/${userId}`;
+      const url = userId === "me" ? "../api/users/me" : `../api/users/${userId}`;
       const res = await fetch(url, { credentials: 'same-origin' });
       if (!res.ok) {
         loadingEl.textContent = `Error loading user: ${res.status}`;
@@ -95,55 +78,53 @@
     };
   }
 
- function revertChanges() {
-  if (!originalData) return;
-  populateForm(originalData);
-  showToast('Changes discarded', 'confirm');
-  setFormEnabled(false);
-}
-
-async function saveChanges() {
-  if (saving) return;
-  if (!currentUser) return showToast('No user loaded', 'error');
-
-  const payload = readFormData();
-  if (!payload.display_name) return showToast('Display name cannot be empty', 'error');
-
-  saving = true;
-  saveBtn.textContent = 'Saving…';
-  saveBtn.disabled = true;
-
-  const url = `/api/users/${encodeURIComponent(currentUser.id)}`;
-  try {
-    const res = await fetch(url, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify(payload)
-    });
-
-    if (res.ok) {
-      const updated = await res.json();
-      populateForm(updated);
-      showToast('Saved successfully', 'confirm');
-    } else if (res.status === 400) {
-      const errBody = await res.json().catch(() => null);
-      showToast('Validation error: ' + (errBody?.message || res.statusText), 'error');
-    } else if (res.status === 401) {
-      showToast('Unauthorized: please log in', 'error');
-    } else {
-      showToast('Save failed: ' + res.status, 'error');
-    }
-  } catch (err) {
-    console.error(err);
-    showToast('Network error while saving', 'error');
-  } finally {
-    saving = false;
-    saveBtn.textContent = 'Save';
-    saveBtn.disabled = false;
-    setFormEnabled(false);
+  function goBack(){
+    window.location.href = "/app";
   }
-}
+
+
+  async function saveChanges() {
+    if (saving) return;
+    if (!currentUser) return Util.showToast('No user loaded', 'error');
+
+    const payload = readFormData();
+    if (!payload.display_name) return Util.showToast('Display name cannot be empty', 'error');
+
+    saving = true;
+    saveBtn.textContent = 'Saving…';
+    saveBtn.disabled = true;
+
+    const url = `../api/users/${encodeURIComponent(currentUser.id)}`;
+    try {
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        populateForm(updated);
+        Util.showToast('Saved successfully', 'confirm');
+      } else if (res.status === 400) {
+        const errBody = await res.json().catch(() => null);
+        Util.showToast('Validation error: ' + (errBody?.message || res.statusText), 'error');
+      } else if (res.status === 401) {
+        Util.showToast('Unauthorized: please log in', 'error');
+      } else {
+        Util.showToast('Save failed: ' + res.status, 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      Util.showToast('Network error while saving', 'error');
+    } finally {
+      saving = false;
+      saveBtn.textContent = 'Save';
+      saveBtn.disabled = false;
+      setFormEnabled(false);
+    }
+  }
 
   function wireImagePreview() {
     profilePicInput.addEventListener('input', () => {
@@ -153,7 +134,7 @@ async function saveChanges() {
   }
 
   editBtn.addEventListener('click', () => setFormEnabled(true));
-  cancelBtn.addEventListener('click', revertChanges);
+  backBtn.addEventListener('click', goBack);
   saveBtn.addEventListener('click', saveChanges);
 
   wireImagePreview();
