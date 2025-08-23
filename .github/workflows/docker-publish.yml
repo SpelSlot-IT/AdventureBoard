@@ -20,11 +20,11 @@ jobs:
 
       - name: Downcase REPO
         run: |
-          IMAGE_NAME=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+          echo "REPO=${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
 
       - name: Build Docker image
         run: |
-          docker build -t ghcr.io/${IMAGE_NAME}:latest .
+          docker build -t ghcr.io/${REPO}:latest .
 
       - name: Push Docker image
         run: |
