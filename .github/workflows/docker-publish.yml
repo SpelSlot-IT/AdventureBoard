@@ -20,7 +20,7 @@ jobs:
 
       - name: Downcase REPO
         run: |
-          export IMAGE_NAME=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_NAME=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
 
       - name: Build Docker image
         run: |
