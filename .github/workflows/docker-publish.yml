@@ -18,15 +18,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Downcase REPO
-        run: |
-          echo "REPO=${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
-
-      - name: Build Docker image
-        run: |
-          echo "Building image: ghcr.io/${REPO}:latest"
-          docker build -t ghcr.io/${REPO}:latest board
-
-      - name: Push Docker image
-        run: |
-          docker push ghcr.io/${REPO}:latest
+      # https://github.com/marketplace/actions/push-to-ghcr
+      - name: Build and publish a Docker image for ${{ github.repository }}
+        uses: macbre/push-to-ghcr@master
+        with:
+          image_name: ${{ github.repository }}  # it will be lowercased internally
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          context: board
