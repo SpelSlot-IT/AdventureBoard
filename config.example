@@ -14,10 +14,10 @@
     "behind_proxy":"https"
   },
   "DB": {
-    "host": "localhost",
-    "user": "user",
-    "password": "password",
-    "database": "database"
+    "host": "db",
+    "user": "myuser",
+    "password": "mypassword",
+    "database": "mydb"
   },
   "TIMING": {
     "assignment_day": "Sun@12",
@@ -28,14 +28,14 @@
   "GOOGLE": {
     "discovery_url": "https://accounts.google.com/.well-known/openid-configuration",
     "client_id": "0",
-    "client_secret": "0" 
+    "client_secret": "0"
   },
   "API_TITLE": "Adventure Board API",
   "OPENAPI_URL_PREFIX": "/openapi",
   "OPENAPI_VERSION": "3.0.2",
   "OPENAPI_SWAGGER_UI_PATH": "/docs",
   "OPENAPI_SWAGGER_UI_URL": "https://cdn.jsdelivr.net/npm/swagger-ui-dist/",
-    "API_SPEC_OPTIONS": {
-    "servers": [{"url": "https://example.com/dnd/cgi-bin/app.cgi"}]
+  "API_SPEC_OPTIONS": {
+    "servers": [{"url": "https://shepherd-itsec.com/dnd/cgi-bin/app.cgi"}]
   }
 }

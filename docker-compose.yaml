@@ -1,15 +1,15 @@
 services:
   web:
-    build: .
+    image: ghcr.io/shepherd-itsec/adventureboard:latest
     container_name: flask_web
     volumes:
-      # mount config.dev.json so hosts can customize without rebuilding
-      - ./app/config/config.dev.json:/app/app/config/config.json:ro
+      # mount config.json so hosts can customize without rebuilding
+      - ./config.json:/app/app/config/config.json:ro
       - static_data:/app/app/static
     expose:
       - "5000"
     environment:
-      - FLASK_ENV=development
+      - FLASK_ENV=production
     restart: always
 
   db:

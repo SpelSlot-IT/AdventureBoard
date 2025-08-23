@@ -19,8 +19,6 @@ def create_app(config_file=None):
 
     if not config_file:
         config_file = os.getenv("APP_CONFIG", "config/config.json")
-        if os.getenv("FLASK_ENV") == "development":
-            config_file = "config/config.dev.json"
 
     app.config.from_file(config_file, load=json.load)
     config = app.config
