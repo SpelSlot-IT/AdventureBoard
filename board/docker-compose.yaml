@@ -1,14 +1,15 @@
 services:
   web:
-    build: .
+    image: ghcr.io/shepherd-itsec/adventurebord:latest
     container_name: flask_web
     volumes:
       # mount config.json so hosts can customize without rebuilding
       - ./config/config.json:/app/config/config.json:ro
+      - static_data:/app/static
     expose:
       - "5000"
-    env_file:
-      - .env
+    environment:
+      - FLASK_ENV=production
     restart: always
 
   db:
@@ -33,7 +34,7 @@ services:
       - "443:443"
     volumes:
       # directly mount static files to nginx so it host them faster
-      - ./app/static:/app/static:ro
+      - static_data:/app/static:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./certs:/etc/nginx/certs:ro
     depends_on:
@@ -42,3 +43,4 @@ services:
 
 volumes:
   db_data:
+  static_data:
