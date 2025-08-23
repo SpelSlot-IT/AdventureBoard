@@ -14,6 +14,7 @@
     "behind_proxy":"https"
   },
   "DB": {
+    "flavor": "postgresql+psycopg",
     "host": "db",
     "user": "myuser",
     "password": "mypassword",

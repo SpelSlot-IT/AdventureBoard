@@ -34,7 +34,16 @@ def create_app(config_file=None):
     # --- Database setup ---
     # Dynamically construct the SQLALCHEMY_DATABASE_URI from app.config['DB']
     db_conf = config['DB']
-    config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{db_conf['user']}:{db_conf['password']}@{db_conf['host']}/{db_conf['database']}"
+  # Handle SQLite separately since it has a different format
+    if db_conf["flavor"].startswith("sqlite"):
+        uri = f"{db_conf['flavor']}:///{db_conf['database']}.db"
+    else:
+        uri = (
+            f"{db_conf['flavor']}://{db_conf['user']}:{db_conf['password']}"
+            f"@{db_conf['host']}/{db_conf['database']}"
+        )
+
+    config["SQLALCHEMY_DATABASE_URI"] = uri
 
     db.init_app(app)
     with app.app_context():

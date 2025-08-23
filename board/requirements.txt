@@ -1,14 +1,27 @@
+# Core framework
 Flask>=2.0.0,<3.0.0
-PyJWT>=2.0.0
+
+# Database
+Flask-SQLAlchemy>=3.0.0
+PyMySQL>=1.0.0       # MySQL/MariaDB driver
+psycopg[binary]>=3.1 # PostgreSQL driver
+
+# Authentication & Security
+Flask-Login>=0.6.0
+oauthlib>=3.2.0
+cryptography>=41.0.0
+flask-talisman>=1.0.0
+
+# Serialization & Validation
+marshmallow-sqlalchemy>=0.29.0
+flask-marshmallow>=0.15.0
+flask-smorest>=0.44.0
+
+# Task Scheduling
 Flask-APScheduler>=1.13.0
-Flask-Sqlalchemy
-Flask-Login
-PyMySQL
-oauthlib
-marshmallow-sqlalchemy
-flask-marshmallow
-flask_smorest
-flask_talisman
-gunicorn
-requests
-cryptography
+
+# Deployment
+gunicorn>=20.1.0
+
+# Utilities
+requests>=2.31.0
