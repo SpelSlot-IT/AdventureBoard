@@ -77,10 +77,6 @@ def create_app(config_file=None):
 
     # --- Basic provider routs ---
     @app.route('/')
-    def system_check():
-        return send_from_directory('.', 'index.html')
-
-    @app.route('/app')
     def dashboard():
         return render_template('app.html')
 
@@ -103,14 +99,17 @@ def create_app(config_file=None):
 
     @ap_scheduler.task('cron', id='make_assignments', day_of_week=a_d, hour=a_h)
     def cron_make_assignments():
-        assign_players_to_adventures()
+        with app.app_context():
+            assign_players_to_adventures()
 
     @ap_scheduler.task('cron', id='release_assignment', day_of_week=r_d, hour=r_h)
     def cron_release_assignments():
-        release_assignments()
+        with app.app_context():
+            release_assignments()
 
     @ap_scheduler.task('cron', id='reset_release', day_of_week=re_d, hour=re_h)
     def cron_reset_release():
-        reset_release()
+        with app.app_context():
+            reset_release()
 
     return app

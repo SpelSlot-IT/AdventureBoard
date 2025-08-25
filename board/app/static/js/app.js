@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Dropdown actions
   document.getElementById("edit-profile").addEventListener("click", (e) => {
     e.preventDefault();
-    changePassword();
+    editProfile();
   });
 
   document.getElementById("make-assignments").addEventListener("click", (e) => {
@@ -79,6 +79,10 @@ function handleLoginClick() {
 function openHelp()
 {
   window.location.href = "help";
+}
+
+function editProfile() {
+  window.location.href = "profile/me";
 }
 
 /** Returns [startOfWeek (Mon), endOfWeek (Sun)] for today + offset weeks */

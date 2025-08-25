@@ -41,29 +41,29 @@ def assign_adventures_from_db():
 def reassign_karma():
 
     # +100 karma for creating an adventure
-    creators = session.execute(
-        select(User).join(Adventure).distinct()
+    creators = db.session.execute(
+        db.select(User).join(Adventure).distinct()
     ).scalars().all()
     for user in creators:
         user.karma += 100
 
     # -100 karma for not appearing
-    non_appearances = session.execute(
-        select(User).join(AdventureAssignment).where(AdventureAssignment.appeared.is_(False))
+    non_appearances = db.session.execute(
+        db.select(User).join(AdventureAssignment).where(AdventureAssignment.appeared.is_(False))
     ).scalars().all()
     for user in non_appearances:
         user.karma -= 100
 
     # +10 karma for being assigned to something not in top three
-    off_prefs = session.execute(
-        select(User).join(AdventureAssignment).where(AdventureAssignment.top_three.is_(False))
+    off_prefs = db.session.execute(
+        db.select(User).join(AdventureAssignment).where(AdventureAssignment.top_three.is_(False))
     ).scalars().all()
     for user in off_prefs:
         user.karma += 10
 
     # +1 karma for playing
-    played = session.execute(
-        select(User).join(AdventureAssignment).where(AdventureAssignment.appeared.is_(True))
+    played = db.session.execute(
+        db.select(User).join(AdventureAssignment).where(AdventureAssignment.appeared.is_(True))
     ).scalars().all()
     for user in played:
         user.karma += 1

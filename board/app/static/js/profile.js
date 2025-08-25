@@ -13,19 +13,12 @@
   };
 
   const profilePicInput = document.querySelector('input[name="profile_pic"]');
-  const editBtn = document.getElementById('edit-btn');
   const saveBtn = document.getElementById('save-btn');
   const backBtn = document.getElementById('back-btn');
 
   let currentUser = null;
   let originalData = null;
   let saving = false;
-
-  function setFormEnabled(enabled) {
-    form.querySelectorAll('input').forEach(i => i.disabled = !enabled);
-    saveBtn.disabled = !enabled;
-    editBtn.disabled = enabled;
-  }
 
   function populateForm(user) {
     if (!user) return;
@@ -50,7 +43,6 @@
 
     loadingEl.style.display = 'none';
     form.style.display = 'block';
-    setFormEnabled(false);
   }
 
   async function loadUser() {
@@ -79,7 +71,7 @@
   }
 
   function goBack(){
-    window.location.href = "/app";
+    window.history.back();
   }
 
 
@@ -92,7 +84,6 @@
 
     saving = true;
     saveBtn.textContent = 'Saving…';
-    saveBtn.disabled = true;
 
     const url = `../api/users/${encodeURIComponent(currentUser.id)}`;
     try {
@@ -121,8 +112,6 @@
     } finally {
       saving = false;
       saveBtn.textContent = 'Save';
-      saveBtn.disabled = false;
-      setFormEnabled(false);
     }
   }
 
@@ -133,7 +122,6 @@
     });
   }
 
-  editBtn.addEventListener('click', () => setFormEnabled(true));
   backBtn.addEventListener('click', goBack);
   saveBtn.addEventListener('click', saveChanges);
 

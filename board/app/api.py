@@ -199,10 +199,10 @@ class SchedulerResource(MethodView):
         return ap_scheduler.get_jobs()
 
 @blp_utils.route('/update-karma')
-@login_required
 class UpdateKarmaResource(MethodView):
+    @login_required
     @blp_utils.response(200, MessageSchema)
-    def get():
+    def get(self):
         """
         Force an update of the karma of all players regarding the normal update rules.
         """
@@ -210,16 +210,16 @@ class UpdateKarmaResource(MethodView):
             abort(401, message={'error': 'Unauthorized'})
         reassign_karma()
 
-        return {'message': 'Karma updated successfully'}, 200
+        return {'message': 'Karma updated successfully'}
     
 @blp_utils.route('/release')
 class ReleaseResource(MethodView):
     @blp_utils.response(200, MessageSchema)
-    def get():
+    def get(self):
         """
         Returns the current release status.
         """
-        return {'release': check_release()}, 200
+        return {'message': check_release()}
     
 
 @blp_utils.route("/login")
