@@ -17,7 +17,7 @@
 			<q-card style="min-width: 300px">
 				<q-card-section>
 					<div class="text-h6">{{focussed.title}}</div>
-					<q-chip v-for="t in focussed.tags.split(',')" :key="t" :label="t" color="secondary" text-color="white"	/>
+					<q-chip v-for="t in focussed.tags?.split(',')" :key="t" :label="t" color="secondary" text-color="white"	/>
 					<div>{{focussed.short_description}}</div>
 				</q-card-section>
 			</q-card>
