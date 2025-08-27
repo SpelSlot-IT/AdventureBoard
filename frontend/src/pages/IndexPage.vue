@@ -1,18 +1,32 @@
 <template>
-	<q-page class="row items-center justify-evenly">
-		<q-card v-for="a in adventures" :key="a.id" class="col-3 q-ma-md">
-			<q-card-section class="q-gutter-md">
-				<div class="text-h6">{{a.title}}</div>
-				<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	/>
-				<div>{{a.short_description}}</div>
-				<div class="row justify-between">
-					<q-rating v-model="a.rank_combat" :max="3" readonly size="2em" icon="sports_martial_arts" />
-					<q-rating v-model="a.rank_exploration" :max="3" readonly size="2em" icon="explore" />
-					<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="chat" />
-				</div>
-				<q-btn label="Details" icon="info" @click="focussed = a" color="primary" />
+	<q-page>
+		<div class="row items-center justify-evenly q-mt-md">
+			<q-btn icon="chevron_left" color="primary" round @click="switchWeek(1)" />
+			<q-btn icon="chevron_right" color="primary" round @click="switchWeek(-1)" />
+		</div>
+		<q-spinner size="xl" v-if="loading" />
+		<q-card v-else-if="adventures.length == 0">
+			<q-card-section>
+				No sessions this week yet.
 			</q-card-section>
 		</q-card>
+		<div v-else class="row items-center justify-evenly">
+			<q-card v-for="a in adventures" :key="a.id" class="col-12-xs col-4-sm q-ma-md">
+				<q-card-section class="q-gutter-md">
+					<div class="text-h6">{{a.title}}</div>
+					<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	/>
+					<div>{{a.short_description}}</div>
+					<div class="row justify-between">
+						<q-rating v-model="a.rank_combat" :max="3" readonly size="2em" icon="sports_martial_arts" />
+						<q-rating v-model="a.rank_exploration" :max="3" readonly size="2em" icon="explore" />
+						<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="chat" />
+					</div>
+					<!-- <q-btn label="Details" icon="info" @click="focussed = a" color="primary" /> -->
+					<q-btn v-if="me.id == a.user_id" icon="edit" round color="accent" />
+						TODO: Edit
+				</q-card-section>
+			</q-card>
+		</div>
 
 		<q-page-sticky position="bottom-right" :offset="[18, 18]">
 			<q-btn fab icon="add" color="accent" @click="addAdventure = true" />
@@ -22,7 +36,7 @@
 			<q-card style="min-width: 300px">
 				<q-card-section>
 					<div class="text-h6">{{focussed.title}}</div>
-					<q-chip v-for="t in focussed.tags?.split(',')" :key="t" :label="t" color="secondary" text-color="white"	/>
+					<q-chip v-for="t in focussed.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	/>
 					<div>{{focussed.short_description}}</div>
 				</q-card-section>
 			</q-card>
@@ -57,17 +71,28 @@ export default defineComponent({
 			focussed: null as any,
 			addAdventure: false,
 			addingAdventure: false,
+			loading: false,
 		};
 	},
 	methods: {
 		async fetch() {
-			const resp = await this.$api.get('/api/adventures?week_start=' + this.weekStart + '&week_end=' + this.weekEnd);
-			this.adventures = resp.data;
+			try {
+				this.loading = true;
+				const resp = await this.$api.get('/api/adventures?week_start=' + this.weekStart + '&week_end=' + this.weekEnd);
+				this.adventures = resp.data;
+			} finally {
+				this.loading = false;
+			}
 		},
 		eventAdded() {
 			this.addAdventure = false;
 			this.fetch();
 		},
+		switchWeek(offset: number) {
+			const d = new Date(this.weekStart);
+			d.setDate(d.getDate() + offset * 7);
+			this.weekStart = d.toISOString().split('T')[0];
+		}
 	},
 	computed: {
 		weekEnd() {
