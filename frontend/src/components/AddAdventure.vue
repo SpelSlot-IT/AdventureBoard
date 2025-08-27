@@ -13,7 +13,7 @@
 					<q-input v-model="max_players" label="Max players" type="number" :min="1" :max="30" />
 					<DatePicker v-model="start_date" label="First session" onlyWednesdays />
 					<DatePicker v-model="end_date" label="Last session" onlyWednesdays />
-					<q-rating v-model="rank_combat" :max="3" size="2em" icon="sports_martial_arts" />
+					<q-rating v-model="rank_combat" :max="3" size="2em" icon="sym_o_swords" />
 					<q-rating v-model="rank_exploration" :max="3" size="2em" icon="explore" />
 					<q-rating v-model="rank_roleplaying" :max="3" size="2em" icon="chat" />
 				</div>

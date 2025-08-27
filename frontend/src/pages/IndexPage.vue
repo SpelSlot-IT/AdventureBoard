@@ -18,7 +18,7 @@
 					<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	/>
 					<div>{{a.short_description}}</div>
 					<div class="row justify-between">
-						<q-rating v-model="a.rank_combat" :max="3" readonly size="2em" icon="sports_martial_arts" />
+						<q-rating v-model="a.rank_combat" :max="3" readonly size="2em" icon="sym_o_swords" />
 						<q-rating v-model="a.rank_exploration" :max="3" readonly size="2em" icon="explore" />
 						<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="chat" />
 					</div>
