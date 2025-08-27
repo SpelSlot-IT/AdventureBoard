@@ -1,9 +1,9 @@
 <template>
-  <q-page class="row items-center justify-evenly">
+	<q-page class="row items-center justify-evenly">
 		<q-card v-for="a in adventures" :key="a.id">
 			<q-card-section>
 				<div class="text-h6">{{a.title}}</div>
-				<q-chip v-for="t in a.tags.split(',')" :key="t" :label="t" color="accent" text-color="white"  />
+				<q-chip v-for="t in a.tags.split(',')" :key="t" :label="t" color="accent" text-color="white"	/>
 				<div>{{a.short_description}}</div>
 				<q-btn label="Details" icon="info" @click="focussed = a" color="primary" />
 			</q-card-section>
@@ -13,19 +13,19 @@
 			<q-card style="min-width: 300px">
 				<q-card-section>
 					<div class="text-h6">{{focussed.title}}</div>
-					<q-chip v-for="t in focussed.tags.split(',')" :key="t" :label="t" color="secondary" text-color="white"  />
+					<q-chip v-for="t in focussed.tags.split(',')" :key="t" :label="t" color="secondary" text-color="white"	/>
 					<div>{{focussed.short_description}}</div>
 				</q-card-section>
 			</q-card>
 		</q-dialog>
-  </q-page>
+	</q-page>
 </template>
 
 <script lang="ts">
 import { defineComponent, inject } from 'vue';
 
 export default defineComponent({
-  name: 'IndexPage',
+	name: 'IndexPage',
 	setup() {
 		return {
 			me: inject('me'),
