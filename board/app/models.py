@@ -96,7 +96,7 @@ class Adventure(db.Model):
     max_players         = db.Column(db.Integer, nullable=False, default=5)
     start_date          = db.Column(db.Date, nullable=False)
     end_date            = db.Column(db.Date, nullable=False)
-    is_story_adventure  = db.Column(db.Boolean, nullable=False, default=False)
+    tags                = db.Column(db.String(255), nullable=True)
     requested_room      = db.Column(db.String(4))
 
     creator         = db.relationship('User', back_populates='adventures_created')

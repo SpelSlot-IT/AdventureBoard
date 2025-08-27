@@ -2,6 +2,7 @@
 var currentWeekOffset = 0;
 var currentUserName = null; // track logged in user
 var currentPrivilegeLevel = null; // track privilege_level
+var adventureMode = "POST"
 var selectedPlayerIds = []; // This will store the IDs of players that the creator selects
 
 
@@ -289,7 +290,7 @@ async function loadAdventures() {
       // safe title/desc handling
       const titleRaw = adventure.title ?? '';
       const descRaw = adventure.short_description ?? '';
-      const title = Util.escapeHtml(titleRaw.length > 16 ? titleRaw.slice(0, 16) + '…' : titleRaw);
+      const title = Util.escapeHtml(titleRaw.length > 16 ? titleRaw.slice(0, 32) + '…' : titleRaw);
       const desc = Util.escapeHtml(descRaw.length > 64 ? descRaw.slice(0, 64) + '…' : descRaw);
 
       const signed = userSignups.find(s => s.adventure_id === adventure.id);
@@ -434,36 +435,60 @@ function initializeDateFields() {
 
 async function moreDetails(adventure_id) {
   document.getElementById('modal').style.display = 'block';
-  document.getElementById("open-player-select").style.visibility='hidden';
+  document.getElementById("open-player-select").style.visibility = 'hidden';
   document.getElementById("current-players-list").style.display = 'none';
+  
   const params = new URLSearchParams();
   params.set('adventure_id', adventure_id);
   const res = await fetch(`api/adventures?${params.toString()}`);
+  
   if (res.ok) {
     const data = await res.json();
-    document.getElementById('title').textContent = data.adventure.name;
-    document.getElementById('description').textContent = data.adventure.description;
-    document.getElementById('creator').textContent = data.adventure.creator;
-    document.getElementById('start-date').textContent = data.adventure.start_date;
-    document.getElementById('end-date').textContent = data.adventure.end_date;
-    document.getElementById('max-players').textContent = data.adventure.max_players;
+    const adventure = data[0];
+    console.log(adventure);
 
-    // Example condition: lock fields if adventure is archived
-    if (currentUserName !== data.adventure.creator) {
-      const fields = ['title', 'description', 'creator', 'start-date', 'end-date', 'max-players'];
-      fields.forEach(id => {
-        const el = document.getElementById(id);
-        
-        // Disable input fields or make non-editable
-        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
-          el.disabled = true;
-        } else {
-          el.setAttribute('contenteditable', 'false'); // For div/span/etc.
-        }
-      });
+    // Hide save if user is not the creator
+    if (currentUserName !== adventure.creator) {
+      document.getElementById("save-adventure").style.visibility = 'hidden';
     }
+
+    // Map simple fields first
+    const fieldMap = {
+      "title": "title",
+      "description": "short_description",
+      "start-date": "start_date",
+      "end-date": "end_date",
+      "max-players": "max_players"
+    };
+
+    Object.entries(fieldMap).forEach(([id, key]) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = adventure[key];
+    });
+
+    // Fetch and display creator display_name
+    const creatorEl = document.getElementById("creator");
+    if (creatorEl && adventure.user_id) {
+      try {
+        const userRes = await fetch(`api/users/${adventure.user_id}`);
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          creatorEl.textContent = userData.display_name || adventure.user_id;
+        } else {
+          creatorEl.textContent = adventure.user_id; // fallback
+        }
+      } catch (err) {
+        console.error("Failed to fetch creator:", err);
+        creatorEl.textContent = adventure.user_id; // fallback
+      }
+    }
+
+    adventureMode = 'PATCH';
+  } else {
+    Util.showToast('Failed to load adventure details.');
   }
 }
+
 
 // Open the modal and load available players
 async function openModal() {
@@ -475,7 +500,9 @@ async function openModal() {
   document.getElementById('creator').value = currentUserName; // set creator name
   document.getElementById("open-player-select").style.visibility='visible';
   document.getElementById("current-players-list").style.display = 'none';
+  document.getElementById("save-adventure").style.visibility = 'visible';
   initializeDateFields();
+  adventureMode = 'POST';
 }
 
 // Close the modal
@@ -592,7 +619,7 @@ document.getElementById('adventure-form').addEventListener('submit', async (e) =
 
   // Send the request to the API
   const res = await fetch('api/adventures', {
-    method: 'POST',
+    method: adventureMode,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(adventureData)
   });
@@ -607,6 +634,8 @@ document.getElementById('adventure-form').addEventListener('submit', async (e) =
     Util.showToast(data.message || 'Some players could not be assigned.', 'alert');
     closeModal();
     loadAdventures(); // Reload adventures
+  } else if (res.status === 401)  {
+    Util.showToast('Please login to create a new adventure.')
   } else {
     Util.showToast('Failed to add adventure:'+ data.error);
   }

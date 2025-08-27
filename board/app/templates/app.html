@@ -72,6 +72,7 @@
 
         <label for="end-date">End Date:</label>
         <input type="date" id="end-date" required />
+        <input type="text" id="tags" placeholder="#Tags" required />
 
         <label for="title">Request players:</label>
         <button type="button" id="open-player-select">Load player selection (may take some time)</button>
@@ -86,7 +87,7 @@
 
         <div style="flex: 1;"></div>
         <div style="text-align: right; margin-top: 1em;">
-          <button type="submit">Add Adventure</button>
+          <button type="submit" id="save-adventure">Save</button>
         </div>
       </form>
     </div>
