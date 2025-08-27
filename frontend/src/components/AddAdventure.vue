@@ -79,6 +79,10 @@ export default defineComponent({
 			} else {
 				await this.$api.post('/api/adventures', body);
 			}
+			this.$q.notify({
+				message: 'Your adventure was saved!',
+				type: 'positive',
+			});
 			this.$emit('eventAdded');
 		},
 	},
