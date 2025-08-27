@@ -1,117 +1,86 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
-    <q-header elevated>
-      <q-toolbar>
-        <q-btn
-          flat
-          dense
-          round
-          icon="menu"
-          aria-label="Menu"
-          @click="toggleLeftDrawer"
-        />
+	<q-layout view="lHh Lpr lFf">
+		<q-header elevated>
+			<q-toolbar>
+				<q-btn stretch flat label="Spelslot" to="/" />
+			</q-toolbar>
+		</q-header>
 
-        <q-toolbar-title>
-          Quasar App
-        </q-toolbar-title>
-
-        <div>Quasar v{{ $q.version }}</div>
-      </q-toolbar>
-    </q-header>
-
-    <q-drawer
-      v-model="leftDrawerOpen"
-      show-if-above
-      bordered
-    >
-      <q-list>
-        <q-item-label
-          header
-        >
-          Essential Links
-        </q-item-label>
-
-        <EssentialLink
-          v-for="link in essentialLinks"
-          :key="link.title"
-          v-bind="link"
-        />
-      </q-list>
-    </q-drawer>
-
-    <q-page-container>
-      <router-view />
-    </q-page-container>
-  </q-layout>
+		<q-page-container>
+			<q-page v-if="!me" class="row items-center justify-evenly">
+				<div>
+					<q-spinner size="xl" />
+						Logging you in...
+				</div>
+			</q-page>
+			<q-page v-else-if="errors.length > 0" class="q-px-lg q-pt-md">
+				<q-banner v-for="e in errors" :key="e" class="bg-negative" rounded>{{e}}</q-banner>
+			</q-page>
+			<q-page v-else-if="loading" class="q-px-lg q-pt-md">
+				<q-spinner size="xl" />
+			</q-page>
+			<router-view v-else @setErrors="es => errors = es" />
+		</q-page-container>
+	</q-layout>
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-import EssentialLink from 'components/EssentialLink.vue';
-
-const linksList = [
-  {
-    title: 'Docs',
-    caption: 'quasar.dev',
-    icon: 'school',
-    link: 'https://quasar.dev'
-  },
-  {
-    title: 'Github',
-    caption: 'github.com/quasarframework',
-    icon: 'code',
-    link: 'https://github.com/quasarframework'
-  },
-  {
-    title: 'Discord Chat Channel',
-    caption: 'chat.quasar.dev',
-    icon: 'chat',
-    link: 'https://chat.quasar.dev'
-  },
-  {
-    title: 'Forum',
-    caption: 'forum.quasar.dev',
-    icon: 'record_voice_over',
-    link: 'https://forum.quasar.dev'
-  },
-  {
-    title: 'Twitter',
-    caption: '@quasarframework',
-    icon: 'rss_feed',
-    link: 'https://twitter.quasar.dev'
-  },
-  {
-    title: 'Facebook',
-    caption: '@QuasarFramework',
-    icon: 'public',
-    link: 'https://facebook.quasar.dev'
-  },
-  {
-    title: 'Quasar Awesome',
-    caption: 'Community Quasar projects',
-    icon: 'favorite',
-    link: 'https://awesome.quasar.dev'
-  }
-];
+import { defineComponent, computed } from 'vue';
 
 export default defineComponent({
-  name: 'MainLayout',
+	name: 'MainLayout',
 
-  components: {
-    EssentialLink
-  },
+	data() {
+		return {
+			loading: false,
+			errors: [] as string[],
+			me: null as null | {
+				id: number;
+				display_name: string;
+				world_builder_name: string;
+				dnd_beyond_name: string;
+				dnd_beyond_campaign: number;
+				privilege_level: number;
+				profile_pic: string;
+			}
+		}
+	},
 
-  data() {
-    return {
-      leftDrawerOpen: false,
-      essentialLinks: linksList
-    }
-  },
+	methods: {
+		logout() {
+			location.href = '/api/logout';
+		},
+	},
 
-  methods: {
-    toggleLeftDrawer () {
-      this.leftDrawerOpen = !this.leftDrawerOpen
-    }
-  }
+	async beforeMount() {
+		const resp = await this.$api.get('/api/users/me');
+		this.me = resp.data;
+	},
+
+	provide() {
+		return {
+			me: computed(() => this.me),
+		}
+	},
+
+	computed: {
+		notLoggedInError() {
+			// I've added this indirection because watching this Ref direct didn't seem to work.
+			return this.$notLoggedInError.value;
+		},
+	},
+
+	watch: {
+		notLoggedInError(nv: boolean) { // This is set to true by boot/errorhandler.ts to indicate an RPC received a HTTP 401. Handle it and clear it.
+			if(nv) {
+				console.log('Not logged in');
+				// location.href = '/api/login';
+				this.$notLoggedInError.value = false;
+			}
+		},
+		'$route.fullPath'() {
+			this.errors = [];
+		},
+	},
 });
 </script>

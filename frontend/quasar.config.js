@@ -33,8 +33,8 @@ module.exports = configure(function (ctx) {
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-webpack/boot-files
     boot: [
-      
-      
+			'axios',
+			'errorhandler'
     ],
 
     // https://v2.quasar.dev/quasar-cli-webpack/quasar-config-js#Property%3A-css
@@ -88,6 +88,12 @@ module.exports = configure(function (ctx) {
         type: 'http'
       },
       port: 8080,
+			proxy: {
+				'/api/': {
+					target: 'https://signup.spelslot.nl/',
+					changeOrigin: true
+				}
+			},
       open: true // opens browser window automatically
     },
 
@@ -106,7 +112,10 @@ module.exports = configure(function (ctx) {
       // directives: [],
 
       // Quasar plugins
-      plugins: []
+      plugins: [
+				'Notify',
+				'Dialog'
+			]
     },
 
     // animations: 'all', // --- includes all animations
