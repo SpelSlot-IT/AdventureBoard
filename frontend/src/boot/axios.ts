@@ -1,9 +1,11 @@
+import { QVueGlobals } from 'quasar';
 import { boot } from 'quasar/wrappers';
 import { Ref } from 'vue';
 import axios, { AxiosInstance } from 'axios';
 
 declare module '@vue/runtime-core' {
 	interface ComponentCustomProperties {
+		$q: QVueGlobals;
 		$api: AxiosInstance;
 		$notLoggedInError: Ref<boolean>;
 		$extractErrors(error: unknown): string[];

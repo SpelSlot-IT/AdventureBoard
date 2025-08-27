@@ -43,6 +43,10 @@ export default defineComponent({
 				dnd_beyond_name: this.dnd_beyond_name,
 			});
 			this.$emit('changedUser');
+			this.$q.notify({
+				message: 'Your profile was saved!',
+				type: 'positive',
+			});
 		},
 	},
 });

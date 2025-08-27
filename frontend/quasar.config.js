@@ -101,6 +101,9 @@ module.exports = configure(function (ctx) {
 		framework: {
 			config: {
 				dark: true,
+				notify: {
+					position: 'top'
+				}
 			},
 
 			// iconSet: 'material-icons', // Quasar icon set
