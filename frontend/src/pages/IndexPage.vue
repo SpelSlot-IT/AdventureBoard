@@ -26,7 +26,7 @@
 						<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="theater_comedy" />
 					</div>
 					<div class="row justify-end">
-						<q-btn label="Aanmelden" icon="person_add" @click="focussed = a" color="primary" />
+						<q-btn label="More info" icon="person_add" @click="focussed = a" color="primary" />
 					</div>
 				</q-card-section>
 			</q-card>
@@ -64,6 +64,28 @@
 					</q-markup-table>
 					<div class="q-pa-sm">{{focussed.short_description}}</div>
 				</q-card-section>
+				<q-separator />
+				<q-card-actions class="justify-end">
+					<q-btn-dropdown split color="primary" label="Sign up" content-class="q-px-lg" @click="signup(focussed, 1)" :loading="saving">
+						<q-list>
+							<q-item clickable v-close-popup @click="signup(focussed, 1)">
+								<q-item-section>
+									<q-item-label>First choice</q-item-label>
+								</q-item-section>
+							</q-item>
+							<q-item clickable v-close-popup @click="signup(focussed, 2)">
+								<q-item-section>
+									<q-item-label>Second choice</q-item-label>
+								</q-item-section>
+							</q-item>
+							<q-item clickable v-close-popup @click="signup(focussed, 3)">
+								<q-item-section>
+									<q-item-label>Third choice</q-item-label>
+								</q-item-section>
+							</q-item>
+						</q-list>
+					</q-btn-dropdown>
+				</q-card-actions>
 			</q-card>
 		</q-dialog>
 
@@ -97,6 +119,7 @@ export default defineComponent({
 			addAdventure: false,
 			addingAdventure: false,
 			loading: false,
+			saving: false,
 			editAdventure: null,
 		};
 	},
@@ -108,6 +131,21 @@ export default defineComponent({
 				this.adventures = resp.data;
 			} finally {
 				this.loading = false;
+			}
+		},
+		async signup(e: {id: string}, prio: number) {
+			try {
+				this.saving = true;
+				await this.$api.post('/api/signups', {
+					adventure_id: e.id,
+					priority: prio,
+				});
+				this.$q.notify({
+					message: 'Your signup is submitted!',
+					type: 'positive',
+				});
+			} finally {
+				this.saving = false;
 			}
 		},
 		eventAdded() {
