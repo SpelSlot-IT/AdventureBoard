@@ -98,6 +98,9 @@ class Adventure(db.Model):
     end_date            = db.Column(db.Date, nullable=False)
     tags                = db.Column(db.String(255), nullable=True)
     requested_room      = db.Column(db.String(4))
+    rank_combat         = db.Column(db.Integer, nullable=False, default=0)
+    rank_exploration    = db.Column(db.Integer, nullable=False, default=0)
+    rank_roleplaying    = db.Column(db.Integer, nullable=False, default=0)
 
     creator         = db.relationship('User', back_populates='adventures_created')
     signups         = db.relationship('Signup', back_populates='adventure')

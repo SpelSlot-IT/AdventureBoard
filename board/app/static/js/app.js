@@ -463,7 +463,12 @@ async function moreDetails(adventure_id) {
 
     Object.entries(fieldMap).forEach(([id, key]) => {
       const el = document.getElementById(id);
-      if (el) el.textContent = adventure[key];
+      if (el) {
+        el.value = adventure[key];
+        el.defaultValue = el.value;
+        el.textContent = el.value;
+      }
+
     });
 
     // Fetch and display creator display_name
@@ -613,7 +618,7 @@ document.getElementById('adventure-form').addEventListener('submit', async (e) =
     requested_players: selectedPlayerIds,
     start_date: startDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
     end_date: endDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
-    is_story_adventure: 0,
+    tags: "#tags",
     requested_room: "A"
   };
 
