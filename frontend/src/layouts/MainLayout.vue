@@ -4,6 +4,23 @@
 			<q-toolbar class="row justify-between">
 				<q-btn stretch flat label="Spelslot" to="/" />
 				<div v-if="version">v{{version}}</div>
+				<div v-if="me">
+					<q-btn :icon="me.profile_pic ? 'img:' + me.profile_pic : 'settings'" rounded>
+						<q-menu>
+							<q-list style="min-width: 100px">
+								<q-item to="/profile">
+									<q-item-section>Edit profile</q-item-section>
+								</q-item>
+								<q-item clickable v-close-popup @click="logout">
+									<q-item-section>Log out</q-item-section>
+								</q-item>
+								<q-item clickable v-close-popup v-if="me.privilege_level > 0">
+									<q-item-section>Admin fancy</q-item-section>
+								</q-item>
+							</q-list>
+						</q-menu>
+					</q-btn>
+				</div>
 			</q-toolbar>
 		</q-header>
 
@@ -20,7 +37,7 @@
 			<q-page v-else-if="loading" class="q-px-lg q-pt-md">
 				<q-spinner size="xl" />
 			</q-page>
-			<router-view v-else @setErrors="es => errors = es" />
+			<router-view v-else @setErrors="es => errors = es" @changedUser="changedUser" />
 		</q-page-container>
 	</q-layout>
 </template>
@@ -49,6 +66,9 @@ export default defineComponent({
 	},
 
 	methods: {
+		async changedUser() {
+			this.me = (await this.$api.get('/api/users/me')).data;
+		},
 		logout() {
 			location.href = '/api/logout';
 		},
