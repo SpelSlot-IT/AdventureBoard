@@ -102,8 +102,7 @@ export default defineComponent({
 	watch: {
 		notLoggedInError(nv: boolean) { // This is set to true by boot/errorhandler.ts to indicate an RPC received a HTTP 401. Handle it and clear it.
 			if(nv) {
-				console.log('Not logged in');
-				// location.href = '/api/login';
+				location.href = '/api/login';
 				this.$notLoggedInError.value = false;
 			}
 		},
