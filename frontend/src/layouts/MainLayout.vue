@@ -1,8 +1,9 @@
 <template>
 	<q-layout view="lHh Lpr lFf">
 		<q-header elevated>
-			<q-toolbar>
+			<q-toolbar class="row justify-between">
 				<q-btn stretch flat label="Spelslot" to="/" />
+				<div v-if="version">v{{version}}</div>
 			</q-toolbar>
 		</q-header>
 
@@ -34,6 +35,7 @@ export default defineComponent({
 		return {
 			loading: false,
 			errors: [] as string[],
+			version: '',
 			me: null as null | {
 				id: number;
 				display_name: string;
@@ -53,8 +55,15 @@ export default defineComponent({
 	},
 
 	async beforeMount() {
-		const resp = await this.$api.get('/api/users/me');
-		this.me = resp.data;
+		const aliveReq = this.$api.get('/api/alive');
+		const meReq = this.$api.get('/api/users/me');
+		const aliveResp = await aliveReq;
+		if(aliveResp.data.status != 'ok') {
+			this.errors = ['Service is unavailable'];
+		}
+		this.version = aliveResp.data.version;
+		const meResp = await meReq;
+		this.me = meResp.data;
 	},
 
 	provide() {
