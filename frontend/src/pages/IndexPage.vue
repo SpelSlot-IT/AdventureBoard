@@ -21,7 +21,7 @@
 					<div class="row justify-between">
 						<q-rating v-model="a.rank_combat" :max="3" readonly size="2em" icon="sym_o_swords" />
 						<q-rating v-model="a.rank_exploration" :max="3" readonly size="2em" icon="explore" />
-						<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="chat" />
+						<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="theater_comedy" />
 					</div>
 					<!-- <q-btn label="Details" icon="info" @click="focussed = a" color="primary" /> -->
 				</q-card-section>

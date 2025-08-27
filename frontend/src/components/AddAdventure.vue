@@ -15,7 +15,7 @@
 					<DatePicker v-model="end_date" label="Last session" onlyWednesdays />
 					<q-rating v-model="rank_combat" :max="3" size="2em" icon="sym_o_swords" />
 					<q-rating v-model="rank_exploration" :max="3" size="2em" icon="explore" />
-					<q-rating v-model="rank_roleplaying" :max="3" size="2em" icon="chat" />
+					<q-rating v-model="rank_roleplaying" :max="3" size="2em" icon="theater_comedy" />
 				</div>
 			</q-card-section>
 			<q-card-actions class="row justify-end">
