@@ -26,6 +26,7 @@
 						<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="theater_comedy" />
 					</div>
 					<div class="row justify-end">
+						<q-btn label="Cancel signup" color="negative" v-if="a.id in mySignups" class="q-mr-md" @click="signup(a, mySignups[a.id])" />
 						<q-btn label="More info" icon="person_add" @click="focussed = a" color="primary" />
 					</div>
 				</q-card-section>
@@ -66,23 +67,19 @@
 				</q-card-section>
 				<q-separator />
 				<q-card-actions class="justify-end">
+					<q-btn label="Cancel signup" color="negative" v-if="focussed.id in mySignups" class="q-mr-md" @click="signup(focussed, mySignups[focussed.id])" />
 					<q-btn-dropdown split color="primary" label="Sign up" content-class="q-px-lg" @click="signup(focussed, 1)" :loading="saving">
 						<q-list>
-							<q-item clickable v-close-popup @click="signup(focussed, 1)">
-								<q-item-section>
-									<q-item-label>First choice</q-item-label>
-								</q-item-section>
-							</q-item>
-							<q-item clickable v-close-popup @click="signup(focussed, 2)">
-								<q-item-section>
-									<q-item-label>Second choice</q-item-label>
-								</q-item-section>
-							</q-item>
-							<q-item clickable v-close-popup @click="signup(focussed, 3)">
-								<q-item-section>
-									<q-item-label>Third choice</q-item-label>
-								</q-item-section>
-							</q-item>
+							<template v-for="n in [1, 2, 3]" :key="n">
+								<q-item clickable v-close-popup @click="signup(focussed, n)" :disable="mySignups[focussed.id] == n">
+									<q-item-section avatar v-if="focussed.id in mySignups">
+										<q-avatar icon="check" text-color="positive" v-if="mySignups[focussed.id] == n"/>
+									</q-item-section>
+									<q-item-section>
+										<q-item-label>{{choiceLabels[n]}}</q-item-label>
+									</q-item-section>
+								</q-item>
+							</template>
 						</q-list>
 					</q-btn-dropdown>
 				</q-card-actions>
@@ -106,7 +103,12 @@ export default defineComponent({
 	components: { AddAdventure },
 	setup() {
 		return {
-			me: inject('me'),
+			me: inject('me') as any,
+			choiceLabels: {
+				1: 'First choice',
+				2: 'Second choice',
+				3: 'Third choice',
+			},
 		};
 	},
 	data() {
@@ -121,14 +123,22 @@ export default defineComponent({
 			loading: false,
 			saving: false,
 			editAdventure: null,
+			mySignups: {} as {[adventure_id: number]: 1 | 2 | 3},
 		};
 	},
 	methods: {
 		async fetch() {
 			try {
 				this.loading = true;
-				const resp = await this.$api.get('/api/adventures?week_start=' + this.weekStart + '&week_end=' + this.weekEnd);
-				this.adventures = resp.data;
+				const req1 = this.$api.get('/api/adventures?week_start=' + this.weekStart + '&week_end=' + this.weekEnd);
+				const req2 = this.$api.get('/api/signups?user=' + this.me.id);
+				const resp1 = await req1;
+				const resp2 = await req2;
+				this.adventures = resp1.data;
+				this.mySignups = {};
+				for(const {adventure_id, priority} of resp2.data) {
+					this.mySignups[adventure_id] = priority;
+				}
 			} finally {
 				this.loading = false;
 			}
@@ -144,6 +154,7 @@ export default defineComponent({
 					message: 'Your signup is submitted!',
 					type: 'positive',
 				});
+				await this.fetch();
 			} finally {
 				this.saving = false;
 			}
