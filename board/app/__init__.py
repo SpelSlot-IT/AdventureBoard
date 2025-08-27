@@ -75,23 +75,6 @@ def create_app(config_file=None):
     talisman = Talisman(app)
     talisman.content_security_policy = config['APP']['content_security_policy']
 
-    # --- Basic provider routs ---
-    @app.route('/')
-    def dashboard():
-        return render_template('app.html')
-
-    @app.route('/help')
-    def send_help():
-        return render_template('help.html')
-
-    @app.route('/profile/me')
-    def view_own_profile():
-        return render_template('profile.html', user_id="me")
-
-    @app.route('/profile/<int:user_id>')
-    def view_profile(user_id):
-        return render_template('profile.html', user_id=user_id)
-
     # --- Cron ---   
     a_d, a_h = config['TIMING']['assignment_day'].split("@")
     r_d, r_h = config['TIMING']['release_day'].split("@")
@@ -111,5 +94,7 @@ def create_app(config_file=None):
     def cron_reset_release():
         with app.app_context():
             reset_release()
+            delete_expired_assignments()
+            
 
     return app
