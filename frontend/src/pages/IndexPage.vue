@@ -14,6 +14,7 @@
 		<div v-else class="row items-center justify-evenly">
 			<q-card v-for="a in adventures" :key="a.id" class="col-12-xs col-4-sm q-ma-md">
 				<q-card-section class="q-gutter-md">
+					<q-btn v-if="me.id == a.user_id || me.privilege_level > 0" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" class="float-right" />
 					<div class="text-h6">{{a.title}}</div>
 					<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	/>
 					<div>{{a.short_description}}</div>
@@ -23,7 +24,6 @@
 						<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="chat" />
 					</div>
 					<!-- <q-btn label="Details" icon="info" @click="focussed = a" color="primary" /> -->
-					<q-btn v-if="me.id == a.user_id || me.privilege_level > 0" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" />
 				</q-card-section>
 			</q-card>
 		</div>
