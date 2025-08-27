@@ -7,6 +7,7 @@
 					<q-input v-model="display_name" label="Display name" />
 					<q-input v-model="world_builder_name" label="World builder name" />
 					<q-input v-model="dnd_beyond_name" label="D&D Beyond name" />
+					<div>D&D Beyond campaign: {{ me.dnd_beyond_campaign }}</div>
 				</q-card-section>
 				<q-card-actions class="row justify-end">
 					<q-btn type="submit" label="Save" color="primary" class="q-ma-md" />
