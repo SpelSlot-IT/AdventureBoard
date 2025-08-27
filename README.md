@@ -42,6 +42,16 @@ The configuration depends on the hosting method. Please always see the correspon
 - `API_SPEC_OPTIONS`: `servers` (if it differs form the standard)
 Please see that `DB`: `flavor` only supports `mysql+pymysql` and `postgresql+psycopg` as these are the only preinstalled drivers. When installing the required drivers all SQAlchemy flavors are supported.
 
+# Frontend development
+
+The frontend is written in VueJS with the Quasar framework. To get started:
+
+```shell
+cd frontend
+npm clean-install
+npx quasar dev
+```
+
 
 # Further information
 Trello: https://trello.com/b/uaEDW0Ks/adventure-board-spelslot
