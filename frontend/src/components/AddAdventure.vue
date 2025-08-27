@@ -13,6 +13,9 @@
 					<q-input v-model="max_players" label="Max players" type="number" :min="1" :max="30" />
 					<DatePicker v-model="start_date" label="First session" onlyWednesdays />
 					<DatePicker v-model="end_date" label="Last session" onlyWednesdays />
+					<q-rating v-model="rank_combat" :max="3" size="2em" icon="sports_martial_arts" />
+					<q-rating v-model="rank_exploration" :max="3" size="2em" icon="explore" />
+					<q-rating v-model="rank_roleplaying" :max="3" size="2em" icon="chat" />
 				</div>
 			</q-card-section>
 			<q-card-actions class="row justify-end">
@@ -42,6 +45,9 @@ export default defineComponent({
 			max_players: 5,
 			start_date: '',
 			end_date: '',
+			rank_combat: 0,
+			rank_exploration: 0,
+			rank_roleplaying: 0,
 		};
 	},
 	computed: {
@@ -57,6 +63,9 @@ export default defineComponent({
 				max_players: this.max_players,
 				start_date: this.start_date,
 				end_date: this.end_date,
+				rank_combat: this.rank_combat,
+				rank_exploration: this.rank_exploration,
+				rank_roleplaying: this.rank_roleplaying,
 			});
 			this.$emit('eventAdded');
 		},
