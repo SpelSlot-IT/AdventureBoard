@@ -16,7 +16,7 @@
 				<q-card-section class="q-gutter-md">
 					<q-btn v-if="me.id == a.user_id || me.privilege_level > 0" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" class="float-right" />
 					<div class="text-h6">{{a.title}}</div>
-					<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	/>
+					<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	:ripple="false" />
 					<div>{{a.short_description}}</div>
 					<div class="row justify-between">
 						<q-rating v-model="a.rank_combat" :max="3" readonly size="2em" icon="sym_o_swords" />
@@ -36,7 +36,7 @@
 			<q-card style="min-width: 300px">
 				<q-card-section>
 					<div class="text-h6">{{focussed.title}}</div>
-					<q-chip v-for="t in focussed.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	/>
+					<q-chip v-for="t in focussed.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white" :ripple="false" />
 					<div>{{focussed.short_description}}</div>
 				</q-card-section>
 			</q-card>
