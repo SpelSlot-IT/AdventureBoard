@@ -22,8 +22,7 @@
 						<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="chat" />
 					</div>
 					<!-- <q-btn label="Details" icon="info" @click="focussed = a" color="primary" /> -->
-					<q-btn v-if="me.id == a.user_id" icon="edit" round color="accent" />
-						TODO: Edit
+					<q-btn v-if="me.id == a.user_id || me.privilege_level > 0" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" />
 				</q-card-section>
 			</q-card>
 		</div>
@@ -44,7 +43,7 @@
 
 		<q-dialog v-model="addAdventure" :persistent="addingAdventure">
 			<div class="col-8">
-				<AddAdventure @eventAdded="eventAdded" @canClose="v => addingAdventure = !v" />
+				<AddAdventure @eventAdded="eventAdded" @canClose="v => addingAdventure = !v" :editExisting="editAdventure" />
 			</div>
 		</q-dialog>
 	</q-page>
@@ -72,6 +71,7 @@ export default defineComponent({
 			addAdventure: false,
 			addingAdventure: false,
 			loading: false,
+			editAdventure: null,
 		};
 	},
 	methods: {

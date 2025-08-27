@@ -38,16 +38,22 @@ export default defineComponent({
 			me: inject('me') as any,
 		};
 	},
+	props: {
+		editExisting: {
+			type: Object,
+			required: false,
+		},
+	},
 	data() {
 		return {
-			title: '',
-			short_description: '',
-			max_players: 5,
-			start_date: '',
-			end_date: '',
-			rank_combat: 0,
-			rank_exploration: 0,
-			rank_roleplaying: 0,
+			title: this.editExisting?.title || '',
+			short_description: this.editExisting?.short_description || '',
+			max_players: this.editExisting?.max_players || 5,
+			start_date: this.editExisting?.start_date || '',
+			end_date: this.editExisting?.end_date || '',
+			rank_combat: this.editExisting?.rank_combat || 0,
+			rank_exploration: this.editExisting?.rank_exploration || 0,
+			rank_roleplaying: this.editExisting?.rank_roleplaying || 0,
 		};
 	},
 	computed: {
@@ -57,7 +63,7 @@ export default defineComponent({
 	},
 	methods: {
 		async save() {
-			await this.$api.post('/api/adventures', {
+			const body = {
 				title: this.title,
 				short_description: this.short_description,
 				max_players: this.max_players,
@@ -66,7 +72,13 @@ export default defineComponent({
 				rank_combat: this.rank_combat,
 				rank_exploration: this.rank_exploration,
 				rank_roleplaying: this.rank_roleplaying,
-			});
+			} as any;
+			if(this.editExisting) {
+				body.id = this.editExisting.id;
+				await this.$api.patch('/api/adventures/', body);
+			} else {
+				await this.$api.post('/api/adventures', body);
+			}
 			this.$emit('eventAdded');
 		},
 	},
