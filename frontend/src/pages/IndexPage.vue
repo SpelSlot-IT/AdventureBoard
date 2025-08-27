@@ -16,6 +16,8 @@
 				<q-card-section class="q-gutter-md">
 					<q-btn v-if="me.id == a.user_id || me.privilege_level > 0" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" class="float-right" />
 					<div class="text-h6">{{a.title}}</div>
+					<q-separator />
+					<div>{{describeDuration(a)}}</div>
 					<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	:ripple="false" />
 					<div>{{a.short_description}}</div>
 					<div class="row justify-between">
@@ -23,21 +25,44 @@
 						<q-rating v-model="a.rank_exploration" :max="3" readonly size="2em" icon="explore" />
 						<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="theater_comedy" />
 					</div>
-					<!-- <q-btn label="Details" icon="info" @click="focussed = a" color="primary" /> -->
+					<div class="row justify-end">
+						<q-btn label="Aanmelden" icon="person_add" @click="focussed = a" color="primary" />
+					</div>
 				</q-card-section>
 			</q-card>
 		</div>
 
 		<q-page-sticky position="bottom-right" :offset="[18, 18]">
-			<q-btn fab icon="add" color="accent" @click="addAdventure = true" />
+			<q-btn fab icon="add" color="accent" @click="editAdventure = null; addAdventure = true" />
 		</q-page-sticky>
 
 		<q-dialog :modelValue="!!focussed" @hide="focussed = null">
 			<q-card style="min-width: 300px">
 				<q-card-section>
 					<div class="text-h6">{{focussed.title}}</div>
+					<q-separator />
 					<q-chip v-for="t in focussed.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white" :ripple="false" />
-					<div>{{focussed.short_description}}</div>
+					<q-markup-table>
+						<tr v-if="focussed.requested_room">
+							<td>Room</td><td>{{focussed.requested_room}}</td>
+						</tr>
+						<tr>
+							<td>Max players</td><td>{{focussed.max_players}}</td>
+						</tr>
+						<tr>
+							<td>Duration</td><td>{{describeDuration(focussed)}}</td>
+						</tr>
+						<tr>
+							<td>Combat</td><td><q-rating v-model="focussed.rank_combat" :max="3" readonly size="2em" icon="sym_o_swords" /></td>
+						</tr>
+						<tr>
+							<td>Exploration</td><td><q-rating v-model="focussed.rank_exploration" :max="3" readonly size="2em" icon="explore" /></td>
+						</tr>
+						<tr>
+							<td>Roleplaying</td><td><q-rating v-model="focussed.rank_roleplaying" :max="3" readonly size="2em" icon="theater_comedy" /></td>
+						</tr>
+					</q-markup-table>
+					<div class="q-pa-sm">{{focussed.short_description}}</div>
 				</q-card-section>
 			</q-card>
 		</q-dialog>
@@ -93,7 +118,16 @@ export default defineComponent({
 			const d = new Date(this.weekStart);
 			d.setDate(d.getDate() + offset * 7);
 			this.weekStart = d.toISOString().split('T')[0];
-		}
+		},
+		describeDuration(a: {start_date: string; end_date: string}) : string {
+			if(a.start_date == a.end_date) {
+				return 'Single session';
+			}
+			const start = Date.parse(a.start_date);
+			const end = Date.parse(a.end_date);
+			const diff = Math.round((end - start) / (7 * 24 * 60 * 60 * 1000));
+			return (1+diff) + ' weeks';
+		},
 	},
 	computed: {
 		weekEnd() {
