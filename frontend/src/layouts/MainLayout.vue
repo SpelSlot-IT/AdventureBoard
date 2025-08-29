@@ -3,7 +3,6 @@
 		<q-header elevated>
 			<q-toolbar class="row justify-between">
 				<q-btn stretch flat label="Spelslot" to="/" />
-				<div v-if="version">v{{version}}</div>
 				<div v-if="me">
 					<q-btn :icon="me.profile_pic ? 'img:' + me.profile_pic : 'settings'" rounded>
 						<q-menu>
@@ -38,6 +37,7 @@
 				<q-spinner size="xl" />
 			</q-page>
 			<router-view v-else @setErrors="es => errors = es" @changedUser="changedUser" />
+			<span v-if="version" class="fixed-bottom-left q-ml-sm">AdventureBoard v{{version}}</span>
 		</q-page-container>
 	</q-layout>
 </template>
