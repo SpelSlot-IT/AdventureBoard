@@ -17,9 +17,9 @@
 					<q-btn v-if="me.id == a.user_id || me.privilege_level > 0" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" class="float-right" />
 					<div class="text-h6">{{a.title}}</div>
 					<q-separator />
+					<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	:ripple="false" class="float-right" />
 					<div>{{describeDuration(a)}}</div>
-					<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	:ripple="false" />
-					<div>{{a.short_description}}</div>
+					<div class="description"><template v-if="a.short_description">{{a.short_description}}</template><i v-else>No description</i></div>
 					<div class="row justify-between">
 						<q-rating v-model="a.rank_combat" :max="3" readonly size="2em" icon="sym_o_swords" />
 						<q-rating v-model="a.rank_exploration" :max="3" readonly size="2em" icon="explore" />
@@ -43,15 +43,12 @@
 					<div class="text-h6">{{focussed.title}}</div>
 					<q-separator />
 					<q-chip v-for="t in focussed.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white" :ripple="false" />
-					<q-markup-table>
-						<tr v-if="focussed.requested_room">
-							<td>Room</td><td>{{focussed.requested_room}}</td>
+					<q-markup-table flat class="q-mb-md">
+						<tr>
+							<td>Duration</td><td>{{describeDuration(focussed)}}</td>
 						</tr>
 						<tr>
 							<td>Max players</td><td>{{focussed.max_players}}</td>
-						</tr>
-						<tr>
-							<td>Duration</td><td>{{describeDuration(focussed)}}</td>
 						</tr>
 						<tr>
 							<td>Combat</td><td><q-rating v-model="focussed.rank_combat" :max="3" readonly size="2em" icon="sym_o_swords" /></td>
@@ -62,8 +59,11 @@
 						<tr>
 							<td>Roleplaying</td><td><q-rating v-model="focussed.rank_roleplaying" :max="3" readonly size="2em" icon="theater_comedy" /></td>
 						</tr>
+						<tr v-if="focussed.requested_room">
+							<td>Room</td><td>{{focussed.requested_room}}</td>
+						</tr>
 					</q-markup-table>
-					<div class="q-pa-sm">{{focussed.short_description}}</div>
+					<div class="description"><template v-if="focussed.short_description">{{focussed.short_description}}</template><i v-else>No description</i></div>
 				</q-card-section>
 				<q-separator />
 				<q-card-actions class="justify-end">
@@ -93,6 +93,14 @@
 		</q-dialog>
 	</q-page>
 </template>
+
+<style lang="scss" scoped>
+	.description {
+		background-color: $grey-9;
+		border-radius: 4px;
+		padding: 8px;
+	}
+</style>
 
 <script lang="ts">
 import { defineComponent, inject } from 'vue';
