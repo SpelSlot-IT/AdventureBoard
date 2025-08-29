@@ -120,10 +120,13 @@ export default defineComponent({
 		};
 	},
 	data() {
-		let prevMonday = new Date();
-		prevMonday.setDate(prevMonday.getDate() - (prevMonday.getDay() + 6) % 7);
+		let start = new Date();
+		if(start.getDay() > 2) {
+			start.setDate(start.getDate() + 7);
+		}
+		start.setDate(start.getDate() - (start.getDay() + 6) % 7);
 		return {
-			weekStart: prevMonday.toISOString().split('T')[0],
+			weekStart: start.toISOString().split('T')[0],
 			adventures: [],
 			focussed: null as any,
 			addAdventure: false,
