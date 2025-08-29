@@ -1,9 +1,9 @@
 <template>
 	<q-page>
 		<div class="row items-center justify-evenly q-mt-md">
-			<q-btn icon="chevron_left" color="primary" round @click="switchWeek(-1)" />
+			<q-btn icon="chevron_left" label="Earlier" color="primary" rounded @click="switchWeek(-1)" />
 				Wednesday {{wednesdate}}
-			<q-btn icon="chevron_right" color="primary" round @click="switchWeek(1)" />
+			<q-btn icon-right="chevron_right" label="Later" color="primary" rounded @click="switchWeek(1)" />
 		</div>
 		<q-spinner size="xl" v-if="loading" />
 		<q-card v-else-if="adventures.length == 0">
