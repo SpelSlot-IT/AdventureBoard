@@ -52,6 +52,8 @@ npm clean-install
 npx quasar dev
 ```
 
+You can fake logging in by stealing the cookie from https://signup.spelslot.nl/, and using the developer console to set `document.cookie = 'session=xxx'`.
+
 
 # Further information
 Trello: https://trello.com/b/uaEDW0Ks/adventure-board-spelslot
