@@ -2,7 +2,7 @@
 	<q-page>
 		<div class="row items-center justify-evenly q-mt-md">
 			<q-btn icon="chevron_left" color="primary" round @click="switchWeek(-1)" />
-				Week of {{weekStart}} till {{weekEnd}}
+				Wednesday {{wednesdate}}
 			<q-btn icon="chevron_right" color="primary" round @click="switchWeek(1)" />
 		</div>
 		<q-spinner size="xl" v-if="loading" />
@@ -187,6 +187,11 @@ export default defineComponent({
 		},
 	},
 	computed: {
+		wednesdate() {
+			const d = new Date(this.weekStart);
+			d.setDate(d.getDate() + 2);
+			return d.toISOString().split('T')[0];
+		},
 		weekEnd() {
 			const d = new Date(this.weekStart);
 			d.setDate(d.getDate() + 7);
