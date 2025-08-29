@@ -11,26 +11,28 @@
 				No sessions this week yet.
 			</q-card-section>
 		</q-card>
-		<div v-else class="row items-center justify-evenly">
-			<q-card v-for="a in adventures" :key="a.id" class="col-12-xs col-4-sm q-ma-md">
-				<q-card-section class="q-gutter-md">
-					<q-btn v-if="me.id == a.user_id || me.privilege_level > 0" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" class="float-right" />
-					<div class="text-h6">{{a.title}}</div>
-					<q-separator />
-					<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	:ripple="false" class="float-right" />
-					<div>{{describeDuration(a)}}</div>
-					<div class="description"><template v-if="a.short_description">{{a.short_description}}</template><i v-else>No description</i></div>
-					<div class="row justify-between">
-						<q-rating v-model="a.rank_combat" :max="3" readonly size="2em" icon="sym_o_swords" />
-						<q-rating v-model="a.rank_exploration" :max="3" readonly size="2em" icon="explore" />
-						<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="theater_comedy" />
-					</div>
-					<div class="row justify-end">
-						<q-btn label="Cancel signup" color="negative" v-if="a.id in mySignups" class="q-mr-md" @click="signup(a, mySignups[a.id])" />
-						<q-btn label="More info" icon="person_add" @click="focussed = a" color="primary" />
-					</div>
-				</q-card-section>
-			</q-card>
+		<div v-else class="row justify-evenly q-col-gutter-lg q-mt-sm">
+			<div class="col-xs-12 col-sm-6 col-lg-3" v-for="a in adventures" :key="a.id">
+				<q-card class="q-ma-md">
+					<q-card-section class="q-gutter-md">
+						<q-btn v-if="me.id == a.user_id || me.privilege_level > 0" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" class="float-right" />
+						<div class="text-h6">{{a.title}}</div>
+						<q-separator />
+						<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	:ripple="false" class="float-right" />
+						<div>{{describeDuration(a)}}</div>
+						<div class="description"><template v-if="a.short_description">{{a.short_description}}</template><i v-else>No description</i></div>
+						<div class="row justify-between">
+							<q-rating v-model="a.rank_combat" :max="3" readonly size="2em" icon="sym_o_swords" />
+							<q-rating v-model="a.rank_exploration" :max="3" readonly size="2em" icon="explore" />
+							<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="theater_comedy" />
+						</div>
+						<div class="row justify-end">
+							<q-btn label="Cancel signup" color="negative" v-if="a.id in mySignups" class="q-mr-md" @click="signup(a, mySignups[a.id])" />
+							<q-btn label="More info and signup" icon="person_add" @click="focussed = a" color="primary" />
+						</div>
+					</q-card-section>
+				</q-card>
+			</div>
 		</div>
 
 		<q-page-sticky position="bottom-right" :offset="[18, 18]">
