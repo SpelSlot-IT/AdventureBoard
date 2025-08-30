@@ -76,8 +76,7 @@ export default defineComponent({
 				rank_roleplaying: this.rank_roleplaying,
 			} as any;
 			if(this.editExisting) {
-				body.id = this.editExisting.id;
-				await this.$api.patch('/api/adventures/', body);
+				await this.$api.patch('/api/adventures/' + this.editExisting.id, body);
 			} else {
 				await this.$api.post('/api/adventures', body);
 			}
