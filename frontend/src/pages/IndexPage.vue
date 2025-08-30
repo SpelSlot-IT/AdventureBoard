@@ -90,7 +90,7 @@
 
 		<q-dialog v-model="addAdventure" :persistent="addingAdventure">
 			<div class="col-8">
-				<AddAdventure @eventAdded="eventAdded" @canClose="v => addingAdventure = !v" :editExisting="editAdventure" />
+				<AddAdventure @eventChange="eventChange" @canClose="v => addingAdventure = !v" :editExisting="editAdventure" />
 			</div>
 		</q-dialog>
 	</q-page>
@@ -172,7 +172,7 @@ export default defineComponent({
 				this.saving = false;
 			}
 		},
-		eventAdded() {
+		eventChange() {
 			this.addAdventure = false;
 			this.fetch();
 		},

@@ -19,6 +19,8 @@
 				</div>
 			</q-card-section>
 			<q-card-actions class="row justify-end">
+				<q-btn label="Delete" color="negative" class="q-ma-md" v-if="editExisting" @click="confirmDeletion" />
+				<q-space />
 				<q-btn type="submit" label="Save" color="primary" class="q-ma-md" />
 			</q-card-actions>
 		</q-form>
@@ -32,7 +34,7 @@ import DatePicker from './DatePicker.vue';
 export default defineComponent({
 	name: 'AddAdventure',
 	components: { DatePicker },
-	emits: ['eventAdded', 'canClose'],
+	emits: ['eventChange', 'canClose'],
 	setup() {
 		return {
 			me: inject('me') as any,
@@ -83,7 +85,21 @@ export default defineComponent({
 				message: 'Your adventure was saved!',
 				type: 'positive',
 			});
-			this.$emit('eventAdded');
+			this.$emit('eventChange');
+		},
+		confirmDeletion() {
+			this.$q.dialog({
+				title: 'Delete',
+				message: 'Are you sure you want to delete "' + this.editExisting!.title +'" from '+ this.editExisting!.start_date +' to '+ this.editExisting!.end_date +'?',
+				cancel: true,
+			}).onOk(async () => {
+				await this.$api.delete('/api/adventures/' + this.editExisting!.id)
+				this.$q.notify({
+					message: "And.. it's gone",
+					type: 'positive',
+				});
+				this.$emit('eventChange');
+			});
 		},
 	},
 	watch: {
