@@ -26,6 +26,16 @@
 							<q-rating v-model="a.rank_exploration" :max="3" readonly size="2em" icon="explore" />
 							<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="theater_comedy" />
 						</div>
+						<ul :class="{adminDropTarget: me?.privilege_level > 0}">
+							<Container @drop="dr => onDrop(dr, a.id)" group-name="assignedPlayers" :get-child-payload="n => ({from_adventure: a.id, user_id: a.assignments[n].user.id})">
+								<Draggable v-for="p in a.assignments" :key="p.user.id">
+									<li>
+										<q-avatar size="large"><img :src="p.user.profile_pic" /></q-avatar>
+										{{p.user.display_name}}
+									</li>
+								</Draggable>
+							</Container>
+						</ul>
 						<div class="row justify-end">
 							<q-btn label="Cancel signup" color="negative" v-if="a.id in mySignups" class="q-mr-md" @click="signup(a, mySignups[a.id])" />
 							<q-btn label="More info and signup" icon="person_add" @click="focussed = a" color="primary" />
@@ -102,15 +112,21 @@
 		border-radius: 4px;
 		padding: 8px;
 	}
+	.adminDropTarget {
+		border-radius: 4px;
+		background-color: $teal-9;
+	}
 </style>
 
 <script lang="ts">
 import { defineComponent, inject } from 'vue';
+import { Container, Draggable } from 'vue3-smooth-dnd';
 import AddAdventure from '../components/AddAdventure.vue';
 
 export default defineComponent({
 	name: 'IndexPage',
-	components: { AddAdventure },
+	components: { AddAdventure, Container, Draggable },
+	emits: ['setErrors', 'startAdminAction', 'finishAdminAction'],
 	setup() {
 		return {
 			me: inject('me') as any,
@@ -141,12 +157,12 @@ export default defineComponent({
 		};
 	},
 	methods: {
-		async fetch() {
+		async fetch(reloadSignups: boolean) {
 			try {
 				this.loading = true;
 				this.mySignups = {};
 				const req1 = this.$api.get('/api/adventures?week_start=' + this.weekStart + '&week_end=' + this.weekEnd);
-				if (this.me) {
+				if (this.me && reloadSignups) {
 					const resp = await this.$api.get('/api/signups?user=' + this.me.id);
 					for(const {adventure_id, priority} of resp.data) {
 						this.mySignups[adventure_id] = priority;
@@ -171,14 +187,14 @@ export default defineComponent({
 					message: 'Your signup is submitted!',
 					type: 'positive',
 				});
-				await this.fetch();
+				await this.fetch(true);
 			} finally {
 				this.saving = false;
 			}
 		},
 		eventChange() {
 			this.addAdventure = false;
-			this.fetch();
+			this.fetch(false);
 		},
 		switchWeek(offset: number) {
 			const d = new Date(this.weekStart);
@@ -191,6 +207,23 @@ export default defineComponent({
 			}
 			return (a.num_sessions) + ' weeks';
 		},
+		async onDrop(dropResult: {payload: {from_adventure: number; user_id: number}; addedIndex: null|number; removedIndex: null|number}, toAdventure: number) {
+			if(dropResult.addedIndex === null) {
+				// Ignore this event. We'll get one targetting the actual destination contianer.
+				return;
+			}
+			this.$emit('startAdminAction');
+			try {
+				await this.$api.patch('/api/player-assignments', {
+					player_id: dropResult.payload.user_id,
+					from_adventure_id: dropResult.payload.from_adventure,
+					to_adventure_id: toAdventure,
+				});
+			} finally {
+				this.$emit('finishAdminAction');
+			}
+			this.fetch(false);
+    },
 	},
 	computed: {
 		wednesdate() {
@@ -207,12 +240,12 @@ export default defineComponent({
 	watch: {
 		weekStart: {
 			async handler() {
-				await this.fetch();
+				await this.fetch(false);
 			},
 			immediate: true,
 		},
 		forceRefresh() {
-			this.fetch();
+			this.fetch(true);
 		},
 	},
 });

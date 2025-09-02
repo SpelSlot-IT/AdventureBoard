@@ -4,7 +4,7 @@
 			<q-toolbar class="row justify-between">
 				<q-btn stretch flat label="Spelslot" to="/" />
 				<div>
-					<q-spinner size="lg" v-if="adminActionActive" />
+					<q-spinner size="lg" v-if="adminActionsActive > 0 " />
 					<q-btn v-if="me" :icon="me.profile_pic ? 'img:' + me.profile_pic : 'settings'" rounded>
 						<q-menu>
 							<q-list style="min-width: 100px">
@@ -43,7 +43,7 @@
 			<q-page v-else-if="loading" class="q-px-lg q-pt-md">
 				<q-spinner size="xl" />
 			</q-page>
-			<router-view v-else @setErrors="es => errors = es" @changedUser="changedUser" @mustLogin="login" />
+			<router-view v-else @setErrors="es => errors = es" @changedUser="changedUser" @mustLogin="login" @startAdminAction="adminActionsActive++" @finishAdminAction="adminActionsActive--" />
 			<span v-if="version" class="fixed-bottom-left q-ml-sm">AdventureBoard v{{version}}</span>
 		</q-page-container>
 	</q-layout>
@@ -61,7 +61,7 @@ export default defineComponent({
 			loading: false,
 			errors: [] as string[],
 			version: '',
-			adminActionActive: false,
+			adminActionsActive: 0,
 			forceRefresh: 1,
 			me: null as null | {
 				id: number;
@@ -89,7 +89,7 @@ export default defineComponent({
 		},
 
 		async adminAction(message: string) {
-			this.adminActionActive = true;
+			this.adminActionsActive++;
 			try {
 				await this.$api.put('/api/player-assignments', {message: message});
 				this.forceRefresh++;
@@ -98,11 +98,11 @@ export default defineComponent({
 					type: 'positive',
 				});
 			} finally {
-				this.adminActionActive = false;
+				this.adminActionsActive--;
 			}
 		},
 		async updateKarma() {
-			this.adminActionActive = true;
+			this.adminActionsActive++;
 			try {
 				await this.$api.get('/api/update-karma');
 				this.forceRefresh++;
@@ -111,7 +111,7 @@ export default defineComponent({
 					type: 'positive',
 				});
 			} finally {
-				this.adminActionActive = false;
+				this.adminActionsActive--;
 			}
 		},
 	},
