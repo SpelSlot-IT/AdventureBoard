@@ -16,13 +16,16 @@ const errorHandler = (error: unknown) => {
 
 function extractErrors(error: unknown): string[] {
 	console.log(error);
-	let errorMessages: string[] = [];
+	const errorMessages: string[] = [];
 	if(isAxiosError(error)) {
 		if(error.response?.status == 401) {
 			return ['You\'re not logged in'];
 		}
-		if(error.response?.data?.errors?.length > 0) {
-			errorMessages = errorMessages.concat(error.response!.data!.errors);
+		if(error.response?.data?.message) {
+			errorMessages.push(error.response!.data!.message);
+		}
+		if(error.response?.data?.error) {
+			errorMessages.push(error.response!.data!.error);
 		}
 	}
 	if(errorMessages.length == 0) {

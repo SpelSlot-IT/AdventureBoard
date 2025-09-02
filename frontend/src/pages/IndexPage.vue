@@ -114,6 +114,7 @@ export default defineComponent({
 	setup() {
 		return {
 			me: inject('me') as any,
+			forceRefresh: inject('forceRefresh') as number,
 			choiceLabels: {
 				1: 'First choice',
 				2: 'Second choice',
@@ -146,7 +147,7 @@ export default defineComponent({
 				this.mySignups = {};
 				const req1 = this.$api.get('/api/adventures?week_start=' + this.weekStart + '&week_end=' + this.weekEnd);
 				if (this.me) {
-					const resp= await this.$api.get('/api/signups?user=' + this.me.id);
+					const resp = await this.$api.get('/api/signups?user=' + this.me.id);
 					for(const {adventure_id, priority} of resp.data) {
 						this.mySignups[adventure_id] = priority;
 					}
@@ -209,6 +210,9 @@ export default defineComponent({
 				await this.fetch();
 			},
 			immediate: true,
+		},
+		forceRefresh() {
+			this.fetch();
 		},
 	},
 });
