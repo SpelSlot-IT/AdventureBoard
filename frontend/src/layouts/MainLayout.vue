@@ -39,6 +39,7 @@
 
 <script lang="ts">
 import { defineComponent, computed } from 'vue';
+import { isAxiosError } from 'axios';
 
 export default defineComponent({
 	name: 'MainLayout',
@@ -82,8 +83,16 @@ export default defineComponent({
 			this.errors = ['Service is unavailable'];
 		}
 		this.version = aliveResp.data.version;
-		const meResp = await meReq;
-		this.me = meResp.data;
+		try {
+			const meResp = await meReq;
+			this.me = meResp.data;
+		} catch(e) {
+			if(isAxiosError(e) && e.response?.status == 401) {
+				// Not logged in. That's fine.
+			} else {
+				throw e;
+			}
+		}
 	},
 
 	provide() {
@@ -92,20 +101,7 @@ export default defineComponent({
 		}
 	},
 
-	computed: {
-		notLoggedInError() {
-			// I've added this indirection because watching this Ref direct didn't seem to work.
-			return this.$notLoggedInError.value;
-		},
-	},
-
 	watch: {
-		notLoggedInError(nv: boolean) { // This is set to true by boot/errorhandler.ts to indicate an RPC received a HTTP 401. Handle it and clear it.
-			if(nv) {
-				// location.href = '/api/login';
-				this.$notLoggedInError.value = false;
-			}
-		},
 		'$route.fullPath'() {
 			this.errors = [];
 		},
