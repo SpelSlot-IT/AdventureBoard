@@ -21,8 +21,7 @@
   },
   "TIMING": {
     "assignment_day": "Sun@12",
-    "release_day": "Mon@12",
-    "reset_day": "Thu@00"
+    "release_day": "Mon@12"
   },
   "SCHEDULER_API_ENABLED": true,
   "GOOGLE": {

@@ -95,11 +95,12 @@ class Adventure(db.Model):
     predecessor_id      = db.Column(db.Integer, db.ForeignKey('adventures.id'), nullable=True)
     title               = db.Column(db.String(255), nullable=False)
     short_description   = db.Column(db.Text, nullable=False)
-    user_id             = db.Column(db.Integer, db.ForeignKey('users.id'))
+    user_id             = db.Column(db.Integer, db.ForeignKey('users.id')) # This is the creator
     max_players         = db.Column(db.Integer, nullable=False, default=5)
     date                = db.Column(db.Date, nullable=False)
     tags                = db.Column(db.String(255), nullable=True)
     requested_room      = db.Column(db.String(4))
+    release_assignments = db.Column(db.Boolean, nullable=False, default=False) # After this date assignments to this adventure are visible
     rank_combat         = db.Column(db.Integer, nullable=False, default=0)
     rank_exploration    = db.Column(db.Integer, nullable=False, default=0)
     rank_roleplaying    = db.Column(db.Integer, nullable=False, default=0)
@@ -179,12 +180,3 @@ class Signup(db.Model):
 
     def __repr__(self):
         return f"<Signup(id={self.id}, user_id={self.user_id}, adventure_id={self.adventure_id}, priority={self.priority})>"
-
-class VariableStorage(db.Model):
-    __tablename__ = 'variable_storage'
-
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    release_state = db.Column(db.Boolean, nullable=False, default=False)
-
-    def __repr__(self):
-        return f"<VariableStorage(id={self.id}, release_state={self.release_state})>"

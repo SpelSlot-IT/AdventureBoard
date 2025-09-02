@@ -218,16 +218,6 @@ class UpdateKarmaResource(MethodView):
         reassign_karma()
 
         return {'message': 'Karma updated successfully'}
-    
-@blp_utils.route('/release')
-class ReleaseResource(MethodView):
-    @blp_utils.response(200, MessageSchema)
-    def get(self):
-        """
-        Returns the current release status.
-        """
-        return {'message': check_release()}
-    
 
 @blp_utils.route("/login")
 class LoginResource(MethodView):
@@ -330,7 +320,7 @@ class CallbackResource(MethodView):
         if user.is_setup():
             return redirect(state)
         else:
-            return redirect(f"{state.split('#')[0]}profile/{user.id}")
+            return redirect(f"{state}profile")
 
 
 @blp_utils.route('/logout')
@@ -427,7 +417,7 @@ class AdventureIDlessRequest(MethodView):
         """
         Returns a list of Adventure objects within the specified date range. 
         
-        The field `players` will be present only when the requester is allowed (privilege level or `check_release()`).
+        The field `players` will be present only when the requester is allowed (privilege level or over release date).
         """
         try:
             week_start = args.get("week_start")
@@ -436,7 +426,7 @@ class AdventureIDlessRequest(MethodView):
             # Eager-load assignments -> user to avoid N+1 queries
             stmt = db.select(Adventure).options(
                 joinedload(Adventure.assignments).joinedload(Assignment.user)
-            )
+            ).order_by(Adventure.date)
 
 
             if week_start and week_end:
@@ -449,7 +439,7 @@ class AdventureIDlessRequest(MethodView):
 
             # Determine display rights
             is_admin = (current_user.is_authenticated and current_user.privilege_level >= 1)
-            display_players = is_admin or check_release()
+            display_players = is_admin or adventures[-1].release_assignments # check for last one cause handling separately is annoying
             exclude = []
             if not is_admin:
                 exclude = ["assignments.user.karma"]

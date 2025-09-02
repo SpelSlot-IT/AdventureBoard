@@ -8,27 +8,42 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from .models import *
-
-def check_release():
-    """
-    Returns True/False whether the release date has passed.
-    """
-    stmt = db.select(VariableStorage).limit(1)
-    variable = db.session.execute(stmt).scalar_one_or_none()
-    return variable.release_state if variable else False
      
 def get_next_wednesday():
     today = date.today()
     days_ahead = (2 - today.weekday() + 7) % 7  # 2 is Wednesday
     return today if days_ahead == 0 else today + timedelta(days=days_ahead)
 
+
+def get_upcoming_week():
+    """
+    Returns the start (Monday) and end (Sunday) of the upcoming week.
+    - If today is Monday–Wednesday → return this week's Mon–Sun.
+    - If today is Thursday–Sunday → return next week's Mon–Sun.
+    """
+    today = date.today()
+    # Find Monday of the current week
+    start_of_current_week = today - timedelta(days=today.weekday())
+    end_of_current_week = start_of_current_week + timedelta(days=6)
+
+    if today.weekday() <= 2:  # Mon(0), Tue(1), Wed(2)
+        return start_of_current_week, end_of_current_week
+    else:  # Thu–Sun
+        start_of_next_week = start_of_current_week + timedelta(weeks=1)
+        end_of_next_week = end_of_current_week + timedelta(weeks=1)
+        return start_of_next_week, end_of_next_week
+
+
 def release_assignments():
+    start_of_week, end_of_week = get_upcoming_week()
     try:
         stmt = (
-            db.update(VariableStorage)
-            .where(VariableStorage.id == 1)
-            .values(release_state=True)
-            .execution_options(synchronize_session="fetch")  # keeps ORM objects in sync
+            db.update(Adventure)
+            .filter(
+                Adventure.date >= start_of_week,
+                Adventure.date <= end_of_week,
+            )
+            .values(release_adventures=True)
         )
         db.session.execute(stmt)
         db.session.commit()
@@ -37,12 +52,15 @@ def release_assignments():
         return jsonify({'error': str(e)}), 500
     
 def reset_release():
+    start_of_week, end_of_week = get_upcoming_week()
     try:
         stmt = (
-            db.update(VariableStorage)
-            .where(VariableStorage.id == 1)
-            .values(release_state=False)
-            .execution_options(synchronize_session="fetch")  # keeps ORM objects in sync
+            db.update(Adventure)
+            .filter(
+                Adventure.date >= start_of_week,
+                Adventure.date <= end_of_week,
+            )
+            .values(release_adventures=False)
         )
         db.session.execute(stmt)
         db.session.commit()
@@ -118,9 +136,7 @@ def assign_players_to_adventures():
     4. Signup the rest of the players to the waiting list.
     This means that a player with more karma will always be preferred also if the adventure was a lower priority of his.
     """
-    today = datetime.today()
-    start_of_week = today - timedelta(days=today.weekday())  # Monday
-    end_of_week = start_of_week + timedelta(days=6)          # Sunday
+    start_of_week, end_of_week = get_upcoming_week()
     # create a placeholder that will track how many places are already taken per adventure
     taken_places = defaultdict(int)
 
@@ -235,7 +251,7 @@ def reassign_karma():
 
     # +1 karma for playing
     played = db.session.execute(
-        db.select(User).join(Assignment).where(Assignment.appeared.is_(True))
+        db.select(User).join(Assignment).where(AdventureAssignment.appeared.is_(True))
     ).scalars().all()
     for user in played:
         user.karma += 1
