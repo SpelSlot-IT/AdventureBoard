@@ -29,7 +29,7 @@ class User(UserMixin, db.Model):
 
     adventures_created  = db.relationship('Adventure', back_populates='creator', lazy='dynamic')
     signups             = db.relationship('Signup', back_populates='user')
-    assignments         = db.relationship('AdventureAssignment', back_populates='user')
+    assignments         = db.relationship('Assignment', back_populates='user')
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.name}', display_name='{self.display_name}', privilege_level={self.privilege_level})>"
@@ -91,7 +91,7 @@ class Adventure(db.Model):
     __tablename__ = 'adventures'
 
     id                  = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    repeat              = db.Column(db.Integer, nullable=False, default=1)
+    num_sessions        = db.Column(db.Integer, nullable=False, default=1)
     predecessor_id      = db.Column(db.Integer, db.ForeignKey('adventures.id'), nullable=True)
     title               = db.Column(db.String(255), nullable=False)
     short_description   = db.Column(db.Text, nullable=False)
@@ -107,7 +107,7 @@ class Adventure(db.Model):
     predecessor     = db.relationship('Adventure', remote_side=[id], foreign_keys=[predecessor_id])
     creator         = db.relationship('User', back_populates='adventures_created')
     signups         = db.relationship('Signup', back_populates='adventure')
-    assignments     = db.relationship('AdventureAssignment', back_populates='adventure')
+    assignments     = db.relationship('Assignment', back_populates='adventure')
 
     def __repr__(self):
         return f"<Adventure(id={self.id}, title='{self.title}')>"
@@ -116,17 +116,17 @@ class Adventure(db.Model):
     def create(cls, commit=True, **kwargs):
         """
         Factory to create one or multiple Adventures. 
-        If repeat > 1, it creates that many adventures one week apart,
+        If num_sessions > 1, it creates that many adventures one week apart,
         and wires up predecessor_id accordingly.
         """
         adventures = []
-        repeat = kwargs.get("repeat", 1)
+        num_sessions = kwargs.get("num_sessions", 1)
 
         # store the base date
         base_date = kwargs["date"]
 
         predecessor = None
-        for i in range(repeat):
+        for i in range(num_sessions):
             # fresh copy of kwargs for each loop
             data = dict(kwargs)
             data["date"] = base_date + timedelta(days=7 * i)
@@ -142,9 +142,9 @@ class Adventure(db.Model):
         if commit:
             db.session.commit()
 
-        return adventures if repeat > 1 else adventures[0] # return first adventure created
+        return adventures if num_sessions > 1 else adventures[0] # return first adventure created
 
-class AdventureAssignment(db.Model):
+class Assignment(db.Model):
     __tablename__ = 'adventure_assignments'
     __table_args__ = (
         db.UniqueConstraint('user_id', 'adventure_id', name='pk_adventure_assignment'),
@@ -160,7 +160,7 @@ class AdventureAssignment(db.Model):
     adventure = db.relationship('Adventure', back_populates='assignments')
 
     def __repr__(self):
-        return f"<AdventureAssignment(user_id={self.user_id}, adventure_id={self.adventure_id}, appeared={self.appeared}, top_three={self.top_three}, creation_date={self.creation_date})>"
+        return f"<Assignment(user_id={self.user_id}, adventure_id={self.adventure_id}, appeared={self.appeared}, top_three={self.top_three}, creation_date={self.creation_date})>"
 
 class Signup(db.Model):
     __tablename__ = 'signups'

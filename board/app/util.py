@@ -94,7 +94,7 @@ def try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned
     # Check if there is still room
     if taken_places.get(adventure.id, 0) < adventure.max_players:
         # Create an assignment (assuming this persists automatically)
-        assignment =AdventureAssignment(user=user, adventure=adventure, top_three=top_three)
+        assignment =Assignment(user=user, adventure=adventure, top_three=top_three)
         db.session.add(assignment)
         db.session.flush()
 
@@ -128,7 +128,7 @@ def assign_players_to_adventures():
     assigned_ids_subq = (
         db.select(User.id)
         .join(User.assignments)
-        .join(AdventureAssignment.adventure)
+        .join(Assignment.adventure)
         .filter(Adventure.date >= start_of_week, Adventure.date <= end_of_week)
     )
 
@@ -221,21 +221,21 @@ def reassign_karma():
 
     # -100 karma for not appearing
     non_appearances = db.session.execute(
-        db.select(User).join(AdventureAssignment).where(AdventureAssignment.appeared.is_(False))
+        db.select(User).join(Assignment).where(Assignment.appeared.is_(False))
     ).scalars().all()
     for user in non_appearances:
         user.karma -= 100
 
     # +10 karma for being assigned to something not in top three
     off_prefs = db.session.execute(
-        db.select(User).join(AdventureAssignment).where(AdventureAssignment.top_three.is_(False))
+        db.select(User).join(Assignment).where(Assignment.top_three.is_(False))
     ).scalars().all()
     for user in off_prefs:
         user.karma += 10
 
     # +1 karma for playing
     played = db.session.execute(
-        db.select(User).join(AdventureAssignment).where(AdventureAssignment.appeared.is_(True))
+        db.select(User).join(Assignment).where(Assignment.appeared.is_(True))
     ).scalars().all()
     for user in played:
         user.karma += 1

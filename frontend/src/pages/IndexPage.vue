@@ -181,14 +181,11 @@ export default defineComponent({
 			d.setDate(d.getDate() + offset * 7);
 			this.weekStart = d.toISOString().split('T')[0];
 		},
-		describeDuration(a: {start_date: string; end_date: string}) : string {
-			if(a.start_date == a.end_date) {
-				return 'Single session';
+		describeDuration(a: {num_sessions: number;}) : string {
+			if(a.num_sessions == 1) {
+				return 'One shot';
 			}
-			const start = Date.parse(a.start_date);
-			const end = Date.parse(a.end_date);
-			const diff = Math.round((end - start) / (7 * 24 * 60 * 60 * 1000));
-			return (1+diff) + ' weeks';
+			return (a.num_sessions) + ' weeks';
 		},
 	},
 	computed: {

@@ -21,7 +21,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 import json
 import requests
 
-from .models import db, User, Adventure, AdventureAssignment
+from .models import db, User, Adventure, Assignment
 from .util import *
 from .provider import ma, ap_scheduler
 
@@ -104,15 +104,15 @@ class AdventureQuerySchema(ma.Schema):
         if sd and ed and sd > ed:
             raise ValidationError("week_start must be <= week_end.")
         
-class AdventureAssignmentSchema(ma.SQLAlchemyAutoSchema):
+class AssignmentSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
-        model = AdventureAssignment
+        model = Assignment
         include_fk = True
         exclude = ("adventure_id","top_three","user_id")
 
     user = ma.Nested(UserSchema, dump_only=True)
 
-class AdventureAssignmentUpdateSchema(ma.Schema):
+class AssignmentUpdateSchema(ma.Schema):
     user_id = ma.Integer(required=True)
     adventure_id = ma.Integer(required=True)
     appeared = ma.Boolean(required=True)
@@ -122,11 +122,11 @@ class AdventureSchema(ma.SQLAlchemyAutoSchema):
 
     - `players` is a nested list of UserSchema for dumping only.
     - `requested_players` is a load-only list of ints that the POST endpoint
-       will use to create AdventureAssignment rows.
+       will use to create Assignment rows.
     """
 
     # assignments -> nested users (dump only)
-    assignments = ma.List(ma.Nested(AdventureAssignmentSchema), dump_only=True)
+    assignments = ma.List(ma.Nested(AssignmentSchema), dump_only=True)
 
     # allow the same schema to accept requested_players during creation
     requested_players = ma.List(ma.Integer(), load_only=True, allow_none=True)
@@ -323,19 +323,9 @@ class CallbackResource(MethodView):
 
         # Send user back to homepage or if he has not yet finished setup set him to edit his profile
         if user.is_setup():
-            try:
-                # Try to redirect to the endpoint if it exists
-                return redirect(url_for("home"))
-            except BuildError:
-                # Fallback if endpoint is not found
-                return redirect("/")
+            return redirect("/")
         else:
-            try:
-                # Try to redirect to the endpoint if it exists
-                return redirect(url_for("view_own_profile"))
-            except BuildError:
-                # Fallback if endpoint is not found
-                return redirect("/profile/me")
+            return redirect("/profile/me")
 
 
 @blp_utils.route('/logout')
@@ -444,7 +434,7 @@ class AdventureIDlessRequest(MethodView):
 
             # Eager-load assignments -> user to avoid N+1 queries
             stmt = db.select(Adventure).options(
-                joinedload(Adventure.assignments).joinedload(AdventureAssignment.user)
+                joinedload(Adventure.assignments).joinedload(Assignment.user)
             )
 
 
@@ -498,7 +488,7 @@ class AdventureIDlessRequest(MethodView):
             for pid in requested_players:
                 try:
                     with db.session.begin_nested():  # savepoint per assignment
-                        assignment = AdventureAssignment(
+                        assignment = Assignment(
                             adventure_id=new_adv.id,
                             user_id=pid,
                             appeared=True,
@@ -543,7 +533,7 @@ class AdventureResource(MethodView):
         try:
             # Eager-load assignments -> user to avoid N+1 queries
             stmt = db.select(Adventure).options(
-                joinedload(Adventure.assignments).joinedload(AdventureAssignment.user)
+                joinedload(Adventure.assignments).joinedload(Assignment.user)
             )
 
             stmt = db.select(Adventure).where(Adventure.id == int(adventure_id))
@@ -571,15 +561,17 @@ class AdventureResource(MethodView):
 
 
     @login_required
-    @blp_adventures.arguments(AdventureSchema(partial=True, exclude=("id","user_id", "repeat", "predecessor_id")))
+    @blp_adventures.arguments(AdventureSchema(partial=True, exclude=("id","user_id", "predecessor_id")))
     def patch(self, args, adventure_id):
-        """Edit an existing adventure. Only creator or admin can edit."""
-        user_id = current_user.id
-        adventure_id = args.get("id")
+        """
+        Edit an existing adventure. Only creator or admin can edit.
 
+        Number of sessions, predecessor and creator are not editable.        
+        """
+        user_id = current_user.id
         adventure = db.session.get(Adventure, adventure_id)
         if not adventure:
-            abort(404, message="Adventure not found.")
+            abort(404, message=f"Adventure with id: {adventure_id} not found.")
 
         # Ownership or admin check
         if current_user.privilege_level < 1 and adventure.user_id != user_id:
@@ -587,21 +579,9 @@ class AdventureResource(MethodView):
             
 
         # Update provided fields
-        for field in ["title", "short_description", "requested_room"]:
+        for field in ["title", "short_description", "requested_room", "date", "max_players", "tags"]:
             if field in args:
                 setattr(adventure, field, args[field])
-
-        if "max_players" in args:
-            adventure.max_players = int(args["max_players"])
-
-        if "date" in args:
-            try:
-                adventure.date = datetime.fromisoformat(args["date"]).date()
-            except ValueError:
-                abort(400, message="Invalid date format.")
-
-        if "tags" in args:
-            adventure.tags = str(args["tags"])
 
         mis_assignments = []
 
@@ -610,12 +590,12 @@ class AdventureResource(MethodView):
             new_player_ids = args["requested_players"] or []
 
             db.session.execute(
-                delete(AdventureAssignment).where(AdventureAssignment.adventure_id == adventure_id)
+                delete(Assignment).where(Assignment.adventure_id == adventure_id)
             )
 
             for pid in new_player_ids:
                 try:
-                    assignment = AdventureAssignment(
+                    assignment = Assignment(
                         adventure_id=adventure_id,
                         user_id=pid,
                         appeared=True,
@@ -688,8 +668,8 @@ class AssignmentResource(MethodView):
             adventure_id = request.args.get('adventure_id', type=int)
             if not adventure_id:
                 return jsonify({'error': 'Adventure ID is required'}), 400
-            stmt = db.select(AdventureAssignment).join(User).where(
-                AdventureAssignment.adventure_id == adventure_id
+            stmt = db.select(Assignment).join(User).where(
+                Assignment.adventure_id == adventure_id
             )
             assignments = db.session.scalars(stmt).all()
             users = [assignment.user for assignment in assignments if assignment.user]
@@ -724,11 +704,11 @@ class AssignmentResource(MethodView):
         return {'message': f'{action.capitalize()} action executed successfully'}, 200
     
     @login_required
-    @blp_assignments.arguments(AdventureAssignmentUpdateSchema)
+    @blp_assignments.arguments(AssignmentUpdateSchema)
     @blp_assignments.response(200, MessageSchema)
     def post(self, args):
         """
-        Updates the 'appeared' value for an AdventureAssignment for a given user.
+        Updates the 'appeared' value for an Assignment for a given user.
         Expects JSON body: { "user_id": int, "adventure_id": int, "appeared": <new_value> }
         """
        
@@ -741,9 +721,9 @@ class AssignmentResource(MethodView):
 
         # Fetch the assignment
         assignment = db.session.scalar(
-            db.select(AdventureAssignment).where(
-                AdventureAssignment.user_id == user_id,
-                AdventureAssignment.adventure_id == adventure_id
+            db.select(Assignment).where(
+                Assignment.user_id == user_id,
+                Assignment.adventure_id == adventure_id
             )
         )
 
@@ -775,9 +755,9 @@ class AssignmentResource(MethodView):
         from_adventure_id = args['from_adventure_id']
         to_adventure_id = args['to_adventure_id']
 
-        stmt = db.select(AdventureAssignment).where(
-            AdventureAssignment.user_id == player_id,
-            AdventureAssignment.adventure_id == from_adventure_id
+        stmt = db.select(Assignment).where(
+            Assignment.user_id == player_id,
+            Assignment.adventure_id == from_adventure_id
         )
         assignment = db.session.scalars(stmt).first()
 
