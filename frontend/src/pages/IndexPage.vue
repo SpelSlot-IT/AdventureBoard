@@ -145,15 +145,16 @@ export default defineComponent({
 				this.loading = true;
 				this.mySignups = {};
 				const req1 = this.$api.get('/api/adventures?week_start=' + this.weekStart + '&week_end=' + this.weekEnd);
-				const resp1 = await req1;
-				this.adventures = resp1.data;
 				if (this.me) {
-					const req2 = this.$api.get('/api/signups?user=' + this.me.id);
-					const resp2 = await req2;
-					for(const {adventure_id, priority} of resp2.data) {
+					const resp= await this.$api.get('/api/signups?user=' + this.me.id);
+					for(const {adventure_id, priority} of resp.data) {
 						this.mySignups[adventure_id] = priority;
 					}
 				}
+				const resp = await req1;
+				this.adventures = resp.data;
+			} catch(e) {
+				this.$emit('setErrors', this.$extractErrors(e));
 			} finally {
 				this.loading = false;
 			}
