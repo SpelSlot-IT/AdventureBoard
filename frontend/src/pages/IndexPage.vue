@@ -154,8 +154,6 @@ export default defineComponent({
 						this.mySignups[adventure_id] = priority;
 					}
 				}
-				
-
 			} finally {
 				this.loading = false;
 			}

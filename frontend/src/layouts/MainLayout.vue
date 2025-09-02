@@ -19,7 +19,7 @@
 							</q-list>
 						</q-menu>
 					</q-btn>
-					<q-btn v-else flat label="Login" @click="login" rounded/>
+					<q-btn v-else flat label="Login" @click="login" rounded />
 				</div>
 			</q-toolbar>
 		</q-header>
@@ -66,11 +66,11 @@ export default defineComponent({
 		},
 		logout() {
 			const currentUrl = window.location.href;
-    		window.location.href = `/api/logout?next=${encodeURIComponent(currentUrl)}`;
+			window.location.href = `/api/logout?next=${encodeURIComponent(currentUrl)}`;
 		},
 		async login() {
 			const currentUrl = window.location.href;
-    		window.location.href = `/api/login?next=${encodeURIComponent(currentUrl)}`;
+			window.location.href = `/api/login?next=${encodeURIComponent(currentUrl)}`;
 		},
 	},
 
