@@ -22,7 +22,7 @@ import { defineComponent, inject } from 'vue';
 
 export default defineComponent({
 	name: 'ProfilePage',
-	emits: ['changedUser'],
+	emits: ['changedUser', 'mustLogin'],
 	setup() {
 		return {
 			me: inject('me') as any,
@@ -30,6 +30,9 @@ export default defineComponent({
 	},
 	data() {
 		const me = this.me as any;
+		if(!this.me) {
+			this.$emit('mustLogin');
+		}
 		return {
 			display_name: me.display_name,
 			world_builder_name: me.world_builder_name,

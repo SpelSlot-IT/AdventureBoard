@@ -31,7 +31,7 @@
 			<q-page v-else-if="loading" class="q-px-lg q-pt-md">
 				<q-spinner size="xl" />
 			</q-page>
-			<router-view v-else @setErrors="es => errors = es" @changedUser="changedUser" />
+			<router-view v-else @setErrors="es => errors = es" @changedUser="changedUser" @mustLogin="login" />
 			<span v-if="version" class="fixed-bottom-left q-ml-sm">AdventureBoard v{{version}}</span>
 		</q-page-container>
 	</q-layout>
