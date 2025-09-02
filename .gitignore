@@ -4,6 +4,7 @@ __pycache__/
 *.zip
 *.json
 *.pem
+*.vscode
 /external
 /venv
 *.env

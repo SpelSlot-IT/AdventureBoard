@@ -423,14 +423,10 @@ function getLastWednesdayOfMonth() {
 
 // Function to initialize the form with dates
 function initializeDateFields() {
-  const startDateInput = document.getElementById("start-date");
-  const endDateInput = document.getElementById("end-date");
+  const startDateInput = document.getElementById("date");
 
   // Set next Wednesday as the start date
   startDateInput.value = getNextWednesday();
-
-  // Set last Wednesday of the current month as the end date
-  endDateInput.value = getLastWednesdayOfMonth();
 }
 
 async function moreDetails(adventure_id) {
@@ -590,13 +586,13 @@ document.getElementById('adventure-form').addEventListener('submit', async (e) =
   const title = document.getElementById('title').value.trim();
   const description = document.getElementById('description').value.trim();
   const maxPlayers = parseInt(document.getElementById('max-players').value);
+  const repeat = parseInt(document.getElementById('repeat').value);
 
   // Get the selected players
   const selectedPlayerIds = Array.from(document.querySelector('#selector').selectedOptions).map(option => option.value);
 
   // Get the start and end dates from the form inputs
-  const startDate = new Date(document.getElementById('start-date').value);
-  const endDate = new Date(document.getElementById('end-date').value);
+  const date = new Date(document.getElementById('date').value);
 
 
   // Validate the inputs
@@ -605,10 +601,6 @@ document.getElementById('adventure-form').addEventListener('submit', async (e) =
     return;
   }
 
-  if (endDate < startDate) {
-    Util.showToast('End date must be later or equal than the start date.', 'alert');
-    return;
-  }
   // Create the adventure object to send to the server
 
   const adventureData = {
@@ -616,8 +608,8 @@ document.getElementById('adventure-form').addEventListener('submit', async (e) =
     short_description: description,
     max_players: maxPlayers,
     requested_players: selectedPlayerIds,
-    start_date: startDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
-    end_date: endDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+    date: date.toISOString().split('T')[0], // Format as YYYY-MM-DD
+    repeat: repeat,
     tags: "#tags",
     requested_room: "A"
   };

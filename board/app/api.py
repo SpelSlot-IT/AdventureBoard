@@ -14,6 +14,7 @@ from flask import (
     redirect, 
     g 
     )
+from werkzeug.routing import BuildError
 from sqlalchemy import text, delete
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -141,7 +142,10 @@ class AdventureSchema(ma.SQLAlchemyAutoSchema):
     def validate_dates(self, data, **kwargs):
         sd = data.get("start_date")
         ed = data.get("end_date")
+        max_players = data.get("max_players")
         if sd and ed and sd > ed:
+            raise ValidationError("start_date must be <= end_date.")
+        if not (max_players > 0 and max_players < 30):
             raise ValidationError("start_date must be <= end_date.")
 
 class ConflictResponseSchema(ma.Schema):
@@ -178,6 +182,9 @@ class SiteMapResource(MethodView):
     def get(self):
         """
         Returns a list of all available endpoints (not only api).
+
+        ---
+        TODO: REMOVE
         """
         links = []
         for rule in current_app.url_map.iter_rules():
@@ -316,9 +323,19 @@ class CallbackResource(MethodView):
 
         # Send user back to homepage or if he has not yet finished setup set him to edit his profile
         if user.is_setup():
-            return redirect(url_for("dashboard"))
+            try:
+                # Try to redirect to the endpoint if it exists
+                return redirect(url_for("home"))
+            except BuildError:
+                # Fallback if endpoint is not found
+                return redirect("/")
         else:
-            return redirect(url_for("view_own_profile"))
+            try:
+                # Try to redirect to the endpoint if it exists
+                return redirect(url_for("view_own_profile"))
+            except BuildError:
+                # Fallback if endpoint is not found
+                return redirect("/profile/me")
 
 
 @blp_utils.route('/logout')
@@ -330,7 +347,13 @@ class LockoutResource(MethodView):
         Logout the current user.
         """
         logout_user()
-        return redirect(url_for("home"))    
+        try:
+            # Try to redirect to the endpoint if it exists
+            return redirect(url_for("home"))
+        except BuildError:
+            # Fallback if endpoint is not found
+            return redirect("/")   
+
     
 # --- USERS ---
 @blp_users.route("")
@@ -358,7 +381,7 @@ class UserResource(MethodView):
 
     @blp_users.arguments(UserSchema(partial=True, only=["display_name", "world_builder_name", "dnd_beyond_name", "email"]))
     @blp_users.response(200, UserSchema(exclude=['karma']))
-    def patch(self, data, user_id):
+    def patch(self, args, user_id):
         """
         Partially update a user. Only fields present in the JSON body will be changed.
         """
@@ -367,7 +390,7 @@ class UserResource(MethodView):
             if not user:
                 abort(404, message="User not found")
 
-            for key, val in data.items():
+            for key, val in args.items():
                     setattr(user, key, val)
 
             db.session.commit()
@@ -392,7 +415,7 @@ class UserResource(MethodView):
         TODO: REMOVE
         """
         login_user(db.session.get(User, user_id), fresh=True)
-        return
+        return  
     
 
 @blp_users.route("/me")
@@ -405,34 +428,30 @@ class MeResource(MethodView):
 
 # --- ADVENTURES ---
 @blp_adventures.route("")
-class AdventureResource(MethodView):
+class AdventureIDlessRequest(MethodView):
 
     @blp_adventures.arguments(AdventureQuerySchema, location="query")
     #@blp_adventures.response(200, AdventureSchema(many=True))
     def get(self, args):
         """
-        Returns a list of Adventure objects. 
+        Returns a list of Adventure objects within the specified date range. 
         
         The field `players` will be present only when the requester is allowed (privilege level or `check_release()`).
         """
         try:
-            adventure_id = args.get("adventure_id")
             week_start = args.get("week_start")
             week_end = args.get("week_end")
-            if not adventure_id and not week_start and not week_end:
-                abort(400, message="Either adventure_id or week_start/week_end must be specified.")
 
             # Eager-load assignments -> user to avoid N+1 queries
             stmt = db.select(Adventure).options(
                 joinedload(Adventure.assignments).joinedload(AdventureAssignment.user)
             )
 
-            if adventure_id is not None:
-                stmt = db.select(Adventure).where(Adventure.id == int(adventure_id))
-            elif week_start and week_end:
+
+            if week_start and week_end:
                 stmt = db.select(Adventure).where(
-                    Adventure.start_date <= week_end,
-                    Adventure.end_date >= week_start
+                    Adventure.date <= week_end,
+                    Adventure.date >= week_start
                 )
 
             adventures = db.session.scalars(stmt).all()
@@ -456,26 +475,25 @@ class AdventureResource(MethodView):
         except SQLAlchemyError as e:
             abort(500, message=f"Database error: {str(e)}")
 
-    # note decorator order: we validate/deserialize the body using AdventureSchema
-    # and then require login
     @login_required
     @blp_adventures.arguments(AdventureSchema(exclude=("id","user_id")))
     @blp_adventures.response(201, AdventureSchema()) 
     @blp_adventures.alt_response(409, schema=ConflictResponseSchema())
-    def post(self, data):
+    def post(self, args):
         """
         Create a new adventure
         """
         try:
-            requested_players = data.pop("requested_players", [])
+            requested_players = args.pop("requested_players", [])
 
-            new_adv = Adventure(
+            new_adv = Adventure.create(
                 user_id=current_user.id,
-                **data
-            )
+                **args
+            ) # this will only return the first adventure if repeat > 1
             db.session.add(new_adv)
             db.session.flush()  # new_adv.id available
 
+            # Player requests are only done for the first adventure created
             mis_assignments = []
             for pid in requested_players:
                 try:
@@ -511,12 +529,53 @@ class AdventureResource(MethodView):
             db.session.rollback()
             abort(500, message=str(e))
 
+@blp_adventures.route("<int:adventure_id>")
+class AdventureResource(MethodView):
+
+    @blp_adventures.arguments(AdventureQuerySchema, location="query")
+    #@blp_adventures.response(200, AdventureSchema())
+    def get(self, args, adventure_id):
+        """
+        Returns a singular Adventure objects. 
+        
+        The field `players` will be present only when the requester is allowed (privilege level or `check_release()`).
+        """
+        try:
+            # Eager-load assignments -> user to avoid N+1 queries
+            stmt = db.select(Adventure).options(
+                joinedload(Adventure.assignments).joinedload(AdventureAssignment.user)
+            )
+
+            stmt = db.select(Adventure).where(Adventure.id == int(adventure_id))
+
+            adventures = db.session.scalars(stmt).all()
+
+            # Determine display rights
+            is_admin = (current_user.is_authenticated and current_user.privilege_level >= 1)
+            display_players = is_admin or check_release()
+            exclude = []
+            if not is_admin:
+                exclude = ["assignments.user.karma"]
+                pass
+            if not display_players:
+                exclude = exclude + ["assignments"]
+                pass
+            
+            return AdventureSchema(many=True, exclude=exclude).dump(adventures)
+
+        except ValidationError as ve:
+            abort(400, message=str(ve))
+
+        except SQLAlchemyError as e:
+            abort(500, message=f"Database error: {str(e)}")
+
+
     @login_required
-    @blp_adventures.arguments(AdventureSchema(partial=True, exclude=("id","user_id")))
-    def patch(self, data):
+    @blp_adventures.arguments(AdventureSchema(partial=True, exclude=("id","user_id", "repeat", "predecessor_id")))
+    def patch(self, args, adventure_id):
         """Edit an existing adventure. Only creator or admin can edit."""
         user_id = current_user.id
-        adventure_id = data.get("id")
+        adventure_id = args.get("id")
 
         adventure = db.session.get(Adventure, adventure_id)
         if not adventure:
@@ -529,32 +588,26 @@ class AdventureResource(MethodView):
 
         # Update provided fields
         for field in ["title", "short_description", "requested_room"]:
-            if field in data:
-                setattr(adventure, field, data[field])
+            if field in args:
+                setattr(adventure, field, args[field])
 
-        if "max_players" in data:
-            adventure.max_players = int(data["max_players"])
+        if "max_players" in args:
+            adventure.max_players = int(args["max_players"])
 
-        if "start_date" in data:
+        if "date" in args:
             try:
-                adventure.start_date = datetime.fromisoformat(data["start_date"]).date()
+                adventure.date = datetime.fromisoformat(args["date"]).date()
             except ValueError:
-                abort(400, message="Invalid start_date format.")
+                abort(400, message="Invalid date format.")
 
-        if "end_date" in data:
-            try:
-                adventure.end_date = datetime.fromisoformat(data["end_date"]).date()
-            except ValueError:
-                abort(400, message="Invalid end_date format.")
-
-        if "is_story_adventure" in data:
-            adventure.is_story_adventure = bool(data["is_story_adventure"])
+        if "tags" in args:
+            adventure.tags = str(args["tags"])
 
         mis_assignments = []
 
         # Player reassignment
-        if "requested_players" in data:
-            new_player_ids = data["requested_players"] or []
+        if "requested_players" in args:
+            new_player_ids = args["requested_players"] or []
 
             db.session.execute(
                 delete(AdventureAssignment).where(AdventureAssignment.adventure_id == adventure_id)
@@ -591,12 +644,12 @@ class AdventureResource(MethodView):
     
     @login_required
     @blp_adventures.arguments(AdventureSchema(partial=True, exclude=("id","user_id")))
-    def delete():
+    def delete(self, args, adventure_id):
         """
         Deletes an adventure with the given ID. Only creator or admin can delete.
         """
-        data = request.get_json()
-        adventure_id = data.get('adventure_id')
+        args = request.get_json()
+        adventure_id = args.get('adventure_id')
         user_id = current_user.id
 
         if not adventure_id:
@@ -766,14 +819,14 @@ class SignupResource(MethodView):
     @login_required
     @blp_signups.arguments(SignupSchema())
     @blp_signups.response(200, MessageSchema())
-    def post(self, data):
+    def post(self, args):
         """
         Makes a signup for a specific adventure.
         Deletes old ones if a signup already exists.
         Acts as a toggle: if the same signup exists, it removes it.
         """
-        adventure_id = data["adventure_id"]
-        priority = data["priority"]
+        adventure_id = args["adventure_id"]
+        priority = args["priority"]
         user_id = current_user.id
 
         try:

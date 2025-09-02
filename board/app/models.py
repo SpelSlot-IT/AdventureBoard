@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from flask_login import UserMixin, AnonymousUserMixin
 from sqlalchemy import func
 
@@ -27,11 +28,11 @@ class User(UserMixin, db.Model):
     karma               = db.Column(db.Integer, default=1000)
 
     adventures_created  = db.relationship('Adventure', back_populates='creator', lazy='dynamic')
-    signups             = db.relationship('Signup', back_populates='user', lazy='dynamic')
-    assignments         = db.relationship('AdventureAssignment', back_populates='user', lazy='dynamic')
+    signups             = db.relationship('Signup', back_populates='user')
+    assignments         = db.relationship('AdventureAssignment', back_populates='user')
 
     def __repr__(self):
-        return f"<User(id={self.id}, username='{self.name}')>"
+        return f"<User(id={self.id}, username='{self.name}', display_name='{self.display_name}', privilege_level={self.privilege_level})>"
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -90,24 +91,58 @@ class Adventure(db.Model):
     __tablename__ = 'adventures'
 
     id                  = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    repeat              = db.Column(db.Integer, nullable=False, default=1)
+    predecessor_id      = db.Column(db.Integer, db.ForeignKey('adventures.id'), nullable=True)
     title               = db.Column(db.String(255), nullable=False)
     short_description   = db.Column(db.Text, nullable=False)
     user_id             = db.Column(db.Integer, db.ForeignKey('users.id'))
     max_players         = db.Column(db.Integer, nullable=False, default=5)
-    start_date          = db.Column(db.Date, nullable=False)
-    end_date            = db.Column(db.Date, nullable=False)
+    date                = db.Column(db.Date, nullable=False)
     tags                = db.Column(db.String(255), nullable=True)
     requested_room      = db.Column(db.String(4))
     rank_combat         = db.Column(db.Integer, nullable=False, default=0)
     rank_exploration    = db.Column(db.Integer, nullable=False, default=0)
     rank_roleplaying    = db.Column(db.Integer, nullable=False, default=0)
 
+    predecessor     = db.relationship('Adventure', remote_side=[id], foreign_keys=[predecessor_id])
     creator         = db.relationship('User', back_populates='adventures_created')
     signups         = db.relationship('Signup', back_populates='adventure')
     assignments     = db.relationship('AdventureAssignment', back_populates='adventure')
 
     def __repr__(self):
         return f"<Adventure(id={self.id}, title='{self.title}')>"
+    
+    @classmethod
+    def create(cls, commit=True, **kwargs):
+        """
+        Factory to create one or multiple Adventures. 
+        If repeat > 1, it creates that many adventures one week apart,
+        and wires up predecessor_id accordingly.
+        """
+        adventures = []
+        repeat = kwargs.get("repeat", 1)
+
+        # store the base date
+        base_date = kwargs["date"]
+
+        predecessor = None
+        for i in range(repeat):
+            # fresh copy of kwargs for each loop
+            data = dict(kwargs)
+            data["date"] = base_date + timedelta(days=7 * i)
+
+            adventure = cls(**data)
+            if predecessor:
+                adventure.predecessor = predecessor  # link to previous
+            adventures.append(adventure)
+            db.session.add(adventure)
+
+            predecessor = adventure  # move chain forward
+
+        if commit:
+            db.session.commit()
+
+        return adventures if repeat > 1 else adventures[0] # return first adventure created
 
 class AdventureAssignment(db.Model):
     __tablename__ = 'adventure_assignments'
@@ -119,12 +154,13 @@ class AdventureAssignment(db.Model):
     adventure_id = db.Column(db.Integer, db.ForeignKey('adventures.id'), primary_key=True)
     appeared = db.Column(db.Boolean, nullable=False, default=True)
     top_three = db.Column(db.Boolean, nullable=False, default=False)
+    creation_date = db.Column(db.DateTime, nullable=False, default=datetime.now())
 
     user = db.relationship('User', back_populates='assignments')
     adventure = db.relationship('Adventure', back_populates='assignments')
 
     def __repr__(self):
-        return f"<AdventureAssignment(user_id={self.user_id}, adventure_id={self.adventure_id})>"
+        return f"<AdventureAssignment(user_id={self.user_id}, adventure_id={self.adventure_id}, appeared={self.appeared}, top_three={self.top_three}, creation_date={self.creation_date})>"
 
 class Signup(db.Model):
     __tablename__ = 'signups'

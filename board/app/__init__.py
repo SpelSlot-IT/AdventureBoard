@@ -2,10 +2,9 @@ import site
 # add path to installed packages to PATH:
 site.addsitedir('/mnt/web105/e0/90/517590/htdocs/.local/lib/python3.11/site-packages')
 import json, os
-from flask import Flask, jsonify, send_from_directory, url_for, render_template, g
+from flask import Flask
 from flask_smorest import Api
 from flask_talisman import Talisman
-from apispec.ext.marshmallow import MarshmallowPlugin
 
 from .provider import db, ma, ap_scheduler, login_manager, google_oauth
 from .models import *

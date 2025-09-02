@@ -5,6 +5,7 @@ from collections import defaultdict
 from typing import Dict, List, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 
 from .models import *
 
@@ -49,6 +50,9 @@ def reset_release():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500    
     
+def delete_expired_assignments():
+    pass   
+
 # Constants
 WAITING_LIST_ID = -999             # in-memory placeholder used by the planner
 WAITING_LIST_NAME = "Waiting List"  # unique name used to create the waiting-list adventure
@@ -73,156 +77,130 @@ def make_waiting_list():
                 title=WAITING_LIST_NAME,
                 max_players=0,
                 short_description='',
-                start_date=next_wed,
-                end_date=next_wed
+                date=next_wed,
             )
     db.session.add(waiting_list)
     db.session.flush()  # ensure waiting.id is populated
-    return waiting_list.id
+    return waiting_list
     
-def assign_adventures_from_db(top_n: int = 3) -> Dict[int, List[Tuple[int, bool]]]:
+def try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, top_three=True):
     """
-    Build an assignment plan (in memory) and return a mapping:
-        { adventure_id: [(user_id, is_top_n), ...], WAITING_LIST_KEY: [...] }
+    Attempts to sign up a user for an adventure.
 
-    Behavior:
-      - iterate users in descending karma order
-      - try to place users into their highest-priority signup with remaining capacity
-      - then fill remaining users into any adventure with free spots
-      - leftover users go to WAITING_LIST_ID (in-memory); caller can map this to a real DB id
+    Modifies:
+      - taken_places (dict): increments the count for this adventure.
+      - players_signedup_not_assigned (list): removes the user if successfully assigned.
     """
-    # Load users (by karma desc)
-    users = db.session.execute(db.select(User).order_by(User.karma.desc())).scalars().all()
+    # Check if there is still room
+    if taken_places.get(adventure.id, 0) < adventure.max_players:
+        # Create an assignment (assuming this persists automatically)
+        assignment =AdventureAssignment(user=user, adventure=adventure, top_three=top_three)
+        db.session.add(assignment)
+        db.session.flush()
 
-    # Load adventures & capacities
-    adventures = db.session.execute(db.select(Adventure)).scalars().all()
-    adventure_capacity = {adv.id: (adv.max_players or 0) for adv in adventures}
-
-    # Existing assignments: to avoid re-assigning same users and to reflect current occupancy
-    existing_pairs = db.session.execute(
-        db.select(AdventureAssignment.user_id, AdventureAssignment.adventure_id)
-    ).all()
-    already_assigned_user_ids = {user_id for user_id, _ in existing_pairs}
-
-    # Build initial assignments map from existing DB rows (so capacity is respected)
-    assignments = defaultdict(list)
-    for user_id, adv_id in existing_pairs:
-        assignments[adv_id].append((user_id, False))
-
-    # Load signups grouped by user, ordered by priority ascending (1 = highest)
-    signups = db.session.execute(
-        db.select(Signup).order_by(Signup.user_id, Signup.priority)
-    ).scalars().all()
-    signups_by_user = defaultdict(list)
-    for s in signups:
-        signups_by_user[s.user_id].append((s.priority, s.adventure_id))
-
-    # Ensure each user's signup list is sorted by priority
-    for uid in signups_by_user:
-        signups_by_user[uid].sort(key=lambda x: x[0])
-
-    placed_users = set(already_assigned_user_ids)
-
-    # Phase 1: place users into their top signups (in karma order)
-    for user in users:
-        uid = user.id
-        if uid in placed_users:
-            continue
-
-        for priority, adv_id in signups_by_user.get(uid, []):
-            cap = adventure_capacity.get(adv_id, 0)
-            if len(assignments[adv_id]) < cap:
-                is_top = (priority <= top_n)
-                assignments[adv_id].append((uid, bool(is_top)))
-                placed_users.add(uid)
-                break  # placed for this user
-
-    # Phase 2: fill remaining users into any adventure with free space
-    for user in users:
-        uid = user.id
-        if uid in placed_users:
-            continue
-
-        placed = False
-        # deterministic order: iterate adventures by id (change if you want popularity/order)
-        for adv_id, cap in adventure_capacity.items():
-            if len(assignments[adv_id]) < cap:
-                assignments[adv_id].append((uid, False))
-                placed_users.add(uid)
-                placed = True
-                break
-
-        if not placed:
-            # No space anywhere -> waiting list (in-memory)
-            assignments[WAITING_LIST_ID].append((uid, False))
-
-    return dict(assignments)
+        # Increment the number of taken places
+        taken_places[adventure.id] = taken_places.get(adventure.id, 0) + 1
+        
+        # Remove the player from the not-assigned list (if present)
+        if user in players_signedup_not_assigned:
+            players_signedup_not_assigned.remove(user)
+        
+        return True  # Success
+    return False  # No slot available
 
 
 def assign_players_to_adventures():
     """
-    Top-level: deletes old assignments, ensures waiting-list Adventure exists,
-    builds a plan and persists new AdventureAssignment rows (skips duplicates).
+    Creates assignments for players that signed up this week. Working in 4 rounds:
+    1. Signup all players that played last week, if they try to signup again for an ongoing adventure.
+    2. Signup all remaining players ranked by their karma to the first available adventure they signed up for according to there priority.
+    3. Signup all remaining players ranked by their karma to any available adventure. Sorted by random.
+    4. Signup the rest of the players to the waiting list.
+    This means that a player with more karma will always be preferred also if the adventure was a lower priority of his.
     """
-    try:
-        with db.session.begin():
-            # 1) Delete AdventureAssignment rows for adventures that ended in the past
-            old_advs_sq = db.select(Adventure.id).where(Adventure.end_date < date.today()).scalar_subquery()
-            del_stmt = db.delete(AdventureAssignment).where(AdventureAssignment.adventure_id.in_(old_advs_sq))
-            db.session.execute(del_stmt)
+    today = datetime.today()
+    start_of_week = today - timedelta(days=today.weekday())  # Monday
+    end_of_week = start_of_week + timedelta(days=6)          # Sunday
+    # create a placeholder that will track how many places are already taken per adventure
+    taken_places = defaultdict(int)
 
-            # 2) Ensure waiting list adventure exists and get its real id
-            waiting_adv_id = make_waiting_list()
+   # Subquery: get all assigned user ids this week
+    assigned_ids_subq = (
+        db.select(User.id)
+        .join(User.assignments)
+        .join(AdventureAssignment.adventure)
+        .filter(Adventure.date >= start_of_week, Adventure.date <= end_of_week)
+    )
 
-            # 3) Build the in-memory plan
-            plan = assign_adventures_from_db() or {}
-
-            # 4) Map the in-memory waiting-list key to the real waiting list adventure id for persistence
-            if WAITING_LIST_ID in plan:
-                plan.setdefault(waiting_adv_id, []).extend(plan.pop(WAITING_LIST_ID))
-
-            # 5) Load existing DB pairs again to skip duplicates safely
-            existing_q = db.select(AdventureAssignment.user_id, AdventureAssignment.adventure_id)
-            existing_pairs = { (u, a) for u, a in db.session.execute(existing_q).all() }
-
-            # 6) Prepare new AdventureAssignment model instances (skip duplicates)
-            new_rows = []
-            for adv_id, entries in plan.items():
-                # defensive: skip invalid adv_id
-                if adv_id is None:
-                    continue
-                for user_id, top_three in entries:
-                    key = (int(user_id), int(adv_id))
-                    if key in existing_pairs:
-                        continue
-                    aa = AdventureAssignment(
-                        user_id=key[0],
-                        adventure_id=key[1],
-                        top_three=bool(top_three),
-                        appeared=True,
-                    )
-                    new_rows.append(aa)
-                    existing_pairs.add(key)
-
-            # 7) Persist new rows efficiently
-            if new_rows:
-                db.session.bulk_save_objects(new_rows)
-
-        # transaction committed
-        return jsonify({"message": "Adventures assigned and saved", "inserted": len(new_rows)}), 200
-
-    except IntegrityError as ie:
-        # likely unique constraint due to race — rollback and report
-        db.session.rollback()
-        current_app.logger.exception("IntegrityError in assign_players_to_adventures")
-        return jsonify({"error": "database integrity error", "details": str(ie)}), 500
-
-    except Exception as exc:
-        db.session.rollback()
-        current_app.logger.exception("Error in assign_players_to_adventures")
-        return jsonify({"error": str(exc)}), 500
-
+    # Main query: players signed up this week but NOT in assigned_ids_subq
+    players_signedup_not_assigned = list(
+        db.session.execute(
+            db.select(User)
+            .join(User.signups)
+            .join(Signup.adventure)
+            .filter(
+                Adventure.date >= start_of_week,
+                Adventure.date <= end_of_week,
+                ~User.id.in_(assigned_ids_subq)   # exclude already assigned player
+            )
+            .options(
+                joinedload(User.signups).joinedload(Signup.adventure),
+                joinedload(User.signups)
+            )
+            .order_by(User.karma.desc())
+            .distinct()
+        )
+        .unique()   # ensures deduplication when eager-loading collections
+        .scalars()
+        .all()
+    )
+   
     
+    # -- First round of assigning players --
+    # Assign all players that already played last week.
+    for user in players_signedup_not_assigned:
+        # For every signup per player check if the player was already assigned for the predecessor of this adventure
+        for signup in user.signups:
+            pre = signup.adventure.predecessor
+            if pre and any(a.user_id == user.id for a in pre.assignments):
+                adventure = signup.adventure
+                if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, top_three=True): break
+
+    # -- Second round of assigning players --
+    # Assign all players ranked by their karma to the first available adventure in there signups. 
+    # (That means that a player with a higher karma will still get an adventure if it was their 3. priority over a player with less karma but the 1. priority)
+    for user in players_signedup_not_assigned:
+        for signup in user.signups:
+            adventure = signup.adventure
+            if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, top_three=True): break
+
+    adventures_this_week = (
+        db.session.execute(
+            db.select(Adventure)
+            .filter(Adventure.date >= start_of_week, Adventure.date <= end_of_week)
+            .distinct()
+        )
+        .scalars()
+        .all()
+    )
+
+    # -- Third round of assigning players --
+    # Assign all players ranked by their karma to the first available adventure independent of any signups. 
+    for user in players_signedup_not_assigned:
+        for adventure in adventures_this_week:
+            # Check if player still fits into the adventure
+            if taken_places[adventure.id] < adventure.max_players:
+                if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, top_three=False): break
+
+
+    # -- Fourth round of assigning players --
+    # Assign all players not assigned yet to the waiting list.
+    waiting_list = make_waiting_list()
+    for user in players_signedup_not_assigned:
+        try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, waiting_list, user, top_three=False)
+
+    db.session.commit()
+
 def has_no_empty_params(rule):
     defaults = rule.defaults if rule.defaults is not None else ()
     arguments = rule.arguments if rule.arguments is not None else ()
