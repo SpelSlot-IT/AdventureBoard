@@ -112,6 +112,11 @@ class AssignmentSchema(ma.SQLAlchemyAutoSchema):
 
     user = ma.Nested(UserSchema, dump_only=True)
 
+class AssignmentMoveSchema(ma.Schema):
+    player_id = ma.Integer(required=True)
+    from_adventure_id = ma.Integer(required=True)
+    to_adventure_id = ma.Integer(required=True)
+
 class AssignmentUpdateSchema(ma.Schema):
     user_id = ma.Integer(required=True)
     adventure_id = ma.Integer(required=True)
@@ -439,7 +444,7 @@ class AdventureIDlessRequest(MethodView):
 
             # Determine display rights
             is_admin = (current_user.is_authenticated and current_user.privilege_level >= 1)
-            display_players = is_admin or adventures[-1].release_assignments # check for last one cause handling separately is annoying
+            display_players = is_admin or (len(adventures) > 0 and adventures[-1].release_assignments) # check for last one cause handling separately is annoying
             exclude = []
             if not is_admin:
                 exclude = ["assignments.user.karma"]
@@ -570,9 +575,8 @@ class AdventureResource(MethodView):
             
 
         # Update provided fields
-        for field in ["title", "short_description", "requested_room", "date", "max_players", "tags"]:
-            if field in args:
-                setattr(adventure, field, args[field])
+        for field in args:
+            setattr(adventure, field, args[field])
 
         mis_assignments = []
 
@@ -733,7 +737,7 @@ class AssignmentResource(MethodView):
             return abort(500, message={'error': str(e)})
         
     
-    @blp_assignments.arguments(AssignmentUpdateSchema)
+    @blp_assignments.arguments(AssignmentMoveSchema)
     @login_required
     def patch(self, args):
         """

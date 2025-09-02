@@ -2,7 +2,7 @@
 	<q-layout view="lHh Lpr lFf">
 		<q-header elevated>
 			<q-toolbar class="row justify-between">
-				<q-btn stretch flat label="Spelslot" to="/" />
+				<q-btn label="Spelslot" to="/"  />
 				<div>
 					<q-spinner size="lg" v-if="adminActionsActive > 0 " />
 					<q-btn v-if="me" :icon="me.profile_pic ? 'img:' + me.profile_pic : 'settings'" rounded>
@@ -31,7 +31,7 @@
 							</q-list>
 						</q-menu>
 					</q-btn>
-					<q-btn v-else flat label="Login" @click="login" rounded />
+					<q-btn v-else label="Login" @click="login" />
 				</div>
 			</q-toolbar>
 		</q-header>

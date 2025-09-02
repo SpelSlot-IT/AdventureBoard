@@ -11,7 +11,7 @@
 					<q-input v-model="title" label="Session title" autofocus />
 					<q-input v-model="short_description" label="Short description" type="textarea" autogrow/>
 					<q-input v-model="max_players" label="Max players" type="number" :min="1" :max="30" />
-					<DatePicker v-model="date" label="First session" onlyWednesdays />
+					<DatePicker v-model="date" label="Date" onlyWednesdays />
 					<q-input v-model="num_sessions" label="Number of sessions" type="number" :min="1" :max="3" v-if="!editExisting"/>
 					<q-rating v-model="rank_combat" :max="3" size="2em" icon="sym_o_swords" />
 					<q-rating v-model="rank_exploration" :max="3" size="2em" icon="explore" />
