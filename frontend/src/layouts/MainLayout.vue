@@ -3,8 +3,8 @@
 		<q-header elevated>
 			<q-toolbar class="row justify-between">
 				<q-btn stretch flat label="Spelslot" to="/" />
-				<div v-if="me">
-					<q-btn :icon="me.profile_pic ? 'img:' + me.profile_pic : 'settings'" rounded>
+				<div>
+					<q-btn v-if="me" :icon="me.profile_pic ? 'img:' + me.profile_pic : 'settings'" rounded>
 						<q-menu>
 							<q-list style="min-width: 100px">
 								<q-item to="/profile">
@@ -19,18 +19,13 @@
 							</q-list>
 						</q-menu>
 					</q-btn>
+					<q-btn v-else flat label="Login" @click="login" rounded/>
 				</div>
 			</q-toolbar>
 		</q-header>
 
 		<q-page-container>
-			<q-page v-if="!me" class="row items-center justify-evenly">
-				<div>
-					<q-spinner size="xl" />
-						Logging you in...
-				</div>
-			</q-page>
-			<q-page v-else-if="errors.length > 0" class="q-px-lg q-pt-md">
+			<q-page v-if="errors.length > 0" class="q-px-lg q-pt-md">
 				<q-banner v-for="e in errors" :key="e" class="bg-negative" rounded>{{e}}</q-banner>
 			</q-page>
 			<q-page v-else-if="loading" class="q-px-lg q-pt-md">
@@ -70,7 +65,12 @@ export default defineComponent({
 			this.me = (await this.$api.get('/api/users/me')).data;
 		},
 		logout() {
-			location.href = '/api/logout';
+			const currentUrl = window.location.href;
+    		window.location.href = `/api/logout?next=${encodeURIComponent(currentUrl)}`;
+		},
+		async login() {
+			const currentUrl = window.location.href;
+    		window.location.href = `/api/login?next=${encodeURIComponent(currentUrl)}`;
 		},
 	},
 
@@ -102,7 +102,7 @@ export default defineComponent({
 	watch: {
 		notLoggedInError(nv: boolean) { // This is set to true by boot/errorhandler.ts to indicate an RPC received a HTTP 401. Handle it and clear it.
 			if(nv) {
-				location.href = '/api/login';
+				// location.href = '/api/login';
 				this.$notLoggedInError.value = false;
 			}
 		},

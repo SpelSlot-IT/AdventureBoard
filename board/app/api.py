@@ -240,12 +240,16 @@ class LoginResource(MethodView):
         # Find out what URL to hit for Google login            
         authorization_endpoint = google_provider_cfg["authorization_endpoint"]
 
+        # Remember the page we want to go back to after logins
+        next_url = request.args.get("next", "/")
+
         # Use library to construct the request for login and provide
         # scopes that let you retrieve user's profile from Google
         request_uri = client.prepare_request_uri(
             authorization_endpoint,
             redirect_uri=request.base_url + "/callback",
             scope=["openid", "email", "profile"],
+            state=next_url  # store the original URL
         )
         return redirect(request_uri)
     
@@ -260,6 +264,7 @@ class CallbackResource(MethodView):
         # Get authorization code Google sent back to you
         code = request.args.get("code")
         client, google_provider_cfg = get_google()
+        state = request.args.get("state", "/")  # this is the original URL the login came from
 
         # Find out what URL to hit to get tokens that allow you to ask for
         # things on behalf of a user
@@ -323,9 +328,9 @@ class CallbackResource(MethodView):
 
         # Send user back to homepage or if he has not yet finished setup set him to edit his profile
         if user.is_setup():
-            return redirect("/")
+            return redirect(state)
         else:
-            return redirect("/profile/me")
+            return redirect(f"{state.split('#')[0]}profile/{user.id}")
 
 
 @blp_utils.route('/logout')
@@ -336,13 +341,9 @@ class LockoutResource(MethodView):
         """
         Logout the current user.
         """
+        next_url = request.args.get("next", "/")
         logout_user()
-        try:
-            # Try to redirect to the endpoint if it exists
-            return redirect(url_for("home"))
-        except BuildError:
-            # Fallback if endpoint is not found
-            return redirect("/")   
+        return redirect(next_url)  
 
     
 # --- USERS ---

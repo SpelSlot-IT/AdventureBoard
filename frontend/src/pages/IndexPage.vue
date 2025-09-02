@@ -15,7 +15,7 @@
 			<div class="col-xs-12 col-sm-6 col-lg-3" v-for="a in adventures" :key="a.id">
 				<q-card class="q-ma-md">
 					<q-card-section class="q-gutter-md">
-						<q-btn v-if="me.id == a.user_id || me.privilege_level > 0" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" class="float-right" />
+						<q-btn v-if="me && (me.id == a.user_id || me.privilege_level > 0)" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" class="float-right" />
 						<div class="text-h6">{{a.title}}</div>
 						<q-separator />
 						<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	:ripple="false" class="float-right" />
@@ -143,15 +143,19 @@ export default defineComponent({
 		async fetch() {
 			try {
 				this.loading = true;
-				const req1 = this.$api.get('/api/adventures?week_start=' + this.weekStart + '&week_end=' + this.weekEnd);
-				const req2 = this.$api.get('/api/signups?user=' + this.me.id);
-				const resp1 = await req1;
-				const resp2 = await req2;
-				this.adventures = resp1.data;
 				this.mySignups = {};
-				for(const {adventure_id, priority} of resp2.data) {
-					this.mySignups[adventure_id] = priority;
+				const req1 = this.$api.get('/api/adventures?week_start=' + this.weekStart + '&week_end=' + this.weekEnd);
+				const resp1 = await req1;
+				this.adventures = resp1.data;
+				if (this.me) {
+					const req2 = this.$api.get('/api/signups?user=' + this.me.id);
+					const resp2 = await req2;
+					for(const {adventure_id, priority} of resp2.data) {
+						this.mySignups[adventure_id] = priority;
+					}
 				}
+				
+
 			} finally {
 				this.loading = false;
 			}
