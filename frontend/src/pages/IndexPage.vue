@@ -13,9 +13,9 @@
 		</q-card>
 		<div v-else class="row justify-evenly q-col-gutter-lg q-mt-sm">
 			<div class="col-xs-12 col-sm-6 col-lg-3" v-for="a in adventures" :key="a.id">
-				<q-card class="q-ma-md">
+				<q-card v-if="isWaitinglist(a)" class="q-ma-md">
 					<q-card-section class="q-gutter-md">
-						<q-btn v-if="me && a.id!=-999 && (me.id == a.user_id || me.privilege_level >= 2)" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" class="float-right" />
+						<q-btn v-if="me && (me.id == a.user_id || me.privilege_level >= 2)" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" class="float-right" />
 						<div class="text-h6">{{a.title}}</div>
 						<q-separator />
 						<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	:ripple="false" class="float-right" />
@@ -46,6 +46,22 @@
 							<q-btn label="Cancel signup" color="negative" v-if="a.id in mySignups" class="q-mr-md" @click="signup(a, mySignups[a.id])" />
 							<q-btn label="More info and signup" icon="person_add" @click="focussed = a" color="primary" />
 						</div>
+					</q-card-section>
+				</q-card>
+				<q-card v-if="isWaitinglist(a)" class="q-ma-md">
+					<q-card-section class="q-gutter-md">
+						<div class="text-h6">{{a.title}}</div>
+						<q-separator />
+						<ul v-if="me?.privilege_level >= 2" class="adminDropTarget">
+							<Container @drop="dr => onDrop(dr, a.id)" group-name="assignedPlayers" :get-child-payload="n => ({from_adventure: a.id, user_id: a.assignments[n].user.id})">
+								<Draggable v-for="p in a.assignments" :key="p.user.id">
+									<li>
+										<q-avatar size="large"><img :src="p.user.profile_pic" /></q-avatar>
+										{{p.user.display_name}} ({{p.user.karma}})
+									</li>
+								</Draggable>
+							</Container>
+						</ul>
 					</q-card-section>
 				</q-card>
 			</div>
@@ -212,6 +228,9 @@ export default defineComponent({
 				return 'One shot';
 			}
 			return (a.num_sessions) + ' weeks';
+		},
+		isWaitinglist(a: {num_sessions: number;}) : boolean {
+			return a.id == -999;
 		},
 		async onDrop(dropResult: {payload: {from_adventure: number; user_id: number}; addedIndex: null|number; removedIndex: null|number}, toAdventure: number) {
 			if(dropResult.addedIndex === null) {
