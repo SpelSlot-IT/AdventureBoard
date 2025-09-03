@@ -7,8 +7,8 @@
 		</div>
 		<q-spinner size="xl" v-if="loading" />
 		<q-card v-else-if="adventures.length == 0" class="q-mx-lg">
-			<q-card-section>
-				No sessions this week yet.
+			<q-card-section class="text-center">
+				No sessions this week yet. Make one!
 			</q-card-section>
 		</q-card>
 		<div v-else class="row justify-evenly q-col-gutter-lg">
@@ -287,7 +287,7 @@ export default defineComponent({
 			const result = d.toISOString().split('T')[0];
 			const today = new Date().toISOString().split('T')[0];
 
-			return result === today ? 'today' : result;
+			return result === today ? 'this week' : result;
 		},
 		weekEnd() {
 			const d = new Date(this.weekStart);
