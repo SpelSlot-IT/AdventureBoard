@@ -26,6 +26,7 @@ class User(UserMixin, db.Model):
     email               = db.Column(db.String(255), nullable=True)
     profile_pic         = db.Column(db.String(255), nullable=True)
     karma               = db.Column(db.Integer, default=1000)
+    story_player        = db.Column(db.Boolean, nullable=False, default=False)
 
     adventures_created  = db.relationship('Adventure', back_populates='creator', lazy='dynamic')
     signups             = db.relationship('Signup', back_populates='user')
