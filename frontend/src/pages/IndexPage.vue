@@ -18,8 +18,12 @@
 						<q-btn v-if="me && (me.id == a.user_id || me.privilege_level >= 2)" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" class="float-right" />
 						<div class="text-h6 text-center">{{a.title}}</div>
 						<q-separator />
-						<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	:ripple="false" class="float-right" />
-						<div>{{describeDuration(a)}}</div>
+
+						<div class="row justify-between">
+							<div>{{describeDuration(a)}}</div>
+							<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white" :ripple="false" class="float-right" />
+							<div v-if="a.requested_room">Room: {{a.requested_room}}</div>
+						</div>
 						<div class="description"><template v-if="a.short_description">{{a.short_description}}</template><i v-else>No description</i></div>
 						<div class="row justify-between">
 							<q-rating v-model="a.rank_combat" :max="3" readonly size="2em" icon="img:spiked-dragon-head.svg" />
@@ -105,13 +109,13 @@
 							<td>Max players</td><td>{{focussed.max_players}}</td>
 						</tr>
 						<tr>
-							<td>Combat</td><td><q-rating v-model="focussed.rank_combat" :max="3" readonly size="2em" icon="sym_o_swords" /></td>
+							<td>Combat</td><td><q-rating v-model="focussed.rank_combat" :max="3" readonly size="2em" icon="img:spiked-dragon-head.svg" /></td>
 						</tr>
 						<tr>
-							<td>Exploration</td><td><q-rating v-model="focussed.rank_exploration" :max="3" readonly size="2em" icon="explore" /></td>
+							<td>Exploration</td><td><q-rating v-model="focussed.rank_exploration" :max="3" readonly size="2em" icon="img:dungeon-gate.svg" /></td>
 						</tr>
 						<tr>
-							<td>Roleplaying</td><td><q-rating v-model="focussed.rank_roleplaying" :max="3" readonly size="2em" icon="theater_comedy" /></td>
+							<td>Roleplaying</td><td><q-rating v-model="focussed.rank_roleplaying" :max="3" readonly size="2em" icon="img:drama-masks.svg" /></td>
 						</tr>
 						<tr v-if="focussed.requested_room">
 							<td>Room</td><td>{{focussed.requested_room}}</td>
