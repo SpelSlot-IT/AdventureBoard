@@ -580,6 +580,10 @@ class AdventureResource(MethodView):
 
         # Update provided fields
         for field in args:
+            if field in ["requested_room"]: # These fields are only editable by admins
+                if not is_admin(current_user):
+                    current_app.logger.warning(f"Unauthorized attempt to update field: {field}")
+                    continue
             setattr(adventure, field, args[field])
 
         mis_assignments = []

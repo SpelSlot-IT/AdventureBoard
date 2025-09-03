@@ -155,6 +155,7 @@
 <style lang="scss" scoped>
 	.description {
 		background-color: $dark;
+		border: 1px solid;
 		border-radius: 4px;
 		padding: 8px;
 	}

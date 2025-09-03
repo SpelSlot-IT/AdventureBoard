@@ -16,6 +16,7 @@
 					<q-rating v-model="rank_combat" :max="3" size="2em" icon="sym_o_swords" />
 					<q-rating v-model="rank_exploration" :max="3" size="2em" icon="explore" />
 					<q-rating v-model="rank_roleplaying" :max="3" size="2em" icon="theater_comedy" />
+					<q-input v-if="me.privilege_level >= 2" v-model="requested_room" label="Requested room" />
 					<q-input v-model="tags" label="Tags" type="textarea" autogrow />
 				</div>
 			</q-card-section>
@@ -57,6 +58,7 @@ export default defineComponent({
 			rank_combat: this.editExisting?.rank_combat || 0,
 			rank_exploration: this.editExisting?.rank_exploration || 0,
 			rank_roleplaying: this.editExisting?.rank_roleplaying || 0,
+			requested_room: this.editExisting?.requested_room || '',
 			tags: this.editExisting?.tags || '',
 		};
 	},
@@ -83,6 +85,7 @@ export default defineComponent({
 				rank_combat: this.rank_combat,
 				rank_exploration: this.rank_exploration,
 				rank_roleplaying: this.rank_roleplaying,
+				requested_room: this.requested_room,
 				tags: this.tags,
 			} as any;
 			if(this.editExisting) {

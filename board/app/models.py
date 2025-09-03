@@ -27,6 +27,7 @@ class User(UserMixin, db.Model):
     profile_pic         = db.Column(db.String(255), nullable=True)
     karma               = db.Column(db.Integer, default=1000)
     story_player        = db.Column(db.Boolean, nullable=False, default=False)
+    personal_room       = db.Column(db.String(16), nullable=True)
 
     adventures_created  = db.relationship('Adventure', back_populates='creator', lazy='dynamic')
     signups             = db.relationship('Signup', back_populates='user')
@@ -100,7 +101,7 @@ class Adventure(db.Model):
     max_players         = db.Column(db.Integer, nullable=False, default=5)
     date                = db.Column(db.Date, nullable=False)
     tags                = db.Column(db.String(255), nullable=True)
-    requested_room      = db.Column(db.String(4))
+    requested_room      = db.Column(db.String(16), nullable=True)
     release_assignments = db.Column(db.Boolean, nullable=False, default=False) # After this date assignments to this adventure are visible
     rank_combat         = db.Column(db.Integer, nullable=False, default=0)
     rank_exploration    = db.Column(db.Integer, nullable=False, default=0)
@@ -147,7 +148,7 @@ class Adventure(db.Model):
         return adventures if num_sessions > 1 else adventures[0] # return first adventure created
 
 class Assignment(db.Model):
-    __tablename__ = 'adventure_assignments'
+    __tablename__ = 'assignments'
     __table_args__ = (
         db.UniqueConstraint('user_id', 'adventure_id', name='pk_adventure_assignment'),
     )
