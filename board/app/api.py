@@ -444,7 +444,7 @@ class AdventureIDlessRequest(MethodView):
 
             # Determine display rights
             user_is_admin = is_admin(current_user)
-            display_players = user_is_admin or (len(adventures) > 0 and adventures[-1].release_assignments) # check for last one cause handling separately is annoying
+            display_players = user_is_admin or check_release(adventures) # check for last one cause handling separately is annoying
             exclude = []
             if not user_is_admin:
                 exclude = ["assignments.user.karma"]
@@ -542,7 +542,7 @@ class AdventureResource(MethodView):
 
             # Determine display rights
             user_is_admin = is_admin(current_user)
-            display_players = user_is_admin or check_release()
+            display_players = user_is_admin or check_release(adventures)
             exclude = []
             if not user_is_admin:
                 exclude = ["assignments.user.karma"]

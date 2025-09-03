@@ -45,32 +45,23 @@ def get_upcoming_week():
         start_of_next_week = start_of_current_week + timedelta(weeks=1)
         end_of_next_week = end_of_current_week + timedelta(weeks=1)
         return start_of_next_week, end_of_next_week
+    
+def check_release(adventures):
+    return (len(adventures) > 0 and adventures[-1].release_assignments)
 
 def release_assignments():
     start_of_week, end_of_week = get_upcoming_week()
     try:
-        adventures = (
-            db.session.scalars(
-                db.select(Adventure)
-                .options(db.selectinload(Adventure.assignments))  # eager load users
-                .where(
-                    Adventure.date >= start_of_week,
-                    Adventure.date <= end_of_week,
-                )
-            ).all()
-        )
-
-        if notifications_enabled(current_app.config.get("EMAIL")):
-            # Update release_assignments for these adventures
-            stmt = (
-                db.update(Adventure)
-                .where(
-                    Adventure.date >= start_of_week,
-                    Adventure.date <= end_of_week,
-                )
-                .values(release_assignments=True)
+        # Update release_assignments for these adventures
+        stmt = (
+            db.update(Adventure)
+            .where(
+                Adventure.date >= start_of_week,
+                Adventure.date <= end_of_week,
             )
-            db.session.execute(stmt)
+            .values(release_assignments=True)
+        )
+        db.session.execute(stmt)
 
         # Commit the update before notifications
         db.session.commit()
@@ -78,6 +69,17 @@ def release_assignments():
             f"Released assignments for adventures between {start_of_week} and {end_of_week}"
         )
         if notifications_enabled(current_app.config.get("EMAIL")):
+
+            adventures = (
+                db.session.scalars(
+                    db.select(Adventure)
+                    .options(db.selectinload(Adventure.assignments))  # eager load users
+                    .where(
+                        Adventure.date >= start_of_week,
+                        Adventure.date <= end_of_week,
+                    )
+                ).all()
+            )
             # Notify assigned users (avoid duplicates)
             notified_users = set()
             for adventure in adventures:
