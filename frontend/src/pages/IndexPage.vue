@@ -31,7 +31,7 @@
 								<Draggable v-for="p in a.assignments" :key="p.user.id">
 									<li>
 										<q-avatar size="large"><img :src="p.user.profile_pic" /></q-avatar>
-										{{p.user.display_name}}
+										{{p.user.display_name}}<template v-if="me.privilege_level > 0"> ({{p.user.karma}})</template>
 									</li>
 								</Draggable>
 							</Container>
