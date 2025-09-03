@@ -140,7 +140,7 @@ export default defineComponent({
 	},
 	data() {
 		let start = new Date();
-		if(start.getDay() > 2) {
+		if(start.getDay() > 3) {
 			start.setDate(start.getDate() + 7);
 		}
 		start.setDate(start.getDate() - (start.getDay() + 6) % 7);
