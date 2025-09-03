@@ -26,15 +26,21 @@
 							<q-rating v-model="a.rank_exploration" :max="3" readonly size="2em" icon="explore" />
 							<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="theater_comedy" />
 						</div>
-						<ul :class="{adminDropTarget: me?.privilege_level >= 2}">
+						<ul v-if="me?.privilege_level >= 2" class="adminDropTarget">
 							<Container @drop="dr => onDrop(dr, a.id)" group-name="assignedPlayers" :get-child-payload="n => ({from_adventure: a.id, user_id: a.assignments[n].user.id})">
 								<Draggable v-for="p in a.assignments" :key="p.user.id">
 									<li>
 										<q-avatar size="large"><img :src="p.user.profile_pic" /></q-avatar>
-										{{p.user.display_name}}<template v-if="me?.privilege_level >= 2"> ({{p.user.karma}})</template>
+										{{p.user.display_name}} ({{p.user.karma}})
 									</li>
 								</Draggable>
 							</Container>
+						</ul>
+						<ul v-else>
+							<li v-for="p in a.assignments" :key="p.user.id">
+								<q-avatar size="large"><img :src="p.user.profile_pic" /></q-avatar>
+								{{p.user.display_name}}
+							</li>
 						</ul>
 						<div class="row justify-end">
 							<q-btn label="Cancel signup" color="negative" v-if="a.id in mySignups" class="q-mr-md" @click="signup(a, mySignups[a.id])" />
