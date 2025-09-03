@@ -14,6 +14,9 @@ def get_next_wednesday():
     days_ahead = (2 - today.weekday() + 7) % 7  # 2 is Wednesday
     return today if days_ahead == 0 else today + timedelta(days=days_ahead)
 
+def is_admin(user):
+    return user.is_authenticated and user.privilege_level >= 2
+
 def get_this_week():
     """
     Returns the start (Monday) and end (Sunday) of the this week.

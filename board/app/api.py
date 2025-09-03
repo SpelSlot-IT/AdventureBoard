@@ -218,7 +218,7 @@ class UpdateKarmaResource(MethodView):
         """
         Force an update of the karma of all players regarding the normal update rules.
         """
-        if current_user.privilege_level < 1:
+        if not is_admin(current_user):
             abort(401, message={'error': 'Unauthorized'})
         reassign_karma()
 
@@ -443,10 +443,10 @@ class AdventureIDlessRequest(MethodView):
             adventures = db.session.scalars(stmt).all()
 
             # Determine display rights
-            is_admin = (current_user.is_authenticated and current_user.privilege_level >= 1)
-            display_players = is_admin or (len(adventures) > 0 and adventures[-1].release_assignments) # check for last one cause handling separately is annoying
+            user_is_admin = is_admin(current_user)
+            display_players = user_is_admin or (len(adventures) > 0 and adventures[-1].release_assignments) # check for last one cause handling separately is annoying
             exclude = []
-            if not is_admin:
+            if not user_is_admin:
                 exclude = ["assignments.user.karma"]
                 pass
             if not display_players:
@@ -541,10 +541,10 @@ class AdventureResource(MethodView):
             adventures = db.session.scalars(stmt).all()
 
             # Determine display rights
-            is_admin = (current_user.is_authenticated and current_user.privilege_level >= 1)
-            display_players = is_admin or check_release()
+            user_is_admin = is_admin(current_user)
+            display_players = user_is_admin or check_release()
             exclude = []
-            if not is_admin:
+            if not user_is_admin:
                 exclude = ["assignments.user.karma"]
                 pass
             if not display_players:
@@ -574,7 +574,7 @@ class AdventureResource(MethodView):
             abort(404, message=f"Adventure with id: {adventure_id} not found.")
 
         # Ownership or admin check
-        if current_user.privilege_level < 1 and adventure.user_id != user_id:
+        if not is_admin(current_user) and adventure.user_id != user_id:
             abort(401, message="Unauthorized to edit this adventure.")
             
 
@@ -638,7 +638,7 @@ class AdventureResource(MethodView):
                 abort(404, message={'error': 'Adventure not found'})
 
             # Check permission: admin or creator
-            if current_user.privilege_level < 1 and adventure.user_id != user_id:
+            if not is_admin(current_user) and adventure.user_id != user_id:
                 abort(401, message={'error': 'Unauthorized to delete this adventure'})
 
              # Clear predecessor references in other adventures
@@ -697,7 +697,7 @@ class AssignmentResource(MethodView):
         Executes an admin action.
         """
         # Admin check
-        if current_user.privilege_level < 1:
+        if not is_admin(current_user):
             abort(401, message="Unauthorized")
         
         action = args['message']
@@ -721,6 +721,9 @@ class AssignmentResource(MethodView):
         Updates the 'appeared' value for an Assignment for a given user.
         Expects JSON body: { "user_id": int, "adventure_id": int, "appeared": <new_value> }
         """
+
+        if current_user.privilege_level < 1: # Is semi admin (only allowed to watch if players appear)
+            return jsonify({'error': 'Unauthorized'}), 401
        
         user_id = args['user_id']
         adventure_id = args['adventure_id']
@@ -758,7 +761,7 @@ class AssignmentResource(MethodView):
         """
         Moves a players assignment from one adventure to another.
         """
-        if current_user.privilege_level < 1:
+        if not is_admin(current_user):
             abort(401, message="Unauthorized")
 
         player_id = args['player_id']
@@ -792,7 +795,7 @@ class SignupResource(MethodView):
         """
         Returns all the signups (priority medals 1, 2, 3) of the authenticated user.
         """
-        if current_user.privilege_level < 0:
+        if current_user.is_anonymous: # User is not signed in
             abort(401, message="Unauthorized")
 
         try:
