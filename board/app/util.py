@@ -14,6 +14,17 @@ def get_next_wednesday():
     days_ahead = (2 - today.weekday() + 7) % 7  # 2 is Wednesday
     return today if days_ahead == 0 else today + timedelta(days=days_ahead)
 
+def get_this_week():
+    """
+    Returns the start (Monday) and end (Sunday) of the this week.
+    """
+    today = date.today()
+    # Find Monday of the current week
+    start_of_current_week = today - timedelta(days=today.weekday())
+    end_of_current_week = start_of_current_week + timedelta(days=6)
+
+    return start_of_current_week, end_of_current_week
+
 
 def get_upcoming_week():
     """
@@ -22,9 +33,7 @@ def get_upcoming_week():
     - If today is Thursday–Sunday → return next week's Mon–Sun.
     """
     today = date.today()
-    # Find Monday of the current week
-    start_of_current_week = today - timedelta(days=today.weekday())
-    end_of_current_week = start_of_current_week + timedelta(days=6)
+    start_of_current_week, end_of_current_week = get_this_week()
 
     if today.weekday() <= 2:  # Mon(0), Tue(1), Wed(2)
         return start_of_current_week, end_of_current_week
@@ -174,7 +183,7 @@ def assign_players_to_adventures():
         .scalars()
         .all()
     )
-    current_app.logger.info(f"Players signed up this week:   #{len(players_signedup_not_assigned)}: {[user.display_name for user in players_signedup_not_assigned]} ")
+    current_app.logger.info(f"Players signed up for the week {start_of_week} to {end_of_week}:   #{len(players_signedup_not_assigned)}: {[user.display_name for user in players_signedup_not_assigned]} ")
    
     
     # -- First round of assigning players --
@@ -235,7 +244,7 @@ def assign_players_to_adventures():
             current_app.logger.error(f"Failed to assign player {user.display_name} to waiting list!")
     current_app.logger.info(f"- Players assigned in round 4: #{len(round_)}: {round_}")
 
-    current_app.logger.info(f"Assigned players to adventures: {dict(assignment_map)} for the week {start_of_week} to {end_of_week}")
+    current_app.logger.info(f"Assigned players to adventures: {dict(assignment_map)}")
     db.session.commit()
 
 def has_no_empty_params(rule):
@@ -248,33 +257,64 @@ def get_google():
 
 
 def reassign_karma():
+    start_of_current_week, end_of_current_week = get_this_week()
+    current_app.logger.info(f"Reassigning karma for week {start_of_current_week} to {end_of_current_week}")
 
-    # +100 karma for creating an adventure
+    # +100 karma for creating an adventure this week
     creators = db.session.execute(
-        db.select(User).join(Adventure).distinct()
+        db.select(User)
+        .join(Adventure)
+        .where(Adventure.date >= start_of_current_week, Adventure.date <= end_of_current_week)
+        .distinct()
     ).scalars().all()
     for user in creators:
         user.karma += 100
+    current_app.logger.info(f" - Assigned 100 karma to DMs: #{len(creators)}: {[user.display_name for user in creators]}")
 
-    # -100 karma for not appearing
+    # -100 karma for not appearing in this week's adventures
     non_appearances = db.session.execute(
-        db.select(User).join(Assignment).where(Assignment.appeared.is_(False))
+        db.select(User)
+        .join(Assignment)
+        .join(Adventure)
+        .where(
+            Assignment.appeared.is_(False),
+            Adventure.date >= start_of_current_week,
+            Adventure.date <= end_of_current_week
+        )
     ).scalars().all()
     for user in non_appearances:
         user.karma -= 100
+    current_app.logger.info(f" - Assigned -100 karma to players who did not appear: #{len(non_appearances)}: {[user.display_name for user in non_appearances]}")
 
-    # +10 karma for being assigned to something not in top three
+    # +10 karma for being assigned to something not in top three this week
     off_prefs = db.session.execute(
-        db.select(User).join(Assignment).where(Assignment.top_three.is_(False))
+        db.select(User)
+        .join(Assignment)
+        .join(Adventure)
+        .where(
+            Assignment.top_three.is_(False),
+            Adventure.date >= start_of_current_week,
+            Adventure.date <= end_of_current_week
+        )
     ).scalars().all()
     for user in off_prefs:
         user.karma += 10
+    current_app.logger.info(f" - Assigned 10 karma to players who did not got what they wanted: #{len(off_prefs)}: {[user.display_name for user in off_prefs]}")
 
-    # +1 karma for playing
+    # +1 karma for playing in this week's adventures
     played = db.session.execute(
-        db.select(User).join(Assignment).where(AdventureAssignment.appeared.is_(True))
+        db.select(User)
+        .join(Assignment)
+        .join(Adventure)
+        .where(
+            Assignment.appeared.is_(True),
+            Adventure.date >= start_of_current_week,
+            Adventure.date <= end_of_current_week
+        )
     ).scalars().all()
     for user in played:
         user.karma += 1
+    current_app.logger.info(f" - Assigned 1 karma to players who played: #{len(played)}: {[user.display_name for user in played]}")
 
+    
     db.session.commit()

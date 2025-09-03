@@ -26,7 +26,7 @@ def create_app(config_file=None):
     config["API_VERSION"] = f"v{config['VERSION']['version']}" if config["VERSION"]["version"] else "version-undefined"
 
     # configure logger
-    level_name = config['APP'].get('log_level', 'INFO')  # default 'INFO'
+    level_name = config['APP'].get('log_level', 'WARNING') 
     app.logger.setLevel(getattr(logging, level_name.upper(), logging.WARNING))
     app.logger.info(f"App logging level set to: {level_name}")
 
