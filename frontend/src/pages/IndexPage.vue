@@ -160,10 +160,10 @@ export default defineComponent({
 		async fetch(reloadSignups: boolean) {
 			try {
 				this.loading = true;
-				this.mySignups = {};
 				const req1 = this.$api.get('/api/adventures?week_start=' + this.weekStart + '&week_end=' + this.weekEnd);
 				if (this.me && reloadSignups) {
 					const resp = await this.$api.get('/api/signups?user=' + this.me.id);
+					this.mySignups = {};
 					for(const {adventure_id, priority} of resp.data) {
 						this.mySignups[adventure_id] = priority;
 					}
