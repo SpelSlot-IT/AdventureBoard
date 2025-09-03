@@ -178,7 +178,7 @@ import AddAdventure from '../components/AddAdventure.vue';
 export default defineComponent({
 	name: 'IndexPage',
 	components: { AddAdventure, Container, Draggable },
-	emits: ['setErrors', 'startAdminAction', 'finishAdminAction', 'togglePresence'],
+	emits: ['setErrors', 'startAdminAction', 'finishAdminAction'],
 	setup() {
 		return {
 			me: inject('me') as any,
@@ -263,12 +263,12 @@ export default defineComponent({
 			return a.id == -999;
 		},
 		async togglePresence(adventure_id: number, user_id: number, appeared: boolean) {
-			this.$emit('togglePresence');
 			await this.$api.post('/api/player-assignments', {
 					adventure_id: adventure_id,
 					user_id: user_id,
 					appeared: appeared
 			});
+			this.fetch(false);
 		},
 		async onDrop(dropResult: {payload: {from_adventure: number; user_id: number}; addedIndex: null|number; removedIndex: null|number}, toAdventure: number) {
 			if(dropResult.addedIndex === null) {
