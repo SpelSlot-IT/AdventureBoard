@@ -27,14 +27,25 @@
 							<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="theater_comedy" />
 						</div>
 						<ul v-if="me?.privilege_level >= 2" class="adminDropTarget">
-							<Container @drop="dr => onDrop(dr, a.id)" group-name="assignedPlayers" :get-child-payload="n => ({from_adventure: a.id, user_id: a.assignments[n].user.id})">
-								<Draggable v-for="p in a.assignments" :key="p.user.id">
-									<li>
-										<q-avatar size="large"><img :src="p.user.profile_pic" /></q-avatar>
-										{{p.user.display_name}} ({{p.user.karma}})
-									</li>
-								</Draggable>
-							</Container>
+								<Container class="q-pa-md rounded-borders" @drop="dr => onDrop(dr, a.id)" group-name="assignedPlayers" :get-child-payload="n => ({from_adventure: a.id, user_id: a.assignments[n].user.id})">
+									<template v-if="a.assignments.length >0">
+										<Draggable v-for="p in a.assignments" :key="p.user.id">
+										<q-item class="items-center">
+											<q-avatar size="large" class="q-mr-sm">
+												<img :src="p.user.profile_pic" />
+											</q-avatar>
+											<div>
+												{{ p.user.display_name }} ({{ p.user.karma }})
+											</div>
+										</q-item>
+										</Draggable>
+									</template>
+									<template v-else>
+										<q-item class="text-subtitle1 text-center none-list non-selectable">
+											No players assigned yet
+										</q-item>
+									</template>
+								</Container>
 						</ul>
 						<ul v-else>
 							<li v-for="p in a.assignments" :key="p.user.id">
@@ -43,14 +54,16 @@
 							</li>
 						</ul>
 						<div class="row justify-end">
-							<q-btn label="Cancel signup" color="negative" v-if="a.id in mySignups" class="q-mr-md" @click="signup(a, mySignups[a.id])" />
-							<q-btn label="More info and signup" icon="person_add" @click="focussed = a" color="primary" />
+							<div class="row q-gutter-sm q-mx-lg">
+							<q-btn v-for="n in 3" :key="n" icon="person_add" :label="`${n}`" color="primary" :outline="mySignups[a.id] === n" @click="signup(a, n)"/>
+							</div>
+							<q-btn class="q-my-lg q-mx-auto" label="More info" icon="info" @click="focussed = a" color="primary" />
 						</div>
 					</q-card-section>
 				</q-card>
-				<q-card v-else class="text-center q-ma-md waitinglist">
+				<q-card v-else class="q-ma-md waitinglist">
 					<q-card-section class="q-gutter-md">
-						<div class="text-h6">{{a.title}}</div>
+						<div class="text-h6 text-center">{{a.title}}</div>
 						<q-separator />
 						<ul v-if="me?.privilege_level >= 2" class="adminDropTarget">
 							<Container @drop="dr => onDrop(dr, a.id)" group-name="assignedPlayers" :get-child-payload="n => ({from_adventure: a.id, user_id: a.assignments[n].user.id})">
@@ -65,10 +78,11 @@
 					</q-card-section>
 				</q-card>
 			</div>
+			
 		</div>
 
-		<q-page-sticky position="bottom-right" :offset="[18, 18]">
-			<q-btn fab icon="add" color="accent" @click="editAdventure = null; addAdventure = true" />
+		<q-page-sticky position="bottom" :offset="[0, 18]">
+			<q-btn fab label="Make a new Adventure" icon="add" color="accent" @click="editAdventure = null; addAdventure = true" />
 		</q-page-sticky>
 
 		<q-dialog :modelValue="!!focussed" @hide="focussed = null">
@@ -130,16 +144,16 @@
 
 <style lang="scss" scoped>
 	.description {
-		background-color: $grey-9;
+		background-color: $dark;
 		border-radius: 4px;
 		padding: 8px;
 	}
 	.adminDropTarget {
 		border-radius: 4px;
-		background-color: $teal-9;
+		background-color: $secondary;
 	}
 	.waitinglist {
-		background-color: $grey-10;
+		background-color: $dark-page;
 		height: 95%;
 	}
 </style>
