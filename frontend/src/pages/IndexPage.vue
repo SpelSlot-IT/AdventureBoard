@@ -233,7 +233,7 @@ export default defineComponent({
 		},
 		weekEnd() {
 			const d = new Date(this.weekStart);
-			d.setDate(d.getDate() + 7);
+			d.setDate(d.getDate() + 6);
 			return d.toISOString().split('T')[0];
 		},
 	},
