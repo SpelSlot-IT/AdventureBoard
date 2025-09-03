@@ -43,13 +43,14 @@ def release_assignments():
                 Adventure.date >= start_of_week,
                 Adventure.date <= end_of_week,
             )
-            .values(release_adventures=True)
+            .values(release_assignments=True)
         )
         db.session.execute(stmt)
+        current_app.logger.info(f"Released assignments for adventures between {start_of_week} and {end_of_week}")
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        raise e
     
 def reset_release():
     start_of_week, end_of_week = get_upcoming_week()
@@ -60,22 +61,21 @@ def reset_release():
                 Adventure.date >= start_of_week,
                 Adventure.date <= end_of_week,
             )
-            .values(release_adventures=False)
+            .values(release_assignments=False)
         )
         db.session.execute(stmt)
+        current_app.logger.info(f"Reset release for adventures between {start_of_week} and {end_of_week}")
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500    
+        raise e  
     
 def delete_expired_assignments():
     pass   
 
-# Constants
+
 WAITING_LIST_ID = -999             # in-memory placeholder used by the planner
 WAITING_LIST_NAME = "Waiting List"  # unique name used to create the waiting-list adventure
-
-
 def make_waiting_list():
     """
     Ensure a waiting-list Adventure exists in the DB and return its id.
@@ -113,7 +113,7 @@ def try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned
     # Check if there is still room
     if taken_places.get(adventure.id, 0) < adventure.max_players:
         # Create an assignment (assuming this persists automatically)
-        assignment =Assignment(user=user, adventure=adventure, top_three=top_three)
+        assignment = Assignment(user=user, adventure=adventure, top_three=top_three)
         db.session.add(assignment)
         if assignment_map is not None: # For human readability
             assignment_map.setdefault(adventure.title, []).append(user.display_name)
@@ -235,7 +235,7 @@ def assign_players_to_adventures():
             current_app.logger.error(f"Failed to assign player {user.display_name} to waiting list!")
     current_app.logger.info(f"- Players assigned in round 4: #{len(round_)}: {round_}")
 
-    current_app.logger.info(f"Assigned players to adventures: {assignment_map} for the week {start_of_week} to {end_of_week}")
+    current_app.logger.info(f"Assigned players to adventures: {dict(assignment_map)} for the week {start_of_week} to {end_of_week}")
     db.session.commit()
 
 def has_no_empty_params(rule):
