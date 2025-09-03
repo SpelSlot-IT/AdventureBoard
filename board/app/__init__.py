@@ -11,6 +11,7 @@ from .provider import db, ma, ap_scheduler, login_manager, google_oauth
 from .models import *
 from .util import *
 from .api import *
+from .email import init_email_app
 
 def create_app(config_file=None):
     # --- Launch app --- 
@@ -87,6 +88,10 @@ def create_app(config_file=None):
     # --- Security headers ---
     talisman = Talisman(app)
     talisman.content_security_policy = config['APP']['content_security_policy']
+
+
+    # --- Email setup ---
+    init_email_app(app)
 
 
     # --- Cronjobs ---   

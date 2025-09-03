@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from .models import *
+from .email import notify_user, notifications_enabled
      
 def get_next_wednesday():
     today = date.today()
@@ -45,21 +46,49 @@ def get_upcoming_week():
         end_of_next_week = end_of_current_week + timedelta(weeks=1)
         return start_of_next_week, end_of_next_week
 
-
 def release_assignments():
     start_of_week, end_of_week = get_upcoming_week()
     try:
-        stmt = (
-            db.update(Adventure)
-            .filter(
-                Adventure.date >= start_of_week,
-                Adventure.date <= end_of_week,
-            )
-            .values(release_assignments=True)
+        adventures = (
+            db.session.scalars(
+                db.select(Adventure)
+                .options(db.selectinload(Adventure.assignments))  # eager load users
+                .where(
+                    Adventure.date >= start_of_week,
+                    Adventure.date <= end_of_week,
+                )
+            ).all()
         )
-        db.session.execute(stmt)
-        current_app.logger.info(f"Released assignments for adventures between {start_of_week} and {end_of_week}")
+
+        if notifications_enabled(current_app.config.get("EMAIL")):
+            # Update release_assignments for these adventures
+            stmt = (
+                db.update(Adventure)
+                .where(
+                    Adventure.date >= start_of_week,
+                    Adventure.date <= end_of_week,
+                )
+                .values(release_assignments=True)
+            )
+            db.session.execute(stmt)
+
+        # Commit the update before notifications
         db.session.commit()
+        current_app.logger.info(
+            f"Released assignments for adventures between {start_of_week} and {end_of_week}"
+        )
+        if notifications_enabled(current_app.config.get("EMAIL")):
+            # Notify assigned users (avoid duplicates)
+            notified_users = set()
+            for adventure in adventures:
+                for assignment in adventure.assignments:
+                    user = assignment.user
+                    if user.id not in notified_users:
+                        notify_user(user, f"You have been assigned to {adventure.title}")
+                        notified_users.add(user.id)
+        else:
+            current_app.logger.info("Notifications where disabled. Skipped email notifications.")
+
     except Exception as e:
         db.session.rollback()
         raise e

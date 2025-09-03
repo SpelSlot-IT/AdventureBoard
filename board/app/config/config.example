@@ -14,6 +14,13 @@
     "behind_proxy":"https",
     "log_level": "WARNING"
   },
+  "EMAIL": {
+    "active": false,
+    "address": "your_email@gmail.com",
+    "password": "your_app_password",
+    "smtp_address": "smtp.gmail.com",
+    "smtp_port": 465
+  },
   "DB": {
     "host": "localhost",
     "user": "user",

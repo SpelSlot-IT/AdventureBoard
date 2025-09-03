@@ -5,11 +5,13 @@ from flask_login import LoginManager
 
 import requests
 from oauthlib.oauth2 import WebApplicationClient
+from smtplib import SMTP_SSL
 
 ap_scheduler = APScheduler()
 ma = Marshmallow()
 db = SQLAlchemy()
 login_manager = LoginManager()
+smtp_server = SMTP_SSL()
 
 class GoogleOAuth:
     def __init__(self, app=None):
