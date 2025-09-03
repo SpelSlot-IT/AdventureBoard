@@ -48,7 +48,7 @@
 						</div>
 					</q-card-section>
 				</q-card>
-				<q-card v-if="isWaitinglist(a)" class=" text-center q-ma-md">
+				<q-card v-else class="text-center q-ma-md">
 					<q-card-section class="q-gutter-md">
 						<div class="text-h6">{{a.title}}</div>
 						<q-separator />
