@@ -26,7 +26,7 @@ def create_app(config_file=None):
     config["API_VERSION"] = f"v{config['VERSION']['version']}" if config["VERSION"]["version"] else "version-undefined"
 
     # configure logger
-    level_name = config['APP']['log_level']
+    level_name = config['APP'].get('log_level', 'INFO')  # default 'INFO'
     app.logger.setLevel(getattr(logging, level_name.upper(), logging.WARNING))
     app.logger.info(f"App logging level set to: {level_name}")
 
@@ -96,6 +96,7 @@ def create_app(config_file=None):
     @ap_scheduler.task('cron', id='make_assignments', day_of_week=a_d, hour=a_h)
     def cron_make_assignments():
         with app.app_context():
+            reassign_karma()
             assign_players_to_adventures()
 
     @ap_scheduler.task('cron', id='release_assignment', day_of_week=r_d, hour=r_h)
