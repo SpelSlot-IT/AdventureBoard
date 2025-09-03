@@ -43,7 +43,7 @@
 			<q-page v-else-if="loading" class="q-px-lg q-pt-md">
 				<q-spinner size="xl" />
 			</q-page>
-			<router-view v-else @setErrors="es => errors = es" @changedUser="changedUser" @mustLogin="login" @startAdminAction="adminActionsActive++" @finishAdminAction="adminActionsActive--" />
+			<router-view v-else @setErrors="es => errors = es" @changedUser="fetchMe" @mustLogin="login" @startAdminAction="adminActionsActive++" @finishAdminAction="adminActionsActive--" />
 			<span v-if="version" class="fixed-bottom-left q-ml-sm">AdventureBoard v{{version}}</span>
 		</q-page-container>
 	</q-layout>
@@ -76,7 +76,7 @@ export default defineComponent({
 	},
 
 	methods: {
-		async changedUser() {
+		async fetchMe() {
 			this.me = (await this.$api.get('/api/users/me')).data;
 		},
 		logout() {
@@ -114,26 +114,30 @@ export default defineComponent({
 				this.adminActionsActive--;
 			}
 		},
+		async optionallyFetchUser() {
+			try {
+				await this.fetchMe();
+			} catch(e) {
+				if(isAxiosError(e) && e.response?.status == 401) {
+					// Not logged in. That's fine.
+				} else {
+					throw e;
+				}
+			}
+		},
 	},
 
 	async beforeMount() {
 		this.loading = true;
-		const aliveReq = this.$api.get('/api/alive');
-		const meReq = this.$api.get('/api/users/me');
-		const aliveResp = await aliveReq;
-		if(aliveResp.data.status != 'ok') {
-			this.errors = ['Service is unavailable'];
-		}
-		this.version = aliveResp.data.version;
 		try {
-			const meResp = await meReq;
-			this.me = meResp.data;
-		} catch(e) {
-			if(isAxiosError(e) && e.response?.status == 401) {
-				// Not logged in. That's fine.
-			} else {
-				throw e;
+			const aliveReq = this.$api.get('/api/alive');
+			const meReq = this.optionallyFetchUser();
+			const aliveResp = await aliveReq;
+			if(aliveResp.data.status != 'ok') {
+				this.errors = ['Service is unavailable'];
 			}
+			this.version = aliveResp.data.version;
+			await meReq;
 		} finally {
 			this.loading = false;
 		}
