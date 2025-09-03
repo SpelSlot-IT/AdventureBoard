@@ -14,7 +14,7 @@
 								<q-item clickable v-close-popup @click="logout">
 									<q-item-section>Log out</q-item-section>
 								</q-item>
-								<template v-if="me.privilege_level > 0">
+								<template v-if="me.privilege_level >= 2">
 									<q-item clickable v-close-popup @click="adminAction('assign')">
 										<q-item-section>Make assignments</q-item-section>
 									</q-item>

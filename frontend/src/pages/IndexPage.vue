@@ -15,7 +15,7 @@
 			<div class="col-xs-12 col-sm-6 col-lg-3" v-for="a in adventures" :key="a.id">
 				<q-card class="q-ma-md">
 					<q-card-section class="q-gutter-md">
-						<q-btn v-if="me && a.id!=-999 && (me.id == a.user_id || me.privilege_level > 0)" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" class="float-right" />
+						<q-btn v-if="me && a.id!=-999 && (me.id == a.user_id || me.privilege_level >= 2)" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" class="float-right" />
 						<div class="text-h6">{{a.title}}</div>
 						<q-separator />
 						<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	:ripple="false" class="float-right" />
@@ -26,12 +26,12 @@
 							<q-rating v-model="a.rank_exploration" :max="3" readonly size="2em" icon="explore" />
 							<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="theater_comedy" />
 						</div>
-						<ul :class="{adminDropTarget: me?.privilege_level > 0}">
+						<ul :class="{adminDropTarget: me?.privilege_level >= 2}">
 							<Container @drop="dr => onDrop(dr, a.id)" group-name="assignedPlayers" :get-child-payload="n => ({from_adventure: a.id, user_id: a.assignments[n].user.id})">
 								<Draggable v-for="p in a.assignments" :key="p.user.id">
 									<li>
 										<q-avatar size="large"><img :src="p.user.profile_pic" /></q-avatar>
-										{{p.user.display_name}}<template v-if="me.privilege_level > 0"> ({{p.user.karma}})</template>
+										{{p.user.display_name}}<template v-if="me.privilege_level >= 2"> ({{p.user.karma}})</template>
 									</li>
 								</Draggable>
 							</Container>
