@@ -58,7 +58,7 @@ export default defineComponent({
 
 	data() {
 		return {
-			loading: false,
+			loading: true,
 			errors: [] as string[],
 			version: '',
 			adminActionsActive: 0,
@@ -117,6 +117,7 @@ export default defineComponent({
 	},
 
 	async beforeMount() {
+		this.loading = true;
 		const aliveReq = this.$api.get('/api/alive');
 		const meReq = this.$api.get('/api/users/me');
 		const aliveResp = await aliveReq;
@@ -133,6 +134,8 @@ export default defineComponent({
 			} else {
 				throw e;
 			}
+		} finally {
+			this.loading = false;
 		}
 	},
 
