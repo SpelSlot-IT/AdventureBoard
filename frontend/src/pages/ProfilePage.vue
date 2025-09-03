@@ -35,9 +35,9 @@ export default defineComponent({
 			this.$emit('mustLogin');
 		}
 		return {
-			display_name: me.display_name,
-			world_builder_name: me.world_builder_name,
-			dnd_beyond_name: me.dnd_beyond_name,
+			display_name: me?.display_name,
+			world_builder_name: me?.world_builder_name,
+			dnd_beyond_name: me?.dnd_beyond_name,
 		};
 	},
 	methods: {
