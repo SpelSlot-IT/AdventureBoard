@@ -167,13 +167,14 @@ class Signup(db.Model):
     __tablename__ = 'signups'
     __table_args__ = (
         db.UniqueConstraint('user_id', 'adventure_id', name='unique_user_adventure'),
-        db.UniqueConstraint('user_id', 'priority', name='unique_user_priority'),
+        db.UniqueConstraint('user_id', 'priority', 'adventure_date', name='unique_user_priority_date'),
     )
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     adventure_id = db.Column(db.Integer, db.ForeignKey('adventures.id'), nullable=False)
     priority = db.Column(db.Integer, nullable=False)
+    adventure_date = db.Column(db.Date, nullable=False)
 
     user = db.relationship('User', back_populates='signups')
     adventure = db.relationship('Adventure', back_populates='signups')

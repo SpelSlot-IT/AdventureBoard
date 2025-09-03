@@ -90,7 +90,7 @@ class SignupSchema(ma.SQLAlchemyAutoSchema):
         include_fk = True
         load_instance = False
         sqla_session = db.session
-        exclude = ("id", "user_id")
+        exclude = ("id", "user_id", "adventure_date")
 
 class AdventureQuerySchema(ma.Schema):
     adventure_id = ma.Integer(allow_none=True)
@@ -325,7 +325,7 @@ class CallbackResource(MethodView):
         if user.is_setup():
             return redirect(state)
         else:
-            return redirect(f"{state}profile")
+            return redirect(state)
 
 
 @blp_utils.route('/logout')
@@ -476,7 +476,6 @@ class AdventureIDlessRequest(MethodView):
                 user_id=current_user.id,
                 **args
             ) # this will only return the first adventure if repeat > 1
-            db.session.add(new_adv)
             db.session.flush()  # new_adv.id available
 
             # Player requests are only done for the first adventure created
@@ -511,9 +510,14 @@ class AdventureIDlessRequest(MethodView):
         except ValidationError as ve:
             db.session.rollback()
             abort(400, message=str(ve))
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            abort(500, message=f"Database error: {str(e)}")
+
         except Exception as e:
             db.session.rollback()
-            abort(500, message=str(e))
+            abort(500, message=f"Unknown error: {str(e)}")
 
 @blp_adventures.route("<int:adventure_id>")
 class AdventureResource(MethodView):
@@ -805,6 +809,12 @@ class SignupResource(MethodView):
         user_id = current_user.id
 
         try:
+
+            # Fetch the adventure date
+            adventure_date = db.session.execute(
+                db.select(Adventure.date).where(Adventure.id == adventure_id)
+            ).scalar_one()
+            
             # Check if exact same signup already exists (toggle behavior)
             stmt = db.select(Signup).where(
                 Signup.user_id == user_id,
@@ -818,18 +828,30 @@ class SignupResource(MethodView):
                 db.session.delete(existing_signup)
                 message = 'Signup removed'
             else:
-               # Remove any existing signup with same priority (regardless of adventure)
+               # Remove any existing signup with same priority and date (regardless of adventure)
                 db.session.execute(
-                    delete(Signup).where(Signup.user_id == user_id, Signup.priority == priority)
+                    delete(Signup).where(
+                        Signup.user_id == user_id, 
+                        Signup.priority == priority,
+                        Signup.adventure_date == adventure_date
+                    )
                 )
 
                 # Remove any existing signup for same adventure (regardless of priority)
                 db.session.execute(
-                    delete(Signup).where(Signup.user_id == user_id, Signup.adventure_id == adventure_id)
+                    delete(Signup).where(
+                        Signup.user_id == user_id, 
+                        Signup.adventure_id == adventure_id
+                    )
                 )
 
                 # Add new signup
-                new_signup = Signup(user_id=user_id, adventure_id=adventure_id, priority=priority)
+                new_signup = Signup(
+                    user_id=user_id, 
+                    adventure_id=adventure_id, 
+                    priority=priority,
+                    adventure_date=adventure_date
+                )
                 db.session.add(new_signup)
                 message = 'Signup registered'
 

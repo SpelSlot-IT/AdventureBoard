@@ -101,7 +101,7 @@ def make_waiting_list():
     db.session.flush()  # ensure waiting.id is populated
     return waiting_list
     
-def try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, top_three=True):
+def try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, top_three=True, assignment_map=None):
     """
     Attempts to sign up a user for an adventure.
 
@@ -114,6 +114,8 @@ def try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned
         # Create an assignment (assuming this persists automatically)
         assignment =Assignment(user=user, adventure=adventure, top_three=top_three)
         db.session.add(assignment)
+        if assignment_map: # For human readability
+            assignment_map[adventure.title].append(user.display_name)
         db.session.flush()
 
         # Increment the number of taken places
@@ -139,6 +141,7 @@ def assign_players_to_adventures():
     start_of_week, end_of_week = get_upcoming_week()
     # create a placeholder that will track how many places are already taken per adventure
     taken_places = defaultdict(int)
+    assignment_map = defaultdict(list) # trace assignments in moa for human readability.
 
    # Subquery: get all assigned user ids this week
     assigned_ids_subq = (
@@ -215,6 +218,7 @@ def assign_players_to_adventures():
     for user in players_signedup_not_assigned:
         try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, waiting_list, user, top_three=False)
 
+    current_app.logger.info(f"Assigned players to adventures: {assignment_map}")
     db.session.commit()
 
 def has_no_empty_params(rule):

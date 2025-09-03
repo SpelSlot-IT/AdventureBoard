@@ -15,7 +15,7 @@
 			<div class="col-xs-12 col-sm-6 col-lg-3" v-for="a in adventures" :key="a.id">
 				<q-card class="q-ma-md">
 					<q-card-section class="q-gutter-md">
-						<q-btn v-if="me && (me.id == a.user_id || me.privilege_level > 0)" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" class="float-right" />
+						<q-btn v-if="me && a.id!=-999 && (me.id == a.user_id || me.privilege_level > 0)" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" class="float-right" />
 						<div class="text-h6">{{a.title}}</div>
 						<q-separator />
 						<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	:ripple="false" class="float-right" />

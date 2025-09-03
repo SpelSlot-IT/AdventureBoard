@@ -5,6 +5,7 @@ import json, os
 from flask import Flask
 from flask_smorest import Api
 from flask_talisman import Talisman
+import logging
 
 from .provider import db, ma, ap_scheduler, login_manager, google_oauth
 from .models import *
@@ -16,24 +17,32 @@ def create_app(config_file=None):
     app = Flask(__name__)
     app.logger.info(f"App running in {os.getenv('FLASK_ENV')} mode")
 
+    # load config
     if not config_file:
         config_file = os.getenv("APP_CONFIG", "config/config.json")
-
     app.config.from_file(config_file, load=json.load)
     config = app.config
     app.secret_key = config["APP"]["secret_key"]
     config["API_VERSION"] = f"v{config['VERSION']['version']}" if config["VERSION"]["version"] else "version-undefined"
 
+    # configure logger
+    level_name = config['APP']['log_level']
+    app.logger.setLevel(getattr(logging, level_name.upper(), logging.WARNING))
+    app.logger.info(f"App logging level set to: {level_name}")
+
+    # configure WSGI middleware
     if config["APP"]["behind_proxy"]:
         from werkzeug.middleware.proxy_fix import ProxyFix
         app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
         app.config['PREFERRED_URL_SCHEME'] = config["APP"]["behind_proxy"]
-        app.logger.warning(f"App running behind proxy: {config['APP']['behind_proxy']}")
+        app.logger.info(f"App running behind proxy: {config['APP']['behind_proxy']}")
+
 
     # --- Database setup ---
     # Dynamically construct the SQLALCHEMY_DATABASE_URI from app.config['DB']
     db_conf = config['DB']
-  # Handle SQLite separately since it has a different format
+
+    # Handle SQLite separately since it has a different format
     if db_conf["flavor"].startswith("sqlite"):
         uri = f"{db_conf['flavor']}:///{db_conf['database']}.db"
     else:
@@ -48,18 +57,22 @@ def create_app(config_file=None):
     with app.app_context():
         db.create_all()
 
+
     # --- (De)Serialization setup ---
     ma.init_app(app)
     api = Api(app)
     for blp in api_blueprints:
         api.register_blueprint(blp)
 
+
     # --- APScheduler setup --- 
     ap_scheduler.init_app(app)
     ap_scheduler.start()
 
+
     # --- Google OAuth setup ---
     google_oauth.init_app(app)
+
 
     # --- User session management setup --- 
     # https://flask-login.readthedocs.io/en/latest
@@ -70,11 +83,13 @@ def create_app(config_file=None):
         return db.session.get(User, user_id)
     login_manager.anonymous_user = Anonymous
 
+
     # --- Security headers ---
     talisman = Talisman(app)
     talisman.content_security_policy = config['APP']['content_security_policy']
 
-    # --- Cron ---   
+
+    # --- Cronjobs ---   
     a_d, a_h = config['TIMING']['assignment_day'].split("@")
     r_d, r_h = config['TIMING']['release_day'].split("@")
 
