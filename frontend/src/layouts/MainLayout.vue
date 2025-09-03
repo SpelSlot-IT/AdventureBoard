@@ -2,10 +2,11 @@
 	<q-layout view="lHh Lpr lFf">
 		<q-header elevated>
 			<q-toolbar class="row justify-between">
-				<q-btn label="Spelslot" to="/"  />
+				<q-btn label="Home" icon="home" to="/"  />
+				<q-avatar icon="img:spelslot-logo.svg" size="50px"></q-avatar>
 				<div>
 					<q-spinner size="lg" v-if="adminActionsActive > 0 " />
-					<q-btn v-if="me" :icon="me.profile_pic ? 'img:' + me.profile_pic : 'settings'" rounded>
+					<q-btn v-if="me" :icon="me.profile_pic ? 'img:' + me.profile_pic : 'settings'" :label=me.display_name>
 						<q-menu>
 							<q-list style="min-width: 100px">
 								<q-item to="/profile">
@@ -31,7 +32,7 @@
 							</q-list>
 						</q-menu>
 					</q-btn>
-					<q-btn v-else label="Login" @click="login" />
+					<q-btn v-else label="Login" @click="login" icon="login" />
 				</div>
 			</q-toolbar>
 		</q-header>
