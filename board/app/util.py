@@ -52,21 +52,25 @@ def check_release(adventures):
 def release_assignments():
     start_of_week, end_of_week = get_upcoming_week()
     try:
-        # Update release_assignments for these adventures
-        stmt = (
-            db.update(Adventure)
-            .where(
-                Adventure.date >= start_of_week,
-                Adventure.date <= end_of_week,
-            )
-            .values(release_assignments=True)
+        adventures = (
+            db.session.scalars(
+                db.select(Adventure)
+                .options(db.selectinload(Adventure.assignments))  # eager load users
+                .where(
+                    Adventure.date >= start_of_week,
+                    Adventure.date <= end_of_week,
+                )
+            ).all()
         )
-        db.session.execute(stmt)
+
+        # Update release_assignments for these adventures
+        for adventure in adventures:
+            adventure.release_assignments = True
 
         # Commit the update before notifications
         db.session.commit()
         current_app.logger.info(
-            f"Released assignments for adventures between {start_of_week} and {end_of_week}"
+            f"Released assignments for adventures between {start_of_week} and {end_of_week}: #{len(adventures)}: {[adventure.title for adventure in adventures]}"
         )
         if notifications_enabled(current_app.config.get("EMAIL")):
 
@@ -77,6 +81,7 @@ def release_assignments():
                     .where(
                         Adventure.date >= start_of_week,
                         Adventure.date <= end_of_week,
+                        Adventure.release_assignments
                     )
                 ).all()
             )
