@@ -22,11 +22,11 @@
 						<div>{{describeDuration(a)}}</div>
 						<div class="description"><template v-if="a.short_description">{{a.short_description}}</template><i v-else>No description</i></div>
 						<div class="row justify-between">
-							<q-rating v-model="a.rank_combat" :max="3" readonly size="2em" icon="sym_o_swords" />
-							<q-rating v-model="a.rank_exploration" :max="3" readonly size="2em" icon="explore" />
-							<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="theater_comedy" />
+							<q-rating v-model="a.rank_combat" :max="3" readonly size="2em" icon="img:spiked-dragon-head.svg" />
+							<q-rating v-model="a.rank_exploration" :max="3" readonly size="2em" icon="img:dungeon-gate.svg" />
+							<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="img:drama-masks.svg" />
 						</div>
-						<ul v-if="me?.privilege_level >= 2" class="adminDropTarget">
+						<q-list v-if="me?.privilege_level >= 2" class="adminDropTarget">
 								<Container class="q-pa-md rounded-borders" @drop="dr => onDrop(dr, a.id)" group-name="assignedPlayers" :get-child-payload="n => ({from_adventure: a.id, user_id: a.assignments[n].user.id})">
 									<template v-if="a.assignments.length >0">
 										<Draggable v-for="p in a.assignments" :key="p.user.id">
@@ -46,13 +46,19 @@
 										</q-item>
 									</template>
 								</Container>
-						</ul>
-						<ul v-else>
-							<li v-for="p in a.assignments" :key="p.user.id">
-								<q-avatar size="large"><img :src="p.user.profile_pic" /></q-avatar>
-								{{p.user.display_name}}
-							</li>
-						</ul>
+						</q-list>
+						<q-list v-else>
+							<q-item v-for="p in a.assignments" :key="p.user.id">
+								<q-item class="items-center">
+									<q-avatar size="large" class="q-mr-sm">
+										<img :src="p.user.profile_pic" />
+									</q-avatar>
+									<div>
+										{{ p.user.display_name }}
+									</div>
+								</q-item>
+							</q-item>
+						</q-list>
 						<div class="row justify-end">
 							<div class="row q-gutter-sm q-mx-lg">
 							<q-btn v-for="n in 3" :key="n" icon="person_add" :label="`${n}`" color="primary" :outline="mySignups[a.id] === n" @click="signup(a, n)"/>

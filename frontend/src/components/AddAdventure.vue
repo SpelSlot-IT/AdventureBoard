@@ -16,6 +16,7 @@
 					<q-rating v-model="rank_combat" :max="3" size="2em" icon="sym_o_swords" />
 					<q-rating v-model="rank_exploration" :max="3" size="2em" icon="explore" />
 					<q-rating v-model="rank_roleplaying" :max="3" size="2em" icon="theater_comedy" />
+					<q-input v-model="tags" label="Tags" type="textarea" autogrow />
 				</div>
 			</q-card-section>
 			<q-card-actions class="row justify-end">
@@ -56,6 +57,7 @@ export default defineComponent({
 			rank_combat: this.editExisting?.rank_combat || 0,
 			rank_exploration: this.editExisting?.rank_exploration || 0,
 			rank_roleplaying: this.editExisting?.rank_roleplaying || 0,
+			tags: this.editExisting?.tags || '',
 		};
 	},
 	computed: {
@@ -81,6 +83,7 @@ export default defineComponent({
 				rank_combat: this.rank_combat,
 				rank_exploration: this.rank_exploration,
 				rank_roleplaying: this.rank_roleplaying,
+				tags: this.tags,
 			} as any;
 			if(this.editExisting) {
 				await this.$api.patch('/api/adventures/' + this.editExisting.id, body);
