@@ -13,10 +13,10 @@
 		</q-card>
 		<div v-else class="row justify-evenly q-col-gutter-lg q-mt-sm">
 			<div class="col-xs-12 col-sm-6 col-lg-3" v-for="a in adventures" :key="a.id">
-				<q-card v-if="isWaitinglist(a)" class="q-ma-md">
+				<q-card v-if="!isWaitinglist(a)" class="q-ma-md">
 					<q-card-section class="q-gutter-md">
 						<q-btn v-if="me && (me.id == a.user_id || me.privilege_level >= 2)" icon="edit" round color="accent" @click="editAdventure = a; addAdventure = true" class="float-right" />
-						<div class="text-h6">{{a.title}}</div>
+						<div class="text-h6 text-center">{{a.title}}</div>
 						<q-separator />
 						<q-chip v-for="t in a.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white"	:ripple="false" class="float-right" />
 						<div>{{describeDuration(a)}}</div>
@@ -48,7 +48,7 @@
 						</div>
 					</q-card-section>
 				</q-card>
-				<q-card v-if="isWaitinglist(a)" class="q-ma-md">
+				<q-card v-if="isWaitinglist(a)" class=" text-center q-ma-md">
 					<q-card-section class="q-gutter-md">
 						<div class="text-h6">{{a.title}}</div>
 						<q-separator />
@@ -229,7 +229,7 @@ export default defineComponent({
 			}
 			return (a.num_sessions) + ' weeks';
 		},
-		isWaitinglist(a: {num_sessions: number;}) : boolean {
+		isWaitinglist(a: {id: number;}) : boolean {
 			return a.id == -999;
 		},
 		async onDrop(dropResult: {payload: {from_adventure: number; user_id: number}; addedIndex: null|number; removedIndex: null|number}, toAdventure: number) {
