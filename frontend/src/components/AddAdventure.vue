@@ -8,9 +8,9 @@
 			</q-card-section>
 			<q-card-section>
 				<div class="q-gutter-lg">
-					<q-input v-model="title" label="Session title" autofocus />
-					<q-input v-model="short_description" label="Short description" type="textarea" autogrow/>
-					<q-input v-model="max_players" label="Max players" type="number" :min="1" :max="30" />
+					<q-input v-model="title" label="Session title" autofocus :rules="[val => !!val || 'Field is required']" />
+					<q-input v-model="short_description" label="Short description" type="textarea" autogrow :rules="[val => !!val || 'Field is required']" />
+					<q-input v-model="max_players" label="Max players" type="number" :min="1" :max="30" :rules="[val => !!val || 'Field is required']" />
 					<DatePicker v-model="date" label="Date" onlyWednesdays />
 					<q-input v-model="num_sessions" label="Number of sessions" type="number" :min="1" :max="4" v-if="!editExisting" :rules="[val => !!val || 'Field is required']" />
 					<q-rating v-model="rank_combat" :max="3" size="2em" icon="sym_o_swords" />
@@ -65,6 +65,13 @@ export default defineComponent({
 	},
 	methods: {
 		async save() {
+			if(this.rank_combat == 0 && this.rank_exploration == 0 && this.rank_roleplaying == 0) {
+				this.$q.notify({
+					message: 'You must indicate how much combat, exploration and roleplaying your session will roughly have.',
+					type: 'negative',
+				});
+				return;
+			}
 			const body = {
 				title: this.title,
 				short_description: this.short_description,
