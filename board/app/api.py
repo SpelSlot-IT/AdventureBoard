@@ -622,13 +622,11 @@ class AdventureResource(MethodView):
         return {"message": "Adventure updated successfully"}
     
     @login_required
-    @blp_adventures.arguments(AdventureSchema(partial=True, exclude=("id","user_id")))
-    def delete(self, args, adventure_id):
+    @blp_adventures.response(200, MessageSchema)
+    def delete(self, adventure_id):
         """
         Deletes an adventure with the given ID. Only creator or admin can delete.
         """
-        args = request.get_json()
-        adventure_id = args.get('adventure_id')
         user_id = current_user.id
 
         if not adventure_id:
@@ -643,10 +641,23 @@ class AdventureResource(MethodView):
             if current_user.privilege_level < 1 and adventure.user_id != user_id:
                 abort(401, message={'error': 'Unauthorized to delete this adventure'})
 
+             # Clear predecessor references in other adventures
+            db.session.execute(
+                db.update(Adventure).
+                where(Adventure.predecessor_id == adventure_id).
+                values(predecessor_id=None)
+            )
+
+            # Delete assignments related to this adventure
+            db.session.execute(
+                db.delete(Assignment).where(Assignment.adventure_id == adventure_id)
+            )
+
+            # Delete the adventure itself
             db.session.delete(adventure)
             db.session.commit()
 
-            return {'message': f'Adventure {adventure_id} deleted successfully'}
+            return {'message': f'Adventure {adventure_id} and all relations deleted successfully'}
 
         except SQLAlchemyError as e:
             db.session.rollback()
