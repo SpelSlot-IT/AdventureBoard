@@ -92,7 +92,7 @@
 		</div>
 
 		<q-page-sticky position="bottom" :offset="[0, 18]">
-			<q-btn fab label="Make a new Adventure" icon="add" color="accent" @click="editAdventure = null; addAdventure = true" />
+			<q-btn v-if="me" fab label="Make a new Adventure" icon="add" color="accent" @click="editAdventure = null; addAdventure = true" />
 		</q-page-sticky>
 
 		<q-dialog :modelValue="!!focussed" @hide="focussed = null">

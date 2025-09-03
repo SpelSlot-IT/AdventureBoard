@@ -54,12 +54,12 @@ export default defineComponent({
 			short_description: this.editExisting?.short_description || '',
 			max_players: this.editExisting?.max_players || 5,
 			date: this.editExisting?.date || '',
-			num_sessions: this.editExisting?.num_sessions || '',
+			num_sessions: this.editExisting?.num_sessions || 1,
 			rank_combat: this.editExisting?.rank_combat || 0,
 			rank_exploration: this.editExisting?.rank_exploration || 0,
 			rank_roleplaying: this.editExisting?.rank_roleplaying || 0,
-			requested_room: this.editExisting?.requested_room || '',
-			tags: this.editExisting?.tags || '',
+			requested_room: this.editExisting?.requested_room || null,
+			tags: this.editExisting?.tags || null,
 		};
 	},
 	computed: {

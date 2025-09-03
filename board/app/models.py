@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from flask_login import UserMixin, AnonymousUserMixin
+from flask import current_app
 from sqlalchemy import func
 
 from .provider import db
@@ -23,11 +24,11 @@ class User(UserMixin, db.Model):
     dnd_beyond_name     = db.Column(db.String(255), nullable=True)
     dnd_beyond_campaign = db.Column(db.Integer, nullable=True)
     privilege_level     = db.Column(db.Integer, nullable=False, default=0)
+    personal_room       = db.Column(db.String(16), nullable=True)
     email               = db.Column(db.String(255), nullable=True)
     profile_pic         = db.Column(db.String(255), nullable=True)
     karma               = db.Column(db.Integer, default=1000)
     story_player        = db.Column(db.Boolean, nullable=False, default=False)
-    personal_room       = db.Column(db.String(16), nullable=True)
 
     adventures_created  = db.relationship('Adventure', back_populates='creator', lazy='dynamic')
     signups             = db.relationship('Signup', back_populates='user')
@@ -133,6 +134,18 @@ class Adventure(db.Model):
             # fresh copy of kwargs for each loop
             data = dict(kwargs)
             data["date"] = base_date + timedelta(days=7 * i)
+
+            # Give players their own room
+            # The following if should always be true
+            
+            user_id = data["user_id"]
+            stmt = db.select(User.personal_room).where(User.id == user_id)
+            room = db.session.execute(stmt).scalar_one_or_none()
+            data["requested_room"] = room
+            if room is not None:
+                current_app.logger.info(f"Assigned personal room for user with id {user_id}: {room}")
+            else:
+                current_app.logger.debug(f"No personal room for user with id {user_id}")
 
             adventure = cls(**data)
             if predecessor:

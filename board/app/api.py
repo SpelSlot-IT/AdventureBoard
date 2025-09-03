@@ -14,7 +14,6 @@ from flask import (
     redirect, 
     g 
     )
-from werkzeug.routing import BuildError
 from sqlalchemy import text, delete
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -462,7 +461,7 @@ class AdventureIDlessRequest(MethodView):
             abort(500, message=f"Database error: {str(e)}")
 
     @login_required
-    @blp_adventures.arguments(AdventureSchema(exclude=("id","user_id")))
+    @blp_adventures.arguments(AdventureSchema(exclude=("id","user_id","requested_room")))
     @blp_adventures.response(201, AdventureSchema()) 
     @blp_adventures.alt_response(409, schema=ConflictResponseSchema())
     def post(self, args):
@@ -477,6 +476,7 @@ class AdventureIDlessRequest(MethodView):
                 **args
             ) # this will only return the first adventure if repeat > 1
             db.session.flush()  # new_adv.id available
+
 
             # Player requests are only done for the first adventure created
             mis_assignments = []
@@ -517,7 +517,7 @@ class AdventureIDlessRequest(MethodView):
 
         except Exception as e:
             db.session.rollback()
-            abort(500, message=f"Unknown error: {str(e)}")
+            raise e
 
 @blp_adventures.route("<int:adventure_id>")
 class AdventureResource(MethodView):
