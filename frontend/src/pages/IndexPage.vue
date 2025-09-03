@@ -1,17 +1,17 @@
 <template>
 	<q-page>
-		<div class="row items-center justify-evenly q-mt-md">
+		<div class="row items-center justify-evenly q-my-md">
 			<q-btn icon="chevron_left" label="Earlier" color="primary" rounded @click="switchWeek(-1)" />
 				Wednesday {{wednesdate}}
 			<q-btn icon-right="chevron_right" label="Later" color="primary" rounded @click="switchWeek(1)" />
 		</div>
 		<q-spinner size="xl" v-if="loading" />
-		<q-card v-else-if="adventures.length == 0">
+		<q-card v-else-if="adventures.length == 0" class="q-mx-lg">
 			<q-card-section>
 				No sessions this week yet.
 			</q-card-section>
 		</q-card>
-		<div v-else class="row justify-evenly q-col-gutter-lg q-mt-sm">
+		<div v-else class="row justify-evenly q-col-gutter-lg">
 			<div class="col-xs-12 col-sm-6 col-lg-3" v-for="a in adventures" :key="a.id">
 				<q-card v-if="!isWaitinglist(a)" class="q-ma-md">
 					<q-card-section class="q-gutter-md">
