@@ -2,7 +2,7 @@
 	<q-page>
 		<div class="row items-center justify-evenly q-my-md">
 			<q-btn icon="chevron_left" label="Earlier" color="primary" rounded @click="switchWeek(-1)" />
-			<q-label class="text-h6">	Wednesday {{wednesdate}} </q-label>
+			<div class="text-h6">	Wednesday {{wednesdate}} </div>
 			<q-btn icon-right="chevron_right" label="Later" color="primary" rounded @click="switchWeek(1)" />
 		</div>
 		<q-spinner size="xl" v-if="loading" />

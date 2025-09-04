@@ -2,7 +2,10 @@
 	<q-layout view="lHh Lpr lFf">
 		<q-header elevated>
 			<q-toolbar class="row justify-between">
-				<q-btn label="Home" icon="home" to="/"  />
+				<div class="q-gutter-x-md">
+					<q-btn label="Home" icon="home" to="/"  />
+					<q-btn label="Characters" icon="sym_o_chess_pawn" to="/characters" />
+				</div>
 				<q-avatar icon="img:spelslot-logo.svg" size="50px"></q-avatar>
 				<div>
 					<q-spinner size="lg" v-if="adminActionsActive > 0 " />
