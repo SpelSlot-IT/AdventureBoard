@@ -153,7 +153,7 @@ export default defineComponent({
 			return this.characters == null;
 		},
 		character() {
-			const id = ''+ this.id; // toString
+			const id = parseInt(this.id);
 			for(const c of Object.values(this.characters || [])) {
 				if(c.id == id) {
 					return c;
