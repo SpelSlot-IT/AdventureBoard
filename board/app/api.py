@@ -461,7 +461,7 @@ class AdventureIDlessRequest(MethodView):
             abort(500, message=f"Database error: {str(e)}")
 
     @login_required
-    @blp_adventures.arguments(AdventureSchema(exclude=("id","user_id","requested_room")))
+    @blp_adventures.arguments(AdventureSchema(exclude=("id","user_id")))
     @blp_adventures.response(201, AdventureSchema()) 
     @blp_adventures.alt_response(409, schema=ConflictResponseSchema())
     def post(self, args):
