@@ -153,7 +153,7 @@ export default defineComponent({
 			return this.characters == null;
 		},
 		character() {
-			return (this.characters && this.characters[this.id]) || null;
+			return (this.characters && this.characters[+this.id]) || null;
 		},
 	},
 });
