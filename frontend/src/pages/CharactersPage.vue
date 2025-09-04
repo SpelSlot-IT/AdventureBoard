@@ -1,6 +1,6 @@
 <template>
 	<q-page class="row items-center justify-evenly">
-		<q-table :rows="characterArray" :columns="columns" title="Characters" hide-pagination :rows-per-page-options="[0]" wrap-cells table-class="characters">
+		<q-table :rows="characterArray" :columns="columns" :loading="characterArray.length == 0" title="Characters" hide-pagination :rows-per-page-options="[0]" wrap-cells table-class="characters">
 			<template v-slot:body-cell-avatar="props">
 				<q-td :props="props">
 					<router-link :to="'/characters/' + props.row.id" v-if="props.value">
