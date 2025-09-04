@@ -41,7 +41,7 @@
 											<div class="q-mr-sm ">
 												{{ p.user.display_name }} ({{ p.user.karma }}) 
 											</div>
-											<q-btn size="sm" :icon="p.appeared ? 'check' : 'close'" round :color="p.appeared ? 'positive' : 'negative'" class="q-mr-sm flat" @click="togglePresence(a.id, p.user.id, !p.appeared)" />
+											<q-btn size="sm" :icon="p.appeared ? 'check' : 'close'" round :color="p.appeared ? 'positive' : 'negative'" class="q-mr-sm flat" @click="togglePresence(a.id, p)" />
 										</q-item>
 										</Draggable>
 									</template>
@@ -167,6 +167,7 @@
 	.character {
 		border: 1px solid;
 		border-radius: 4px;
+		cursor: grab;
 	}
 	.waitinglist {
 		background-color: $dark-page;
@@ -266,13 +267,13 @@ export default defineComponent({
 		isWaitinglist(a: {id: number;}) : boolean {
 			return a.id == -999;
 		},
-		async togglePresence(adventure_id: number, user_id: number, appeared: boolean) {
+		async togglePresence(adventure_id: number, assignment: any) {
+			assignment.appeared = !assignment.appeared;
 			await this.$api.post('/api/player-assignments', {
 					adventure_id: adventure_id,
-					user_id: user_id,
-					appeared: appeared
+					user_id: assignment.user.id,
+					appeared: assignment.appeared 
 			});
-			this.fetch(false);
 		},
 		async onDrop(dropResult: {payload: {from_adventure: number; user_id: number}; addedIndex: null|number; removedIndex: null|number}, toAdventure: number) {
 			if(dropResult.addedIndex === null) {

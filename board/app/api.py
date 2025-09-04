@@ -11,7 +11,8 @@ from flask import (
     request, 
     current_app, 
     url_for, 
-    redirect, 
+    redirect,
+    jsonify, 
     g 
     )
 from sqlalchemy import text, delete
@@ -727,14 +728,14 @@ class AssignmentResource(MethodView):
         """
 
         if current_user.privilege_level < 1: # Is semi admin (only allowed to watch if players appear)
-            return jsonify({'error': 'Unauthorized'}), 401
+            return abort(401, message={'error': 'Unauthorized'})
        
         user_id = args['user_id']
         adventure_id = args['adventure_id']
         new_value = args['appeared']
 
         if not user_id or not adventure_id:
-            return jsonify({'error': 'Both user_id and adventure_id are required'}), 400
+            return abort(400, message={'error': 'Both user_id and adventure_id are required'})
 
         # Fetch the assignment
         assignment = db.session.scalar(
@@ -745,14 +746,14 @@ class AssignmentResource(MethodView):
         )
 
         if not assignment:
-            return jsonify({'error': 'Assignment not found'}), 404
+            return abort(404, message=({'error': 'Assignment not found'}))
 
         # Update the value
         assignment.appeared = new_value
         try:
             db.session.commit()
 
-            return jsonify({'message': 'Assignment updated successfully'}), 200
+            return {'message': 'Assignment updated successfully'}, 200
 
         except Exception as e:
             db.session.rollback()
