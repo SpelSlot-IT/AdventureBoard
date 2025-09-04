@@ -154,7 +154,7 @@ export default defineComponent({
 		},
 		character() {
 			const id = ''+ this.id; // toString
-			for(const c of Object.values(this.characters)) {
+			for(const c of Object.values(this.characters || [])) {
 				if(c.id == id) {
 					return c;
 				}
