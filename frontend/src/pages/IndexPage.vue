@@ -31,7 +31,7 @@
 							<q-rating v-model="a.rank_roleplaying" :max="3" readonly size="2em" icon="img:drama-masks.svg" />
 						</div>
 						<q-list v-if="me?.privilege_level >= 2" class="adminDropTarget">
-								<Container class="q-pa-md rounded-borders" @drop="dr => onDrop(dr, a.id)" group-name="assignedPlayers" :get-child-payload="n => ({from_adventure: a.id, user_id: a.assignments[n].user.id})">
+								<Container class="q-pa-md rounded-borders grid-container" @drop="dr => onDrop(dr, a.id)" group-name="assignedPlayers" :get-child-payload="n => ({from_adventure: a.id, user_id: a.assignments[n].user.id})">
 									<template v-if="a.assignments.length >0">
 										<Draggable v-for="p in a.assignments" :key="p.user.id">
 										<q-item class="items-center round-borders character">
@@ -55,7 +55,7 @@
 						<q-list v-else>
 							<q-item v-for="p in a.assignments" :key="p.user.id">
 								<q-item class="items-center">
-									<q-avatar size="large" class="q-mr-sm">
+									<q-avatar size="sm" class="q-mr-sm">
 										<img :src="p.user.profile_pic" />
 									</q-avatar>
 									<div>
@@ -65,7 +65,7 @@
 							</q-item>
 						</q-list>
 						<div class="row justify-end">
-							<div class="row q-gutter-sm q-mx-lg">
+							<div class="row q-gutter-sm q-mx-lg items-center">
 							<q-btn v-for="n in 3" :key="n" icon="person_add" :label="`${n}`" color="primary" :outline="mySignups[a.id] === n" @click="signup(a, n)"/>
 							</div>
 							<q-btn class="q-my-lg q-mx-auto" label="More details" icon="info" @click="focussed = a" color="primary" />
@@ -76,16 +76,21 @@
 					<q-card-section class="q-gutter-md">
 						<div class="text-h6 text-center">{{a.title}}</div>
 						<q-separator />
-						<ul v-if="me?.privilege_level >= 2" class="adminDropTarget">
-							<Container @drop="dr => onDrop(dr, a.id)" group-name="assignedPlayers" :get-child-payload="n => ({from_adventure: a.id, user_id: a.assignments[n].user.id})">
+						<q-list v-if="me?.privilege_level >= 2" class="adminDropTarget">
+							<Container class="q-pa-md rounded-borders" @drop="dr => onDrop(dr, a.id)" group-name="assignedPlayers" :get-child-payload="n => ({from_adventure: a.id, user_id: a.assignments[n].user.id})" >
 								<Draggable v-for="p in a.assignments" :key="p.user.id">
-									<li>
-										<q-avatar size="large"><img :src="p.user.profile_pic" /></q-avatar>
-										{{p.user.display_name}} ({{p.user.karma}})
-									</li>
+									<q-item class="items-center round-borders character">
+										<q-avatar size="sm" class="q-mr-sm">
+											<img :src="p.user.profile_pic" />
+										</q-avatar>
+										<div class="q-mr-sm ">
+											{{p.user.display_name}} ({{p.user.karma}})
+										</div>
+								
+									</q-item>
 								</Draggable>
 							</Container>
-						</ul>
+						</q-list>
 					</q-card-section>
 				</q-card>
 			</div>
@@ -175,6 +180,13 @@
 	.waitinglist {
 		background-color: $dark-page;
 		height: 95%;
+	}
+	.grid-container {
+		column-count: 2;
+		column-gap: 12px;
+	}
+	.grid-container > * {
+		break-inside: avoid;
 	}
 </style>
 
