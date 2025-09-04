@@ -4,6 +4,7 @@ export type Character = {
 	id: number;
 	name: string;
 	dndbeyond_account: string;
+	player_name?: string;
 	campaign: string;
 	character_sheet: string;
 	avatar: string;
@@ -37,7 +38,21 @@ export async function fetchCharacterData(): Promise<{[id: number]: Character}> {
 	if(cache !== null) {
 		return new Promise(resolve => resolve(cache!));
 	}
-	const resp = await axios.get('/api/characters/summary');
-	cache = resp.data;
+	cache = await fetchAndJoin();
+	return cache;
+}
+
+async function fetchAndJoin(): Promise<{[id: number]: Character}> {
+	const req1 = axios.get('/api/characters/summary');
+	const users = await axios.get('/api/users');
+	const usermap = {} as {[username: string]: string};
+	for(const u of users.data) {
+		usermap[u.dnd_beyond_name] = u.display_name;
+	}
+	const resp = await req1;
+	Object.keys(resp.data).forEach(function(key) {
+		const ch = resp.data[key];
+		resp.data[key].player_name = usermap[ch.dndbeyond_account] || ch.dndbeyond_account;
+	});
 	return resp.data;
 }

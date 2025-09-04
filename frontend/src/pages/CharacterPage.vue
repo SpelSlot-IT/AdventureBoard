@@ -19,7 +19,7 @@
 						</q-item>
 						<q-item>
 							<q-item-section>Player</q-item-section>
-							<q-item-section>{{character.dndbeyond_account}}</q-item-section>
+							<q-item-section>{{character.player_name}}</q-item-section>
 						</q-item>
 						<q-item>
 							<q-item-section>D&DBeyond campaign</q-item-section>

@@ -41,7 +41,7 @@ export default defineComponent({
 			columns: [
 				{name: 'avatar', field: 'avatar', label: '', align: 'left', sortable: true},
 				{name: 'name', field: 'name', label: 'Name', align: 'left', sortable: true},
-				{name: 'player', field: 'dndbeyond_account', label: 'Player', align: 'left', sortable: true},
+				{name: 'player', field: 'player_name', label: 'Player', align: 'left', sortable: true},
 				{name: 'class', field: 'class_description', label: 'Class', align: 'left', sortable: true},
 				{name: 'race', field: 'race', label: 'Race', align: 'left', sortable: true},
 				{name: 'level', field: 'level', label: 'Level', align: 'left', sortable: true},
