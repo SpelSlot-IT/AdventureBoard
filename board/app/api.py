@@ -136,10 +136,13 @@ class AdventureSchema(ma.SQLAlchemyAutoSchema):
     # allow the same schema to accept requested_players during creation
     requested_players = ma.List(ma.Integer(), load_only=True, allow_none=True)
 
+    # allow creator to be set during creation
+    creator = ma.Nested(UserSchema, dump_only=True)
+
     class Meta:
         model = Adventure
         include_fk = True
-        load_instance = False  # keep loading as dict for explicit DB handling
+        load_instance = True
         sqla_session = db.session
         exclude = ("signups",)
 

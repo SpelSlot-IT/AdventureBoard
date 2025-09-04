@@ -68,7 +68,7 @@
 							<div class="row q-gutter-sm q-mx-lg">
 							<q-btn v-for="n in 3" :key="n" icon="person_add" :label="`${n}`" color="primary" :outline="mySignups[a.id] === n" @click="signup(a, n)"/>
 							</div>
-							<q-btn class="q-my-lg q-mx-auto" label="More info" icon="info" @click="focussed = a" color="primary" />
+							<q-btn class="q-my-lg q-mx-auto" label="More details" icon="info" @click="focussed = a" color="primary" />
 						</div>
 					</q-card-section>
 				</q-card>
@@ -103,6 +103,9 @@
 					<q-separator />
 					<q-chip v-for="t in focussed.tags?.split(',')" :key="t" :label="t" color="accent" text-color="white" :ripple="false" />
 					<q-markup-table flat class="q-mb-md">
+						<tr>
+							<td>DM</td><td>{{focussed.creator.display_name}}</td>
+						</tr>
 						<tr>
 							<td>Duration</td><td>{{describeDuration(focussed)}}</td>
 						</tr>
