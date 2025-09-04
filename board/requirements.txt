@@ -23,5 +23,10 @@ Flask-APScheduler>=1.13.0
 # Deployment
 gunicorn>=20.1.0
 
+# Notification
+flask-mail>=0.10.0
+
 # Utilities
 requests>=2.31.0
+
+

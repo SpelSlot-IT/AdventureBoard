@@ -7,11 +7,10 @@ from flask_smorest import Api
 from flask_talisman import Talisman
 import logging
 
-from .provider import db, ma, ap_scheduler, login_manager, google_oauth
+from .provider import db, ma, ap_scheduler, login_manager, google_oauth, mail
 from .models import *
 from .util import *
 from .api import *
-from .email import init_email_app
 
 def create_app(config_file=None):
     # --- Launch app --- 
@@ -91,7 +90,17 @@ def create_app(config_file=None):
 
 
     # --- Email setup ---
-    init_email_app(app)
+    # Map JSON "EMAIL" section to Flask-Mail config
+    if config.get("EMAIL", {}).get("active", False):
+        email_cfg = config["EMAIL"]
+
+        app.config["MAIL_SERVER"] = email_cfg.get("smtp_address", "smtp.gmail.com")
+        app.config["MAIL_PORT"] = email_cfg.get("smtp_port", 587)
+        app.config["MAIL_USERNAME"] = email_cfg.get("address")
+        app.config["MAIL_PASSWORD"] = email_cfg.get("password")
+        app.config["MAIL_USE_TLS"] = email_cfg.get("tls", True)
+        app.config["MAIL_USE_SSL"] = email_cfg.get("ssl", False)
+        mail.init_app(app)
 
 
     # --- Cronjobs ---   

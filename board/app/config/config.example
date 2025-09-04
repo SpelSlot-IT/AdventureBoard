@@ -16,10 +16,12 @@
   },
   "EMAIL": {
     "active": false,
-    "address": "your_email@gmail.com",
+    "address": "your_email@gmail",
     "password": "your_app_password",
     "smtp_address": "smtp.gmail.com",
-    "smtp_port": 465
+    "smtp_port": 587,
+    "tls": true,
+    "ssl": false
   },
   "DB": {
     "host": "localhost",

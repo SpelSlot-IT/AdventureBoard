@@ -305,7 +305,7 @@ class CallbackResource(MethodView):
             picture = userinfo_response.json()["picture"]
             users_name = userinfo_response.json()["given_name"]
         else:
-            return "User email not available or not verified by Google.", 400
+            abort(400, message="User email not available or not verified by Google.")
 
         # See if Google’s user_id is already in our table
         stmt = db.select(User).where(User.google_id == unique_id)
