@@ -681,7 +681,7 @@ class AssignmentResource(MethodView):
         try:
             adventure_id = request.args.get('adventure_id', type=int)
             if not adventure_id:
-                return jsonify({'error': 'Adventure ID is required'}), 400
+                abort(400, message={'error': 'Adventure ID is required'})
             stmt = db.select(Assignment).join(User).where(
                 Assignment.adventure_id == adventure_id
             )
