@@ -261,6 +261,8 @@ class CallbackResource(MethodView):
 
         # Get authorization code Google sent back to you
         code = request.args.get("code")
+        if not code:
+            return redirect(url_for("api.login"))
         client, google_provider_cfg = get_google()
         state = request.args.get("state", "/")  # this is the original URL the login came from
 
@@ -281,6 +283,8 @@ class CallbackResource(MethodView):
             data=body,
             auth=(current_app.config["GOOGLE"]["client_id"], current_app.config["GOOGLE"]["client_secret"]),
         )
+        if not token_response.ok:
+            return redirect(url_for("api.login"))
 
         # Parse the tokens!
         client.parse_request_body_response(json.dumps(token_response.json()))
