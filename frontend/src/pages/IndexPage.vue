@@ -34,11 +34,11 @@
 								<Container class="q-pa-md rounded-borders" @drop="dr => onDrop(dr, a.id)" group-name="assignedPlayers" :get-child-payload="n => ({from_adventure: a.id, user_id: a.assignments[n].user.id})">
 									<template v-if="a.assignments.length >0">
 										<Draggable v-for="p in a.assignments" :key="p.user.id">
-										<q-item class="items-center">
+										<q-item class="items-center round-borders character">
 											<q-avatar size="sm" class="q-mr-sm">
 												<img :src="p.user.profile_pic" />
 											</q-avatar>
-											<div class="q-mr-sm">
+											<div class="q-mr-sm ">
 												{{ p.user.display_name }} ({{ p.user.karma }}) 
 											</div>
 											<q-btn size="sm" :icon="p.appeared ? 'check' : 'close'" round :color="p.appeared ? 'positive' : 'negative'" class="q-mr-sm flat" @click="togglePresence(a.id, p.user.id, !p.appeared)" />
@@ -163,6 +163,10 @@
 	.adminDropTarget {
 		border-radius: 4px;
 		background-color: $secondary;
+	}
+	.character {
+		border: 1px solid;
+		border-radius: 4px;
 	}
 	.waitinglist {
 		background-color: $dark-page;
