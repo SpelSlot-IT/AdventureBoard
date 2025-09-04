@@ -206,8 +206,7 @@ def assign_players_to_adventures():
                 ~User.id.in_(assigned_ids_subq)   # exclude already assigned player
             )
             .options(
-                joinedload(User.signups).joinedload(Signup.adventure),
-                joinedload(User.signups)
+                db.contains_eager(User.signups).contains_eager(Signup.adventure)
             )
             .order_by(User.karma.desc())
             .distinct()
@@ -216,13 +215,13 @@ def assign_players_to_adventures():
         .scalars()
         .all()
     )
-    current_app.logger.info(f"Players signed up for the week {start_of_week} to {end_of_week}:   #{len(players_signedup_not_assigned)}: {[user.display_name for user in players_signedup_not_assigned]} ")
+    current_app.logger.info(f"Players signed up for the week {start_of_week} to {end_of_week}:   #{len(players_signedup_not_assigned)}: {[dict({user.display_name: user.signups}) for user in players_signedup_not_assigned]} ")
    
     
     # -- First round of assigning players --
     # Assign all players that already played last week.
     round_ = []
-    for user in players_signedup_not_assigned:
+    for user in list(players_signedup_not_assigned):
         # For every signup per player check if the player was already assigned for the predecessor of this adventure
         for signup in user.signups:
             pre = signup.adventure.predecessor
@@ -231,12 +230,12 @@ def assign_players_to_adventures():
                 if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
                     round_.append(user.display_name)
                     break
-    current_app.logger.info(f"- Players assigned in round 1: #{len(round_)}: {round_}")
+    current_app.logger.info(f"- Players assigned in round 1: #{len(round_)}: {round_} => {dict(taken_places)}")
 
     # -- Second round of assigning players --
     # Assign all story players sorted by karma.
     round_ = []
-    for user in players_signedup_not_assigned:
+    for user in list(players_signedup_not_assigned):
         # For every player check if that player is story player, if not continue
         if not user.story_player:
             continue
@@ -245,19 +244,19 @@ def assign_players_to_adventures():
             if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
                 round_.append(user.display_name)
                 break
-    current_app.logger.info(f"- Players assigned in round 2: #{len(round_)}: {round_}")
+    current_app.logger.info(f"- Players assigned in round 2: #{len(round_)}: {round_} => {dict(taken_places)}")
 
     # -- Third round of assigning players --
     # Assign all players ranked by their karma to the first available adventure in there signups. 
     # (That means that a player with a higher karma will still get an adventure if it was their 3. priority over a player with less karma but the 1. priority)
     round_ = []
-    for user in players_signedup_not_assigned:
+    for user in list(players_signedup_not_assigned):
         for signup in user.signups:
             adventure = signup.adventure
             if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
                 round_.append(user.display_name)
                 break
-    current_app.logger.info(f"- Players assigned in round 3: #{len(round_)}: {round_}")
+    current_app.logger.info(f"- Players assigned in round 3: #{len(round_)}: {round_} => {dict(taken_places)}")
 
     adventures_this_week = (
         db.session.execute(
@@ -272,24 +271,24 @@ def assign_players_to_adventures():
     # -- Fourth round of assigning players --
     # Assign all players ranked by their karma to the first available adventure independent of any signups. 
     round_ = []
-    for user in players_signedup_not_assigned:
+    for user in list(players_signedup_not_assigned):
         for adventure in adventures_this_week:
             # Check if player still fits into the adventure
             if taken_places[adventure.id] < adventure.max_players:
                 if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
                     round_.append(user.display_name)
                     break
-    current_app.logger.info(f"- Players assigned in round 4: #{len(round_)}: {round_}")
+    current_app.logger.info(f"- Players assigned in round 4: #{len(round_)}: {round_} => {dict(taken_places)}")
 
 
     # -- Fifth round of assigning players --
     # Assign all players not assigned yet to the waiting list.
     round_ = []
     waiting_list = make_waiting_list()
-    for user in players_signedup_not_assigned:
+    for user in list(players_signedup_not_assigned):
         if not try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, waiting_list, user, assignment_map, top_three=True):
             current_app.logger.error(f"Failed to assign player {user.display_name} to waiting list!")
-    current_app.logger.info(f"- Players assigned in round 5: #{len(round_)}: {round_}")
+    current_app.logger.info(f"- Players assigned in round 5: #{len(round_)}: {round_} => {dict(taken_places)}")
 
     current_app.logger.info(f"Assigned players to adventures: {dict(assignment_map)}")
     db.session.commit()
