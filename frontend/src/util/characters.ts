@@ -47,12 +47,12 @@ async function fetchAndJoin(): Promise<{[id: number]: Character}> {
 	const users = await axios.get('/api/users');
 	const usermap = {} as {[username: string]: string};
 	for(const u of users.data) {
-		usermap[u.dnd_beyond_name] = u.display_name;
+		usermap[u.dnd_beyond_name?.toLowerCase()] = u.display_name;
 	}
 	const resp = await req1;
 	Object.keys(resp.data).forEach(function(key) {
 		const ch = resp.data[key];
-		resp.data[key].player_name = usermap[ch.dndbeyond_account] || ch.dndbeyond_account;
+		resp.data[key].player_name = usermap[ch.dndbeyond_account?.toLowerCase()] || ch.dndbeyond_account;
 	});
 	return resp.data;
 }
