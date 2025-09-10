@@ -140,8 +140,8 @@
                 </q-item>
               </q-item>
             </q-list>
-            <div class="row justify-end">
-              <div class="row q-gutter-sm q-mx-lg items-center">
+            <div class="container">
+              <div class="row justify-between">
                 <q-btn
                   v-for="n in 3"
                   :key="n"
@@ -152,13 +152,15 @@
                   @click="signup(a, n)"
                 />
               </div>
-              <q-btn
-                class="q-my-lg q-mx-auto"
-                label="More details"
-                icon="info"
-                @click="focussed = a"
-                color="primary"
-              />
+			  <div class="row q-my-lg">
+					<!-- <div class="col-6"></div> -->
+				  <q-btn
+					label="More details"
+					icon="info"
+					@click="focussed = a"
+					color="primary"
+				  />
+			  </div>
             </div>
           </q-card-section>
         </q-card>
