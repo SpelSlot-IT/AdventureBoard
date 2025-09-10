@@ -84,8 +84,8 @@ module.exports = configure(function (ctx) {
       port: 8080,
       proxy: {
         '/api/': {
-          target: 'https://localhost:5000',
-          secure: false,
+          target: 'https://signup.spelslot.nl',
+          // secure: false,
           changeOrigin: true,
         },
       },
