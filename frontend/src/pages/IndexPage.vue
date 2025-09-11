@@ -152,15 +152,15 @@
                   @click="signup(a, n)"
                 />
               </div>
-			  <div class="row q-my-lg">
-					<!-- <div class="col-6"></div> -->
-				  <q-btn
-					label="More details"
-					icon="info"
-					@click="focussed = a"
-					color="primary"
-				  />
-			  </div>
+              <div class="row q-my-lg">
+                <!-- <div class="col-6"></div> -->
+                <q-btn
+                  label="More details"
+                  icon="info"
+                  @click="focussed = a"
+                  color="primary"
+                />
+              </div>
             </div>
           </q-card-section>
         </q-card>
@@ -432,7 +432,17 @@ export default defineComponent({
         this.loading = false;
       }
     },
-    async signup(e: { id: string }, prio: number) {
+    async signup(e: { date: string; id: string }, prio: number) {
+      const dateIsInPast = new Date().getTime() > new Date(e.date).getTime();
+      if (dateIsInPast) {
+        this.$q.notify({
+          message:
+            'You cannot sign up for sessions that have already happened.',
+          type: 'negative',
+        });
+        return;
+      }
+
       try {
         this.saving = true;
         await this.$api.post('/api/signups', {
