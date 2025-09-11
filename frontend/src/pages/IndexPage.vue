@@ -141,7 +141,7 @@
               </q-item>
             </q-list>
             <div class="container">
-              <div class="row justify-between">
+              <div class="row justify-end q-gutter-sm">
                 <q-btn
                   v-for="n in 3"
                   :key="n"
@@ -152,8 +152,7 @@
                   @click="signup(a, n)"
                 />
               </div>
-              <div class="row q-my-lg">
-                <!-- <div class="col-6"></div> -->
+              <div class="row justify-end q-my-md">
                 <q-btn
                   label="More details"
                   icon="info"
