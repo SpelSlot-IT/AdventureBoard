@@ -1,21 +1,21 @@
 <template>
   <q-page>
-    <div class="row items-center justify-evenly q-my-md">
+    <div class="row items-center justify-center q-my-md q-mx-lg">
       <q-btn
         icon="chevron_left"
-        label="Earlier"
+        aria-label="Earlier"
         color="primary"
-        rounded
         @click="switchWeek(-1)"
-      />
-      <div class="text-h6">Wednesday {{ wednesdate }}</div>
+      ><span class="gt-sm">Earlier</span>
+    </q-btn>
+      <div class="text-h6 col-6 text-center">Wednesday {{ wednesdate }}</div>
       <q-btn
         icon-right="chevron_right"
-        label="Later"
+        aria-label="Later"
         color="primary"
-        rounded
         @click="switchWeek(1)"
-      />
+      ><span class="gt-sm">Later</span>
+    </q-btn>
     </div>
     <q-spinner size="xl" v-if="loading" />
     <q-card v-else-if="adventures.length == 0" class="q-mx-lg">
@@ -25,7 +25,7 @@
     </q-card>
     <div v-else class="row justify-evenly q-col-gutter-lg">
       <div
-        class="col-xs-12 col-sm-6 col-lg-3"
+        class="col-xs-12 col-sm-6 col-md-4 col-lg-3"
         v-for="a in adventures"
         :key="a.id"
       >
@@ -144,6 +144,8 @@
               <div class="row justify-end q-gutter-sm">
                 <q-btn
                   v-for="n in 3"
+                  class="col"
+                  style="max-width: 8rem;"
                   :key="n"
                   icon="person_add"
                   :label="`${n}`"
@@ -403,7 +405,7 @@ export default defineComponent({
       loading: false,
       saving: false,
       editAdventure: null,
-      mySignups: {} as { [adventure_id: number]: 1 | 2 | 3 },
+      mySignups: {} as { [adventure_id: number]: 1 | 2 | 3 }, 
     };
   },
   methods: {
