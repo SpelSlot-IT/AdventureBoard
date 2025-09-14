@@ -129,19 +129,21 @@
               </Container>
             </q-list>
             <q-list v-else>
-              <q-item v-for="p in a.assignments" :key="p.user.id">
-                <q-item class="items-center">
-                  <q-avatar size="sm" class="q-mr-sm">
-                    <img :src="p.user.profile_pic" />
-                  </q-avatar>
-                  <div>
-                    {{ p.user.display_name }}
-                  </div>
+              <Container class="q-pa-md rounded-borders grid-container">
+                <q-item v-for="p in a.assignments" :key="p.user.id">
+                  <q-item class="items-center">
+                    <q-avatar size="sm" class="q-mr-sm">
+                      <img :src="p.user.profile_pic" />
+                    </q-avatar>
+                    <div>
+                      {{ p.user.display_name }}
+                    </div>
+                  </q-item>
                 </q-item>
-              </q-item>
+              </Container>
             </q-list>
             <div class="container">
-              <div class="row justify-end q-gutter-sm">
+              <div class="row justify-center q-gutter-sm">
                 <q-btn
                   v-for="n in 3"
                   class="col"
@@ -154,7 +156,7 @@
                   @click="signup(a, n)"
                 />
               </div>
-              <div class="row justify-end q-my-md">
+              <div class="row justify-center q-my-md">
                 <q-btn
                   label="More details"
                   icon="info"
