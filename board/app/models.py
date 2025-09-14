@@ -137,7 +137,7 @@ class Adventure(db.Model):
 
             # Give players their own room
             # The following if should always be true
-            data["requested_room"] = room
+            room = data["requested_room"]
             if room is not None:
                 user_id = data["user_id"]
                 stmt = db.select(User.personal_room).where(User.id == user_id)

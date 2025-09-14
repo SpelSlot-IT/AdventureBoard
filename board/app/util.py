@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, date
 from flask import current_app
 from collections import defaultdict
 from sqlalchemy.orm import joinedload
+import calendar
 
 from .models import *
 from .email import notify_user, notifications_enabled
@@ -41,6 +42,21 @@ def get_upcoming_week():
         start_of_next_week = start_of_current_week + timedelta(weeks=1)
         end_of_next_week = end_of_current_week + timedelta(weeks=1)
         return start_of_next_week, end_of_next_week
+    
+def get_this_month():
+    """
+    Returns the start (first day) and end (last day) of the current month.
+    """
+    today = date.today()
+
+    # First day of this month
+    start_of_month = today.replace(day=1)
+
+    # Last day of this month
+    last_day = calendar.monthrange(today.year, today.month)[1]
+    end_of_month = today.replace(day=last_day)
+
+    return start_of_month, end_of_month
     
 def check_release(adventures):
     return (len(adventures) > 0 and adventures[-1].release_assignments)
@@ -182,6 +198,7 @@ def assign_players_to_adventures():
     This means that a player with more karma will always be preferred also if the adventure was a lower priority of his.
     """
     start_of_week, end_of_week = get_upcoming_week()
+    start_of_month, end_of_month = get_this_month()
     # create a placeholder that will track how many places are already taken per adventure
     taken_places = defaultdict(int)
     assignment_map = defaultdict(list) # trace assignments in moa for human readability.
@@ -192,6 +209,19 @@ def assign_players_to_adventures():
         .join(User.assignments)
         .join(Assignment.adventure)
         .filter(Adventure.date >= start_of_week, Adventure.date <= end_of_week)
+    )
+
+    # Subquery: get number of signups per user this month
+    monthly_signup_count = (
+        db.select(func.count(Signup.id))
+        .join(Signup.adventure)
+        .filter(
+            Signup.user_id == User.id,  # correlate to outer User
+            Adventure.date >= start_of_month,
+            Adventure.date <= end_of_month,
+        )
+        .correlate(User)
+        .scalar_subquery()
     )
 
     # Main query: players signed up this week but NOT in assigned_ids_subq
@@ -208,7 +238,11 @@ def assign_players_to_adventures():
             .options(
                 db.contains_eager(User.signups).contains_eager(Signup.adventure)
             )
-            .order_by(User.karma.desc())
+            .order_by(
+                func.random(),                 # 1. Random
+                monthly_signup_count.desc(),   # 2. This month's signups number
+                User.karma.desc(),             # 3. Karma
+            )
             .distinct()
         )
         .unique()   # ensures deduplication when eager-loading collections
