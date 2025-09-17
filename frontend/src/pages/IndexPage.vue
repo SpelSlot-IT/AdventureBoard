@@ -504,7 +504,7 @@ export default defineComponent({
         })
         .onOk(async () => {
           await this.$api.delete('/api/adventures/' ,{
-            adventure_id: adventure_id,
+             data: {adventure_id: adventure_id,},
           });
           this.$q.notify({
             message: "And you're off!",
