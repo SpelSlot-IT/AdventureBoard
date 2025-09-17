@@ -310,9 +310,9 @@ def assign_players_to_adventures():
                 db.contains_eager(User.signups).contains_eager(Signup.adventure)
             )
             .order_by(
-                func.random(),                 # 1. Random
-                monthly_signup_count,          # 2. This month's signups number
-                User.karma,                    # 3. Karma
+                User.karma.desc(),              # 3. Karma
+                monthly_signup_count.desc(),    # 2. This month's signups number
+                func.random(),                  # 1. Random                
             )
         )
         .unique()   # ensures deduplication when eager-loading collections
