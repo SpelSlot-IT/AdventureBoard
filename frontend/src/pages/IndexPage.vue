@@ -70,21 +70,23 @@
                 :max="3"
                 readonly
                 size="2em"
-                icon="img:spiked-dragon-head.svg"
+                :icon="$q.dark.isActive ? 'img:/light/dragon-head.svg' : 'img:/dark/dragon-head.svg'"
               />
               <q-rating
                 v-model="a.rank_exploration"
                 :max="3"
                 readonly
                 size="2em"
-                icon="img:dungeon-gate.svg"
+                :icon="$q.dark.isActive ? 'img:/light/dungeon-gate.svg' : 'img:/dark/dungeon-gate.svg'"
+
               />
               <q-rating
                 v-model="a.rank_roleplaying"
                 :max="3"
                 readonly
                 size="2em"
-                icon="img:drama-masks.svg"
+                :icon="$q.dark.isActive ? 'img:/light/drama-masks.svg' : 'img:/dark/drama-masks.svg'"
+
               />
             </div>
             <q-list v-if="me?.privilege_level >= 2" class="adminDropTarget">
