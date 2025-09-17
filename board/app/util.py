@@ -169,6 +169,7 @@ def assign_rooms_to_adventures():
                 .filter(
                     Adventure.date >= start_of_week,
                     Adventure.date <= end_of_week,
+                    ~Adventure.id ==[WAITING_LIST_ID],
                 )
                 .order_by(
                     func.random(), # Shuffle
