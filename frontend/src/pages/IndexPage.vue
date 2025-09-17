@@ -25,7 +25,7 @@
     </q-card>
     <div v-else class="row justify-evenly q-col-gutter-lg">
       <div
-        class="col-xs-12 col-sm-6 col-md-4 col-lg-3"
+        :class="(isInAdventure(a, me?.id) ? 'order-first' : '') + ' col-xs-12 col-sm-6 col-md-4 col-lg-3'"
         v-for="a in adventures"
         :key="a.id"
       >
@@ -529,7 +529,16 @@ export default defineComponent({
           });
         });
     },
-
+    isInAdventure(a: any, id: any) {
+      if (id === undefined) return false;
+      for (const p of a.assignments) {
+        if (p.user.id === id) {
+          console.log("you're in session: ", a.title);
+          return true
+        };
+      } 
+      return false;
+    },
     async togglePresence(adventure_id: number, assignment: any) {
       assignment.appeared = !assignment.appeared;
       await this.$api.post('/api/player-assignments', {
