@@ -467,7 +467,7 @@ export default defineComponent({
       }
     },
     async signup(e: { date: string; id: string }, prio: number) {
-      const dateIsInPast = new Date().getTime() >= new Date(e.date).getTime();
+      const dateIsInPast = new Date().getUTCDate() >= new Date(e.date).getUTCDate();
       if (dateIsInPast) {
         this.$q.notify({
           message:
