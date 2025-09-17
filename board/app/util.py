@@ -257,17 +257,18 @@ def assign_players_to_adventures():
 
     # Query old assignments per adventure in the date window to check for taken places
     already_taken = (
-        db.select(
-            Assignment.adventure_id,
-            func.count(Assignment.user_id)
-        )
-        .join(Signup.adventure)
-        .filter(
-            Adventure.date >= start_of_week,
-            Adventure.date <= end_of_week,
-        )
-        .group_by(Assignment.adventure_id)
-        .all()
+        db.session.execute(
+            db.select(
+                Assignment.adventure_id,
+                func.count(Assignment.user_id)
+            )
+            .join(Signup.adventure)
+            .filter(
+                Adventure.date >= start_of_week,
+                Adventure.date <= end_of_week,
+            )
+            .group_by(Assignment.adventure_id)
+        ).all()
     )
     for adventure_id, count in already_taken:
         taken_places[adventure_id] = count
