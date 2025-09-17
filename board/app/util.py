@@ -310,8 +310,8 @@ def assign_players_to_adventures():
             )
             .order_by(
                 func.random(),                 # 1. Random
-                monthly_signup_count.desc(),   # 2. This month's signups number
-                User.karma.desc(),             # 3. Karma
+                monthly_signup_count,          # 2. This month's signups number
+                User.karma,                    # 3. Karma
             )
             .distinct()
         )
@@ -319,7 +319,7 @@ def assign_players_to_adventures():
         .scalars()
         .all()
     )
-    current_app.logger.warning(f"Players signed up for the week {start_of_week} to {end_of_week}:   #{len(players_signedup_not_assigned)}: {[dict({user.display_name: user.signups}) for user in players_signedup_not_assigned]} ")
+    current_app.logger.warning(f"Players signed up for the week {start_of_week} to {end_of_week}:   #{len(players_signedup_not_assigned)}: {[dict({user: user.signups}) for user in players_signedup_not_assigned]} ")
    
     
     # -- First round of assigning players --

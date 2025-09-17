@@ -35,7 +35,7 @@ class User(UserMixin, db.Model):
     assignments         = db.relationship('Assignment', back_populates='user')
 
     def __repr__(self):
-        return f"<User(id={self.id}, username='{self.name}', display_name='{self.display_name}', privilege_level={self.privilege_level})>"
+        return f"<User(display_name='{self.display_name}', karma={self.karma}, privilege_level={self.privilege_level})>"
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
