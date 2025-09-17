@@ -112,6 +112,7 @@ def create_app(config_file=None):
         with app.app_context():
             reassign_karma()
             assign_players_to_adventures()
+            assign_rooms_to_adventures()
 
     @ap_scheduler.task('cron', id='release_assignment', day_of_week=r_d, hour=r_h)
     def cron_release_assignments():
