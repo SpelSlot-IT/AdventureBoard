@@ -732,6 +732,7 @@ class AssignmentResource(MethodView):
         elif action == "reset":
             reset_release()
         elif action == "assign":
+            assign_rooms_to_adventures()
             assign_players_to_adventures()
         else:
             abort(400, message=f"Invalid action: {action}")

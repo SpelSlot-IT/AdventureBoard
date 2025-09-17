@@ -135,19 +135,6 @@ class Adventure(db.Model):
             data = dict(kwargs)
             data["date"] = base_date + timedelta(days=7 * i)
 
-            # Give players their own room
-            # The following if should always be true
-            room = data["requested_room"]
-            if room is not None:
-                user_id = data["user_id"]
-                stmt = db.select(User.personal_room).where(User.id == user_id)
-                room = db.session.execute(stmt).scalar_one_or_none()
-                
-                if room is not None:
-                    current_app.logger.info(f"Assigned personal room for user with id {user_id}: {room}")
-                else:
-                    current_app.logger.debug(f"No personal room for user with id {user_id}")
-
             adventure = cls(**data)
             if predecessor:
                 adventure.predecessor = predecessor  # link to previous

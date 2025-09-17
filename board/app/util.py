@@ -82,7 +82,7 @@ def release_assignments():
         # Commit the update before notifications
         db.session.commit()
         current_app.logger.info(
-            f"Released assignments for adventures between {start_of_week} and {end_of_week}: #{len(adventures)}: {[adventure.title for adventure in adventures]}"
+            f"Releasing assignments for adventures between {start_of_week} and {end_of_week}: #{len(adventures)}: {[adventure.title for adventure in adventures]}"
         )
         if notifications_enabled(current_app.config.get("EMAIL")):
 
@@ -157,6 +157,56 @@ def make_waiting_list():
     db.session.add(waiting_list)
     db.session.flush()  # ensure waiting.id is populated
     return waiting_list
+
+def assign_rooms_to_adventures():
+    start_of_week, end_of_week = get_upcoming_week()
+    possible_rooms = current_app.config.get("ROOMS", ["A", "B", "C", "D", "E", "Comp", "Hall"])
+    try:
+        this_weeks_adventures = (
+            db.session.execute(
+                db.select(Adventure)
+                .filter(
+                    Adventure.date >= start_of_week,
+                    Adventure.date <= end_of_week,
+                )
+                .order_by(
+                    func.random(), # Shuffle
+                )
+            ).scalars().all()
+        )
+        assigned_adventures = []
+        # First, handle personal rooms
+        for adventure in this_weeks_adventures:
+            if adventure.creator.personal_room is not None:
+                adventure.requested_room = adventure.creator.personal_room
+                assigned_adventures.append(adventure)
+                try:
+                    possible_rooms.remove(adventure.requested_room)
+                except ValueError:
+                    pass  # Room wasn’t in pool, ignore
+
+        # Assign remaining rooms to adventures without personal rooms
+        unassigned_adventures = [
+            adv for adv in this_weeks_adventures if adv not in assigned_adventures
+        ]
+        for adventure in unassigned_adventures:
+            if possible_rooms:
+                adventure.requested_room = possible_rooms.pop()
+            assigned_adventures.append(adventure)
+
+        # Flush changes so they're tracked before logging
+        db.session.flush()
+
+        current_app.logger.info(
+            f"Assigned rooms to adventures between {start_of_week} and {end_of_week}: "
+            f"#{len(assigned_adventures)}: "
+            f"{[{adv.title, adv.requested_room} for adv in assigned_adventures]}"
+        )
+
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        raise e
     
 def try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True):
     """
