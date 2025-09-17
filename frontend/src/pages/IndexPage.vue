@@ -155,7 +155,7 @@
                       {{ p.user.display_name }}
                     </div>
                     <q-btn
-                      v-if="p.user.id == me.id"
+                      v-if="p.user.id == me?.id"
                       size="sm"
                       round
                       class="q-mr-sm flat"
