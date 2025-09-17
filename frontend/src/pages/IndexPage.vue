@@ -69,39 +69,48 @@
               ><i v-else>No description</i>
             </div>
             <div class="row justify-between">
-              <q-rating
-                v-model="a.rank_combat"
-                :max="3"
-                readonly
-                size="2em"
-                :icon="
-                  $q.dark.isActive
-                    ? 'img:/light/dragon-head.svg'
-                    : 'img:/dark/dragon-head.svg'
-                "
-              />
-              <q-rating
-                v-model="a.rank_exploration"
-                :max="3"
-                readonly
-                size="2em"
-                :icon="
-                  $q.dark.isActive
-                    ? 'img:/light/dungeon-gate.svg'
-                    : 'img:/dark/dungeon-gate.svg'
-                "
-              />
-              <q-rating
-                v-model="a.rank_roleplaying"
-                :max="3"
-                readonly
-                size="2em"
-                :icon="
-                  $q.dark.isActive
-                    ? 'img:/light/drama-masks.svg'
-                    : 'img:/dark/drama-masks.svg'
-                "
-              />
+              <div>
+                <q-rating
+                  v-model="a.rank_combat"
+                  :max="3"
+                  readonly
+                  size="2em"
+                  :icon="
+                    $q.dark.isActive
+                      ? 'img:/light/dragon-head.svg'
+                      : 'img:/dark/dragon-head.svg'
+                  "
+                />
+                <q-tooltip transition-show="scale" transition-hide="scale">Combat</q-tooltip>
+              </div>
+              <div>
+                <q-rating
+                  v-model="a.rank_exploration"
+                  :max="3"
+                  readonly
+                  size="2em"
+                  :icon="
+                    $q.dark.isActive
+                      ? 'img:/light/dungeon-gate.svg'
+                      : 'img:/dark/dungeon-gate.svg'
+                  "
+                />
+                <q-tooltip transition-show="scale" transition-hide="scale">Exploration</q-tooltip>
+              </div>
+              <div>
+                <q-rating
+                  v-model="a.rank_roleplaying"
+                  :max="3"
+                  readonly
+                  size="2em"
+                  :icon="
+                    $q.dark.isActive
+                      ? 'img:/light/drama-masks.svg'
+                      : 'img:/dark/drama-masks.svg'
+                  "
+                />
+                <q-tooltip transition-show="scale" transition-hide="scale">Roleplaying</q-tooltip>
+              </div>
             </div>
             <q-list v-if="me?.privilege_level >= 2" class="adminDropTarget">
               <Container
