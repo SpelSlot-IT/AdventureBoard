@@ -85,7 +85,7 @@ module.exports = configure(function (ctx) {
       proxy: {
         '/api/': {
           target: 'https://signup.spelslot.nl',
-//           secure: false,
+          //           secure: false,
           changeOrigin: true,
         },
       },

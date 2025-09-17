@@ -6,16 +6,16 @@
         aria-label="Earlier"
         color="primary"
         @click="switchWeek(-1)"
-      ><span class="gt-sm">Earlier</span>
-    </q-btn>
+        ><span class="gt-sm">Earlier</span>
+      </q-btn>
       <div class="text-h6 col-6 text-center">Wednesday {{ wednesdate }}</div>
       <q-btn
         icon-right="chevron_right"
         aria-label="Later"
         color="primary"
         @click="switchWeek(1)"
-      ><span class="gt-sm">Later</span>
-    </q-btn>
+        ><span class="gt-sm">Later</span>
+      </q-btn>
     </div>
     <q-spinner size="xl" v-if="loading" />
     <q-card v-else-if="adventures.length == 0" class="q-mx-lg">
@@ -70,28 +70,42 @@
                 :max="3"
                 readonly
                 size="2em"
-                :icon="$q.dark.isActive ? 'img:/light/dragon-head.svg' : 'img:/dark/dragon-head.svg'"
+                :icon="
+                  $q.dark.isActive
+                    ? 'img:/light/dragon-head.svg'
+                    : 'img:/dark/dragon-head.svg'
+                "
               />
               <q-rating
                 v-model="a.rank_exploration"
                 :max="3"
                 readonly
                 size="2em"
-                :icon="$q.dark.isActive ? 'img:/light/dungeon-gate.svg' : 'img:/dark/dungeon-gate.svg'"
-
+                :icon="
+                  $q.dark.isActive
+                    ? 'img:/light/dungeon-gate.svg'
+                    : 'img:/dark/dungeon-gate.svg'
+                "
               />
               <q-rating
                 v-model="a.rank_roleplaying"
                 :max="3"
                 readonly
                 size="2em"
-                :icon="$q.dark.isActive ? 'img:/light/drama-masks.svg' : 'img:/dark/drama-masks.svg'"
-
+                :icon="
+                  $q.dark.isActive
+                    ? 'img:/light/drama-masks.svg'
+                    : 'img:/dark/drama-masks.svg'
+                "
               />
             </div>
             <q-list v-if="me?.privilege_level >= 2" class="adminDropTarget">
               <Container
-                :class="['q-pa-md', 'rounded-borders', { 'grid-container': a.assignments.length > 0 }]"
+                :class="[
+                  'q-pa-md',
+                  'rounded-borders',
+                  { 'grid-container': a.assignments.length > 0 },
+                ]"
                 @drop="(dr) => onDrop(dr, a.id)"
                 group-name="assignedPlayers"
                 :get-child-payload="
@@ -156,7 +170,7 @@
                 <q-btn
                   v-for="n in 3"
                   class="col"
-                  style="max-width: 8rem;"
+                  style="max-width: 8rem"
                   :key="n"
                   icon="person_add"
                   :label="`${n}`"
@@ -424,7 +438,7 @@ export default defineComponent({
       loading: false,
       saving: false,
       editAdventure: null,
-      mySignups: {} as { [adventure_id: number]: 1 | 2 | 3 }, 
+      mySignups: {} as { [adventure_id: number]: 1 | 2 | 3 },
     };
   },
   methods: {
@@ -505,8 +519,8 @@ export default defineComponent({
           cancel: true,
         })
         .onOk(async () => {
-          await this.$api.delete('/api/adventures/' ,{
-             data: {adventure_id: adventure_id,},
+          await this.$api.delete('/api/adventures/', {
+            data: { adventure_id: adventure_id },
           });
           this.$q.notify({
             message: "And you're off!",

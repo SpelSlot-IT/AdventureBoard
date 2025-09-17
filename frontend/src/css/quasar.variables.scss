@@ -12,44 +12,75 @@
 // to match your app's branding.
 // Tip: Use the "Theme Builder" on Quasar's documentation website.
 
-
 // ============================
 // Quasar SCSS Variables
 // ============================
 
-$primary   : #68402d;
-$secondary : #b1562c;
-$accent    : #420e0e;
+$primary: #68402d;
+$secondary: #b1562c;
+$accent: #420e0e;
 
-$dark      : #1d1d1d;
-$light     : #E3D0AF;
-$dark-page : #121212;
-$light-page: #EEDBBA;
-$dark-card : #121212;
-$light-card: #EEDBBA;
+$dark: #1d1d1d;
+$light: #e3d0af;
+$dark-page: #121212;
+$light-page: #eedbba;
+$dark-card: #121212;
+$light-card: #eedbba;
 
-$positive  : #21BA45;
-$negative  : #C10015;
-$info      : #70a36f;
-$warning   : #F2C037;
+$positive: #21ba45;
+$negative: #c10015;
+$info: #70a36f;
+$warning: #f2c037;
 
 // ============================
 // Theme Vars Map (for CSS vars)
 // ============================
 
 $theme-vars: (
-  "primary"   : ( light: $primary,     dark: $primary ), // same in both modes
-  "secondary" : ( light: $secondary,   dark: $secondary ),
-  "accent"    : ( light: $accent,      dark: $accent ),
+  'primary': (
+    light: $primary,
+    dark: $primary,
+  ),
+  // same in both modes
+  'secondary':
+    (
+      light: $secondary,
+      dark: $secondary,
+    ),
+  'accent': (
+    light: $accent,
+    dark: $accent,
+  ),
 
-  "text-bg"   : ( light: $light,       dark: $dark ),
-  "page-bg"   : ( light: $light-page,  dark: $dark-page ),
-  "card-bg"   : ( light: $light-card,  dark: $dark-card ),
+  'text-bg': (
+    light: $light,
+    dark: $dark,
+  ),
+  'page-bg': (
+    light: $light-page,
+    dark: $dark-page,
+  ),
+  'card-bg': (
+    light: $light-card,
+    dark: $dark-card,
+  ),
 
-  "positive"  : ( light: $positive,    dark: $positive ),
-  "negative"  : ( light: $negative,    dark: $negative ),
-  "info"      : ( light: $info,        dark: $info ),
-  "warning"   : ( light: $warning,     dark: $warning )
+  'positive': (
+    light: $positive,
+    dark: $positive,
+  ),
+  'negative': (
+    light: $negative,
+    dark: $negative,
+  ),
+  'info': (
+    light: $info,
+    dark: $info,
+  ),
+  'warning': (
+    light: $warning,
+    dark: $warning,
+  ),
 );
 
 // ============================
