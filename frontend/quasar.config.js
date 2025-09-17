@@ -85,7 +85,7 @@ module.exports = configure(function (ctx) {
       proxy: {
         '/api/': {
           target: 'https://signup.spelslot.nl',
-          // secure: false,
+//           secure: false,
           changeOrigin: true,
         },
       },
@@ -95,7 +95,7 @@ module.exports = configure(function (ctx) {
     // https://v2.quasar.dev/quasar-cli-webpack/quasar-config-js#Property%3A-framework
     framework: {
       config: {
-        dark: true,
+        dark: 'auto',
         notify: {
           position: 'top',
         },
