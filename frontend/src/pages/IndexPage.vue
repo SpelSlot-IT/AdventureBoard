@@ -89,7 +89,7 @@
             </div>
             <q-list v-if="me?.privilege_level >= 2" class="adminDropTarget">
               <Container
-                class="q-pa-md rounded-borders grid-container"
+                :class="['q-pa-md', 'rounded-borders', { 'grid-container': a.assignments.length > 0 }]"
                 @drop="(dr) => onDrop(dr, a.id)"
                 group-name="assignedPlayers"
                 :get-child-payload="
