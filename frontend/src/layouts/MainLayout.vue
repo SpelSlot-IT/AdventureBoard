@@ -48,6 +48,12 @@
             </q-menu>
           </q-btn>
           <q-btn v-else label="Login" @click="login" icon="login" />
+          <q-btn
+            class="q-ml-sm"
+            color="primary"
+            @click="toggleDarkMode"
+            :icon="darkModeIcon"
+          />
         </div>
       </q-toolbar>
     </q-header>
@@ -79,6 +85,7 @@
 <script lang="ts">
 import { defineComponent, computed } from 'vue';
 import { isAxiosError } from 'axios';
+import { Dark } from 'quasar';
 
 export default defineComponent({
   name: 'MainLayout',
@@ -103,6 +110,9 @@ export default defineComponent({
   },
 
   methods: {
+    toggleDarkMode() {
+      Dark.set(!Dark.isActive);
+    },
     async fetchMe() {
       this.me = (await this.$api.get('/api/users/me')).data;
     },
@@ -182,7 +192,9 @@ export default defineComponent({
       forceRefresh: computed(() => this.forceRefresh),
     };
   },
-
+  computed: {
+    darkModeIcon: () => (Dark.isActive ? 'wb_sunny' : 'brightness_2'),
+  },
   watch: {
     '$route.fullPath'() {
       this.errors = [];
