@@ -133,21 +133,22 @@ def reset_release():
 
 WAITING_LIST_ID = -999             # in-memory placeholder used by the planner
 WAITING_LIST_NAME = "Waiting List" # unique name used to create the waiting-list adventure
-def make_waiting_list():
+def make_waiting_list() -> Adventure:
     """
-    Ensure a waiting-list Adventure exists in the DB and return its id.
+    Ensure a waiting-list Adventure exists in the DB and return it.
     """
     next_wed = get_next_wednesday()
 
     # Try to find an existing waiting-list adventure
-    row = db.session.execute(
+    existing_waiting_list = db.session.execute(
         db.select(Adventure).where(Adventure.id == WAITING_LIST_ID)
     ).scalars().first()
-    if row:
-        return row.id
-
-    # Create a small waiting-list adventure record and return its id
-    waiting_list = Adventure(
+    if existing_waiting_list:
+        existing_waiting_list.date = next_wed
+        db.session.flush()
+        return existing_waiting_list
+    # Create a waiting-list adventure and return it
+    waiting_list = Adventure.create(
                 id=WAITING_LIST_ID,
                 title=WAITING_LIST_NAME,
                 max_players=128,
@@ -155,7 +156,7 @@ def make_waiting_list():
                 date=next_wed,
             )
     db.session.add(waiting_list)
-    db.session.flush()  # ensure waiting.id is populated
+    db.session.flush()
     return waiting_list
 
 def assign_rooms_to_adventures():
@@ -369,6 +370,7 @@ def assign_players_to_adventures():
     # Assign all players not assigned yet to the waiting list.
     round_ = []
     waiting_list = make_waiting_list()
+    current_app.logger.info(f"Waiting-list adventure: {waiting_list}")
     for user in list(players_signedup_not_assigned):
         if not try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, waiting_list, user, assignment_map, top_three=True):
             current_app.logger.error(f"Failed to assign player {user.display_name} to waiting list!")
