@@ -170,7 +170,7 @@
               <div class="row justify-center q-gutter-sm">
                 <q-btn
                   v-for="n in 3"
-                  class="col"
+                  :class="isDateInPast(a) ? 'hidden' : 'col'"
                   style="max-width: 8rem"
                   :key="n"
                   icon="person_add"
@@ -472,19 +472,12 @@ export default defineComponent({
         this.loading = false;
       }
     },
-    async signup(e: { date: string; id: string }, prio: number) {
+    isDateInPast(a: {date: string}) {
       const currentDay = new Date().toISOString().split('T')[0];
-      const sessionDay = new Date(e.date).toISOString().split('T')[0];
-      const dateIsInPast = new Date(currentDay).getTime() > new Date(sessionDay).getTime();
-      if (dateIsInPast) {
-        this.$q.notify({
-          message:
-            'You cannot sign up for sessions that have already happened.',
-          type: 'negative',
-        });
-        return;
-      }
-
+      const sessionDay = new Date(a.date).toISOString().split('T')[0];
+      return new Date(currentDay).getTime() > new Date(sessionDay).getTime();
+    },
+    async signup(e: { date: string; id: string }, prio: number) {
       try {
         this.saving = true;
         await this.$api.post('/api/signups', {
