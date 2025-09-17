@@ -360,7 +360,7 @@
 
 <style lang="scss" scoped>
 .description {
-  background-color: $dark;
+  background-color: var(--q-text-bg);
   border: 1px solid;
   border-radius: 4px;
   padding: 8px;
@@ -375,7 +375,7 @@
   cursor: grab;
 }
 .waitinglist {
-  background-color: $dark-page;
+  background-color: var(--q-card-bg);
   height: 95%;
 }
 .grid-container {
