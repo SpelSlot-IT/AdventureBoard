@@ -155,6 +155,7 @@
                       {{ p.user.display_name }}
                     </div>
                     <q-btn
+                      v-if="p.user.id == me.id"
                       size="sm"
                       round
                       class="q-mr-sm flat"
@@ -438,11 +439,15 @@ export default defineComponent({
       loading: false,
       saving: false,
       editAdventure: null,
+      loadedSignups: false,
       mySignups: {} as { [adventure_id: number]: 1 | 2 | 3 },
     };
   },
   methods: {
     async fetch(reloadSignups: boolean) {
+      if(!this.loadedSignups) {
+        reloadSignups = true;
+      }
       try {
         this.loading = true;
         const req1 = this.$api.get(
@@ -460,6 +465,7 @@ export default defineComponent({
         }
         const resp = await req1;
         this.adventures = resp.data;
+        this.loadedSignups = true;
       } catch (e) {
         this.$emit('setErrors', this.$extractErrors(e));
       } finally {
