@@ -309,13 +309,11 @@ def assign_players_to_adventures():
             .options(
                 db.contains_eager(User.signups).contains_eager(Signup.adventure)
             )
-            .distinct(User.id)
             .order_by(
                 func.random(),                 # 1. Random
                 monthly_signup_count,          # 2. This month's signups number
                 User.karma,                    # 3. Karma
             )
-
         )
         .unique()   # ensures deduplication when eager-loading collections
         .scalars()
