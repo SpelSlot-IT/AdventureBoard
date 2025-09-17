@@ -160,7 +160,7 @@
                       round
                       class="q-mr-sm flat"
                       label="Cancel Assignment"
-                      @click="cancleAssignment(a.id, p)"
+                      @click="cancelAssignment(a.id, p)"
                     />
                   </q-item>
                 </q-item>
