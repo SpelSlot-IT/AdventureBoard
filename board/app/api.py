@@ -122,6 +122,17 @@ class AssignmentUpdateSchema(ma.Schema):
     adventure_id = ma.Integer(required=True)
     appeared = ma.Boolean(required=True)
 
+
+class AssignmentUpdateSchema(ma.Schema):
+    user_id = ma.Integer(required=True)
+    adventure_id = ma.Integer(required=True)
+    appeared = ma.Boolean(required=True)
+
+class AssignmentDeleteSchema(ma.Schema):
+    user_id = ma.Integer(required=True)
+    adventure_id = ma.Integer(required=True)
+
+
 class AdventureSchema(ma.SQLAlchemyAutoSchema):
     """Auto-schema for Adventure used for both output (dump) and input (load).
 
@@ -571,7 +582,7 @@ class AdventureResource(MethodView):
 
 
     @login_required
-    @blp_adventures.arguments(AdventureSchema(partial=True, exclude=("id","user_id", "predecessor_id")))
+    @blp_adventures.arguments(AdventureSchema(partial=True, exclude=("id","user_id", "predecessor_id"), load_instance = False))
     def patch(self, args, adventure_id):
         """
         Edit an existing adventure. Only creator or admin can edit.
@@ -792,6 +803,32 @@ class AssignmentResource(MethodView):
             abort(404, message="Assignment not found")
 
         assignment.adventure_id = to_adventure_id
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            abort(400, message=str(e))
+
+        return {'message': 'Assignment updated successfully'}, 200
+    
+    @blp_assignments.arguments(AssignmentDeleteSchema)
+    @login_required
+    def delete(self, args):
+        """
+        Deletes a players assignment from one adventure and punishes the player.
+        """
+        user_id = current_user.id
+        assignment = db.select(Assignment).where(Assignment.user_id == user_id, Assignment.adventure_id == args['adventure_id']).scalar_one()
+        # Check permission: admin or creator
+        if not is_admin(current_user) and assignment.user_id != user_id:
+            abort(401, message={'error': 'Unauthorized to delete this adventure'})
+
+
+        # Delete assignments related to this adventure
+        db.session.execute(
+            db.delete(assignment)
+        )
+
         try:
             db.session.commit()
         except Exception as e:

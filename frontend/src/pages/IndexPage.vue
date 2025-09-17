@@ -138,6 +138,13 @@
                     <div>
                       {{ p.user.display_name }}
                     </div>
+                    <q-btn
+                      size="sm"
+                      round
+                      class="q-mr-sm flat"
+                      label="Cancel Assignment"
+                      @click="cancleAssignment(a.id, p)"
+                    />
                   </q-item>
                 </q-item>
               </Container>
@@ -191,6 +198,14 @@
                     <div class="q-mr-sm">
                       {{ p.user.display_name }} ({{ p.user.karma }})
                     </div>
+                    <q-btn
+                      size="sm"
+                      round
+                      color="negative"
+                      class="q-mr-sm flat"
+                      label="Cancel Assignment!"
+                      @click="cancelAssignment(p.id)"
+                    />
                   </q-item>
                 </Draggable>
               </Container>
@@ -479,6 +494,25 @@ export default defineComponent({
     isWaitinglist(a: { id: number }): boolean {
       return a.id == -999;
     },
+    cancelAssignment(adventure_id: number) {
+      this.$q
+        .dialog({
+          title: 'Cancel Assignment',
+          message:
+            'Are you sure you want to give up your place on this adventure? You will not be able to reclaim it and the place will be assigned to someone else. Please note that this option is only for emergency',
+          cancel: true,
+        })
+        .onOk(async () => {
+          await this.$api.delete('/api/adventures/' ,{
+            adventure_id: adventure_id,
+          });
+          this.$q.notify({
+            message: "And you're off!",
+            type: 'positive',
+          });
+        });
+    },
+
     async togglePresence(adventure_id: number, assignment: any) {
       assignment.appeared = !assignment.appeared;
       await this.$api.post('/api/player-assignments', {
