@@ -320,46 +320,51 @@ def assign_players_to_adventures():
         .all()
     )
     current_app.logger.warning(f"Players signed up for the week {start_of_week} to {end_of_week}:   #{len(players_signedup_not_assigned)}: {[dict({user: user.signups}) for user in players_signedup_not_assigned]} ")
-   
+    MAX_PRIORITY = 3
     
     # -- First round of assigning players --
     # Assign all players that already played last week.
     round_ = []
-    for user in list(players_signedup_not_assigned):
-        # For every signup per player check if the player was already assigned for the predecessor of this adventure
-        for signup in user.signups:
-            pre = signup.adventure.predecessor
-            if pre and any(a.user_id == user.id for a in pre.assignments):
-                adventure = signup.adventure
-                if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
-                    round_.append(user.display_name)
-                    break
+    
+    # go through priorities one by one
+    for prio in range(1, MAX_PRIORITY + 1):
+        for user in list(players_signedup_not_assigned):
+            # For the current signup per player check if the player was already assigned for the predecessor of this adventure
+            for signup in [s for s in user.signups if s.priority == prio]:
+                pre = signup.adventure.predecessor
+                if pre and any(a.user_id == user.id for a in pre.assignments):
+                    adventure = signup.adventure
+                    if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
+                        round_.append(user.display_name)
+                        break
     current_app.logger.warning(f"- Players assigned in round 1: #{len(round_)}: {round_} => {dict(taken_places)}")
 
     # -- Second round of assigning players --
     # Assign all story players sorted by karma.
     round_ = []
-    for user in list(players_signedup_not_assigned):
-        # For every player check if that player is story player, if not continue
-        if not user.story_player:
-            continue
-        for signup in user.signups:
-            adventure = signup.adventure
-            if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
-                round_.append(user.display_name)
-                break
+    # go through priorities one by one
+    for prio in range(1, MAX_PRIORITY + 1):
+        for user in list(players_signedup_not_assigned):
+            # For every player check if that player is story player, if not continue
+            if not user.story_player:
+                continue
+            for signup in [s for s in user.signups if s.priority == prio]:
+                adventure = signup.adventure
+                if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
+                    round_.append(user.display_name)
+                    break
     current_app.logger.warning(f"- Players assigned in round 2: #{len(round_)}: {round_} => {dict(taken_places)}")
 
     # -- Third round of assigning players --
     # Assign all players ranked by their karma to the first available adventure in there signups. 
-    # (That means that a player with a higher karma will still get an adventure if it was their 3. priority over a player with less karma but the 1. priority)
     round_ = []
-    for user in list(players_signedup_not_assigned):
-        for signup in user.signups:
-            adventure = signup.adventure
-            if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
-                round_.append(user.display_name)
-                break
+    for prio in range(1, MAX_PRIORITY + 1):
+        for user in list(players_signedup_not_assigned):
+            for signup in [s for s in user.signups if s.priority == prio]:
+                adventure = signup.adventure
+                if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
+                    round_.append(user.display_name)
+                    break
     current_app.logger.warning(f"- Players assigned in round 3: #{len(round_)}: {round_} => {dict(taken_places)}")
 
     adventures_this_week = (
