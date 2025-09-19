@@ -52,6 +52,10 @@ class RedirectSchema(ma.Schema):
 class MessageSchema(ma.Schema):
     message = ma.String(required=True)
 
+class AdminActionSchema(ma.Schema):
+    action = ma.String(required=True)
+    date = ma.Date(allow_none=True)
+
 class JobSchema(ma.Schema):
     id = ma.Str(required=True)
     name = ma.Str(required=True)
@@ -715,7 +719,7 @@ class AssignmentResource(MethodView):
             return abort(500, message={'error': str(e)})
 
     @login_required
-    @blp_assignments.arguments(MessageSchema)
+    @blp_assignments.arguments(AdminActionSchema)
     @blp_assignments.response(200, MessageSchema)
     def put(self, args):
         """
@@ -725,15 +729,18 @@ class AssignmentResource(MethodView):
         if not is_admin(current_user):
             abort(401, message="Unauthorized")
         
-        action = args['message']
+        action = args.get('action')
+        today = args.get('date', None)
+        if today is None:
+            today = date.today()
 
         if action == "release":
-            release_assignments()
+            release_assignments(today)
         elif action == "reset":
-            reset_release()
+            reset_release(today)
         elif action == "assign":
-            assign_rooms_to_adventures()
-            assign_players_to_adventures()
+            assign_rooms_to_adventures(today)
+            assign_players_to_adventures(today)
         else:
             abort(400, message=f"Invalid action: {action}")
 

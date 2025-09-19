@@ -129,14 +129,14 @@ export default defineComponent({
       )}`;
     },
 
-    async adminAction(message: string) {
+    async adminAction(action: string) {
       this.adminActionsActive++;
       try {
-        await this.$api.put('/api/player-assignments', { message: message });
+        await this.$api.put('/api/player-assignments', { action: action });
         this.forceRefresh++;
         this.$q.notify({
           message: `${
-            message.charAt(0).toUpperCase() + message.slice(1)
+            action.charAt(0).toUpperCase() + action.slice(1)
           } triggered.`,
           type: 'positive',
         });
