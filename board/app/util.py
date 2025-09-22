@@ -258,7 +258,7 @@ def assign_players_to_adventures(today=date.today()):
                 Assignment.adventure_id,
                 func.count(Assignment.user_id)
             )
-            .join(Signup.adventure)
+            .join(Assignment.adventure)
             .filter(
                 Adventure.date >= start_of_week,
                 Adventure.date <= end_of_week,
