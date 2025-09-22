@@ -734,9 +734,7 @@ class AssignmentResource(MethodView):
             abort(401, message="Unauthorized")
         
         action = args.get('action')
-        today = args.get('date', None)
-        if today is None:
-            today = date.today()
+        today = args.get('date', date.today())
 
         if action == "release":
             release_assignments(today)
@@ -748,7 +746,7 @@ class AssignmentResource(MethodView):
         else:
             abort(400, message=f"Invalid action: {action}")
 
-        return {'message': f'{action.capitalize()} action executed successfully'}, 200
+        return {'message': f'{action.capitalize()} action executed successfully for {today}'}, 200
     
     @login_required
     @blp_assignments.arguments(AssignmentUpdateSchema)
