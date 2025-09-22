@@ -30,7 +30,7 @@ def get_upcoming_week(today=date.today()):
     - If today is Monday–Wednesday → return this week's Mon–Sun.
     - If today is Thursday–Sunday → return next week's Mon–Sun.
     """
-    start_of_current_week, end_of_current_week = get_this_week()
+    start_of_current_week, end_of_current_week = get_this_week(today)
 
     if today.weekday() <= 2:  # Mon(0), Tue(1), Wed(2)
         return start_of_current_week, end_of_current_week
