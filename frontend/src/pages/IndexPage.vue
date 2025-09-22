@@ -544,6 +544,7 @@ export default defineComponent({
     },
     isInAdventure(a: any, id: any) {
       if (id === undefined) return false;
+      if (!a.assignments) return false;
       for (const p of a.assignments) {
         if (p.user.id === id) {
           console.log("you're in session: ", a.title);
