@@ -147,7 +147,7 @@ export default defineComponent({
     async updateKarma() {
       this.adminActionsActive++;
       try {
-        await this.$api.get('/api/update-karma');
+        await this.$api.post('/api/update-karma');
         this.forceRefresh++;
         this.$q.notify({
           message: 'Karma updated.',

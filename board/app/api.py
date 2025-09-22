@@ -54,12 +54,15 @@ class MessageSchema(ma.Schema):
 
 class AdminActionSchema(ma.Schema):
     action = ma.String(required=True)
+    date = ma.Date(allow_none=True, required=False)
+
+class DateSchema(ma.Schema):
     date = ma.Date(allow_none=True)
 
 class JobSchema(ma.Schema):
     id = ma.Str(required=True)
     name = ma.Str(required=True)
-    next_run_time = ma.DateTime(allow_none=True)
+    next_run_time = ma.DateTime(allow_none=True, required=False)
     trigger = ma.Str(required=True)
 
 class SiteMapLinkSchema(ma.Schema):
@@ -231,14 +234,15 @@ class SchedulerResource(MethodView):
 @blp_utils.route('/update-karma')
 class UpdateKarmaResource(MethodView):
     @login_required
+    @blp_utils.arguments(DateSchema)
     @blp_utils.response(200, MessageSchema)
-    def get(self):
+    def post(self, args):
         """
         Force an update of the karma of all players regarding the normal update rules.
         """
         if not is_admin(current_user):
             abort(401, message={'error': 'Unauthorized'})
-        reassign_karma()
+        reassign_karma(args.get("date", date.today()))
 
         return {'message': 'Karma updated successfully'}
 
@@ -740,7 +744,7 @@ class AssignmentResource(MethodView):
             reset_release(today)
         elif action == "assign":
             assign_rooms_to_adventures(today)
-            assign_players_to_adventures(today)
+            assign_players_to_adventures(today) 
         else:
             abort(400, message=f"Invalid action: {action}")
 
