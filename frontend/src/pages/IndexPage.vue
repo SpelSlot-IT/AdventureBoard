@@ -130,7 +130,7 @@
               >
                 <template v-if="a.assignments.length > 0">
                   <Draggable v-for="p in a.assignments" :key="p.user.id">
-                    <q-item class="items-center round-borders character">
+                    <q-item class="items-center round-borders character" :style="p.user.story_player ? 'border-color: var(--q-warning);' : ''">
                       <q-avatar size="sm" class="q-mr-sm">
                         <img :src="p.user.profile_pic" />
                       </q-avatar>
