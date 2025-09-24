@@ -99,6 +99,8 @@ class SignupSchema(ma.SQLAlchemyAutoSchema):
         sqla_session = db.session
         exclude = ("id", "user_id", "adventure_date")
 
+    user = ma.Nested(UserSchema, dump_only=True)
+
 class AdventureQuerySchema(ma.Schema):
     adventure_id = ma.Integer(allow_none=True)
     week_start = ma.Date(allow_none=True)
@@ -136,7 +138,6 @@ class AssignmentUpdateSchema(ma.Schema):
     appeared = ma.Boolean(required=True)
 
 class AssignmentDeleteSchema(ma.Schema):
-    user_id = ma.Integer(required=True)
     adventure_id = ma.Integer(required=True)
 
 
@@ -151,6 +152,9 @@ class AdventureSchema(ma.SQLAlchemyAutoSchema):
     # assignments -> nested users (dump only)
     assignments = ma.List(ma.Nested(AssignmentSchema), dump_only=True)
 
+    # signups -> nested users (dump only)
+    signups = ma.List(ma.Nested(SignupSchema), dump_only=True)
+
     # allow the same schema to accept requested_players during creation
     requested_players = ma.List(ma.Integer(), load_only=True, allow_none=True)
 
@@ -162,7 +166,6 @@ class AdventureSchema(ma.SQLAlchemyAutoSchema):
         include_fk = True
         load_instance = True
         sqla_session = db.session
-        exclude = ("signups",)
 
     @validates_schema
     def validate_dates(self, data, **kwargs):
@@ -475,7 +478,7 @@ class AdventureIDlessRequest(MethodView):
             display_players = user_is_admin or check_release(adventures) # check for last one cause handling separately is annoying
             exclude = []
             if not user_is_admin:
-                exclude = ["assignments.user.karma"]
+                exclude = ["assignments.user.karma", "signups"]
                 pass
             if not display_players:
                 exclude = exclude + ["assignments"]
@@ -574,7 +577,7 @@ class AdventureResource(MethodView):
             display_players = user_is_admin or check_release(adventures)
             exclude = []
             if not user_is_admin:
-                exclude = ["assignments.user.karma"]
+                exclude = ["assignments.user.karma", "signups"]
                 pass
             if not display_players:
                 exclude = exclude + ["assignments"]
@@ -827,17 +830,26 @@ class AssignmentResource(MethodView):
         """
         Deletes a players assignment from one adventure and punishes the player.
         """
+        PUNISH_KARMA_MISS = 25
         user_id = current_user.id
-        assignment = db.select(Assignment).where(Assignment.user_id == user_id, Assignment.adventure_id == args['adventure_id']).scalar_one()
+        assignment =  db.session.execute(
+                db.select(Assignment).where(Assignment.user_id == user_id, Assignment.adventure_id == args['adventure_id'])
+            ).scalar_one()
         # Check permission: admin or creator
         if not is_admin(current_user) and assignment.user_id != user_id:
             abort(401, message={'error': 'Unauthorized to delete this adventure'})
 
 
         # Delete assignments related to this adventure
-        db.session.execute(
-            db.delete(assignment)
-        )
+        db.session.delete(assignment)
+
+        # Punish the player
+        if not is_admin(current_user):
+            db.session.execute(
+                db.update(User)
+                .where(User.id == user_id)
+                .values(karma=User.karma - PUNISH_KARMA_MISS)
+            )
 
         try:
             db.session.commit()

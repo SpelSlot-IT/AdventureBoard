@@ -164,15 +164,15 @@
                     <q-avatar size="sm" class="q-mr-sm">
                       <img :src="p.user.profile_pic" />
                     </q-avatar>
-                    <div>
+                    <div class="q-mr-sm">
                       {{ p.user.display_name }}
                     </div>
                     <q-btn
                       v-if="p.user.id == me?.id"
                       size="sm"
-                      round
+                      color="negative"
                       class="q-mr-sm flat"
-                      label="Cancel Assignment"
+                      icon="delete"
                       @click="cancelAssignment(a.id, p)"
                     />
                   </q-item>
@@ -210,7 +210,7 @@
             <q-separator />
             <q-list v-if="me?.privilege_level >= 2" class="adminDropTarget">
               <Container
-                class="q-pa-md rounded-borders"
+                class="q-pa-md rounded-borders grid-container"
                 @drop="(dr) => onDrop(dr, a.id)"
                 group-name="assignedPlayers"
                 :get-child-payload="
@@ -229,15 +229,36 @@
                       {{ p.user.display_name }} ({{ p.user.karma }})
                     </div>
                     <q-btn
-                      size="sm"
-                      round
+                      size="sm" 
                       color="negative"
                       class="q-mr-sm flat"
-                      label="Cancel Assignment!"
+                      icon="delete"
                       @click="cancelAssignment(p.id)"
                     />
                   </q-item>
                 </Draggable>
+              </Container>
+            </q-list>
+            <q-list v-else>
+              <Container class="q-pa-md rounded-borders grid-container">
+                <q-item v-for="p in a.assignments" :key="p.user.id">
+                  <q-item class="items-center">
+                    <q-avatar size="sm" class="q-mr-sm">
+                      <img :src="p.user.profile_pic" />
+                    </q-avatar>
+                    <div>
+                      {{ p.user.display_name }}
+                    </div>
+                    <q-btn
+                      v-if="p.user.id == me?.id"
+                      size="sm"
+                      color="negative"
+                      class="q-mr-sm flat"
+                      icon="delete"
+                      @click="cancelAssignment(a.id, p)"
+                    />
+                  </q-item>
+                </q-item>
               </Container>
             </q-list>
           </q-card-section>
@@ -333,6 +354,26 @@
             ><i v-else>No description</i>
           </div>
         </q-card-section>
+        <template v-if="me?.privilege_level >= 2">
+          <q-list >
+            <q-item class="q-pa-md">Signups (Not final assignments):</q-item>
+            <Container class="q-pa-md rounded-borders grid-container">
+              <q-item
+                v-for="s in focussed.signups"
+                :key="s.id"
+                class="items-center"
+              >
+                <q-avatar size="sm" class="q-mr-sm">
+                  <img :src="s.user?.profile_pic" />
+                </q-avatar>
+                <div class="q-mr-sm">
+                  {{ s.user?.display_name }} ({{ s.user?.karma }}) - {{ choiceLabels[s.priority] }}
+                </div>
+              </q-item>
+            </Container>
+          </q-list>
+        </template>
+        
         <q-separator />
         <q-card-actions class="justify-end">
           <q-btn
@@ -469,6 +510,7 @@ export default defineComponent({
             '&week_end=' +
             this.weekEnd
         );
+        this.annoyUserToFinishProfileSetup();
         if (this.me && reloadSignups) {
           const resp = await this.$api.get('/api/signups?user=' + this.me.id);
           this.mySignups = {};
@@ -533,14 +575,31 @@ export default defineComponent({
           cancel: true,
         })
         .onOk(async () => {
-          await this.$api.delete('/api/adventures/', {
+          await this.$api.delete('/api/player-assignments', {
             data: { adventure_id: adventure_id },
           });
           this.$q.notify({
             message: "And you're off!",
             type: 'positive',
           });
+          this.fetch(false);
         });
+    },
+    annoyUserToFinishProfileSetup() {
+      if (!this.me || this.me.dnd_beyond_name) return;
+      this.$q
+        .dialog({
+          title: 'Please compleat your profile',
+          message:
+            'Your profile is missing vital information as for example your D&D Beyond name. Please go to your profile page and fill in all information before signing up for adventures.',
+          cancel: true,
+          ok: {
+            label: 'Go to Profile',
+            color: 'positive',
+            to: '/profile',
+          }
+        })
+
     },
     isInAdventure(a: any, id: any) {
       if (id === undefined) return false;
