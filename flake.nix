@@ -22,6 +22,7 @@
           venvDir = "./.venv";
 
           buildInputs = with pkgs; [
+            mask
             nodejs
             python313
             python313Packages.venvShellHook
