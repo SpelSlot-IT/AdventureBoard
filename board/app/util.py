@@ -420,7 +420,7 @@ def reassign_karma(today=date.today()):
         .distinct()
     ).scalars().all()
     for user in creators:
-        user.karma += 100
+        user.karma += 75
     current_app.logger.info(f" - Assigned 100 karma to DMs: #{len(creators)}: {[user.display_name for user in creators]}")
 
     # -100 karma for not appearing in this week's adventures
