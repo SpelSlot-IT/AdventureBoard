@@ -85,7 +85,6 @@
 <script lang="ts">
 import { defineComponent, computed } from 'vue';
 import { isAxiosError } from 'axios';
-import { Dark } from 'quasar';
 
 export default defineComponent({
   name: 'MainLayout',
@@ -111,7 +110,9 @@ export default defineComponent({
 
   methods: {
     toggleDarkMode() {
-      Dark.set(!Dark.isActive);
+      const darkModeEnabled = !this.$q.dark.isActive;
+      localStorage.setItem('darkMode', String(+darkModeEnabled));
+      this.$q.dark.set(darkModeEnabled);
     },
     async fetchMe() {
       this.me = (await this.$api.get('/api/users/me')).data;
@@ -173,6 +174,10 @@ export default defineComponent({
   async beforeMount() {
     this.loading = true;
     try {
+      const preferredTheme =
+        Boolean(Number(localStorage.getItem('darkMode'))) ?? 'auto';
+      this.$q.dark.set(preferredTheme);
+
       const aliveReq = this.$api.get('/api/alive');
       const meReq = this.optionallyFetchUser();
       const aliveResp = await aliveReq;
@@ -193,7 +198,9 @@ export default defineComponent({
     };
   },
   computed: {
-    darkModeIcon: () => (Dark.isActive ? 'wb_sunny' : 'brightness_2'),
+    darkModeIcon: function () {
+      return this.$q.dark.isActive ? 'wb_sunny' : 'brightness_2';
+    },
   },
   watch: {
     '$route.fullPath'() {
