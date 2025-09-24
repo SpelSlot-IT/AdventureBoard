@@ -8,3 +8,11 @@ __pycache__/
 /external
 /venv
 *.env
+
+# Nix
+.direnv/
+.venv/
+
+# DB
+dev.db
+dev.db.db
