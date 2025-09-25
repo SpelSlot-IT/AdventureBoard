@@ -76,9 +76,12 @@
         @finishAdminAction="adminActionsActive--"
       />
       <span v-if="version" class="fixed-bottom-left q-ml-sm">
-        AdventureBoard v{{ version }} 
+        AdventureBoard v{{ version }}
       </span>
-      <a href="https://github.com/SpelSlot/AdventureBoard" class="fixed-bottom-right q-mr-sm">
+      <a
+        href="https://github.com/SpelSlot/AdventureBoard"
+        class="fixed-bottom-right q-mr-sm"
+      >
         <q-icon name="github" size="lg" />
       </a>
     </q-page-container>
@@ -88,6 +91,9 @@
 <script lang="ts">
 import { defineComponent, computed } from 'vue';
 import { isAxiosError } from 'axios';
+import { setupNotifications } from '../util/pushNotifications';
+
+setupNotifications();
 
 export default defineComponent({
   name: 'MainLayout',
@@ -173,7 +179,6 @@ export default defineComponent({
       }
     },
   },
-
   async beforeMount() {
     this.loading = true;
     try {
