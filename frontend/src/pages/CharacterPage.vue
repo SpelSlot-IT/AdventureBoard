@@ -44,6 +44,10 @@
               <q-item-section>{{ character.class_description }}</q-item-section>
             </q-item>
             <q-item>
+              <q-item-section>Subclass</q-item-section>
+              <q-item-section>{{ character.subclasses.join(', ') }}</q-item-section>
+            </q-item>
+            <q-item>
               <q-item-section>Level</q-item-section>
               <q-item-section>{{ character.level }}</q-item-section>
             </q-item>
