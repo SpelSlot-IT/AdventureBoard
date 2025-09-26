@@ -22,7 +22,7 @@
 
       <template v-slot:body-cell-name="props">
         <q-td :props="props">
-          <router-link :to="'/characters/' + props.row.id" class="text-white">
+          <router-link :to="'/characters/' + props.row.id" class="default-text-color">
             {{ props.value }}
           </router-link>
         </q-td>
