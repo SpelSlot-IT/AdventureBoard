@@ -683,6 +683,11 @@ class AdventureResource(MethodView):
                 where(Adventure.predecessor_id == adventure_id).
                 values(predecessor_id=None)
             )
+            
+            # Delete signups related to this adventure
+            db.session.execute(
+                db.delete(Signup).where(Signup.adventure_id == adventure_id)
+            )
 
             # Delete assignments related to this adventure
             db.session.execute(

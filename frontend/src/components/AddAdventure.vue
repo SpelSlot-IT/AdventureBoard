@@ -171,12 +171,10 @@ export default defineComponent({
       this.$q
         .dialog({
           title: 'Delete',
-          message:
-            'Are you sure you want to delete "' +
-            this.editExisting!.title +
-            '" on the ' +
-            this.editExisting!.date +
-            '?',
+          message: `Are you sure you want to delete "${this.editExisting!.title}" on the ${this.editExisting!.date}?` +
+            (this.editExisting!.signups.length > 0 
+              ? `\n${this.editExisting!.signups.length} player(s) have already signed up for this adventure.` 
+              : ''),
           cancel: true,
         })
         .onOk(async () => {
