@@ -174,7 +174,7 @@ class AdventureSchema(ma.SQLAlchemyAutoSchema):
         max_players = data.get("max_players")
         if sd and ed and sd > ed:
             raise ValidationError("start_date must be <= end_date.")
-        if not (max_players > 0 and max_players < 30):
+        if not (max_players > 0 and max_players <= 30):
             raise ValidationError("start_date must be <= end_date.")
 
 class ConflictResponseSchema(ma.Schema):

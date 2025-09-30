@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from flask_login import UserMixin, AnonymousUserMixin
-from flask import current_app
 from sqlalchemy import func
 
 from .provider import db
