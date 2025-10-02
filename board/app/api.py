@@ -208,6 +208,7 @@ class AliveResource(MethodView):
 @blp_utils.route("/site-map")
 class SiteMapResource(MethodView):
     @blp_utils.response(200, SiteMapLinkSchema(many=True))
+    @login_required
     def get(self):
         """
         Returns a list of all available endpoints (not only api).
