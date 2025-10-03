@@ -27,7 +27,7 @@
 
                 buildInputs = with pkgs; [
                   mask
-                  nodejs_20
+                  nodejs
                   python313
                   python313Packages.venvShellHook
                   sqlite
