@@ -17,7 +17,7 @@
             <q-item>
               <q-item-section>Character sheet</q-item-section>
               <q-item-section v-if="character.character_sheet"
-                ><a :href="character.character_sheet" class="text-white">{{
+                ><a :href="character.character_sheet" class="default-text-color">{{
                   character.character_sheet
                 }}</a></q-item-section
               >
@@ -42,6 +42,10 @@
             <q-item>
               <q-item-section>Class</q-item-section>
               <q-item-section>{{ character.class_description }}</q-item-section>
+            </q-item>
+            <q-item>
+              <q-item-section>Subclass</q-item-section>
+              <q-item-section>{{ character.subclasses.join(', ') }}</q-item-section>
             </q-item>
             <q-item>
               <q-item-section>Level</q-item-section>

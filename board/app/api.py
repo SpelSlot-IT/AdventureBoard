@@ -174,8 +174,8 @@ class AdventureSchema(ma.SQLAlchemyAutoSchema):
         max_players = data.get("max_players")
         if sd and ed and sd > ed:
             raise ValidationError("start_date must be <= end_date.")
-        if not (max_players > 0 and max_players < 30):
-            raise ValidationError("start_date must be <= end_date.")
+        if not (max_players > 0 and max_players <= 30):
+            raise ValidationError("max_players between 1 and 30, inclusive.")
 
 class ConflictResponseSchema(ma.Schema):
     message = ma.Str(required=True)
@@ -208,6 +208,7 @@ class AliveResource(MethodView):
 @blp_utils.route("/site-map")
 class SiteMapResource(MethodView):
     @blp_utils.response(200, SiteMapLinkSchema(many=True))
+    @login_required
     def get(self):
         """
         Returns a list of all available endpoints (not only api).
@@ -682,6 +683,11 @@ class AdventureResource(MethodView):
                 db.update(Adventure).
                 where(Adventure.predecessor_id == adventure_id).
                 values(predecessor_id=None)
+            )
+            
+            # Delete signups related to this adventure
+            db.session.execute(
+                db.delete(Signup).where(Signup.adventure_id == adventure_id)
             )
 
             # Delete assignments related to this adventure

@@ -77,8 +77,8 @@
                   size="2em"
                   :icon="
                     $q.dark.isActive
-                      ? 'img:/light/dragon-head.svg'
-                      : 'img:/dark/dragon-head.svg'
+                      ? 'img:/light/spiked-dragon-head.svg'
+                      : 'img:/dark/spiked-dragon-head.svg'
                   "
                 />
                 <q-tooltip transition-show="scale" transition-hide="scale">Combat</q-tooltip>

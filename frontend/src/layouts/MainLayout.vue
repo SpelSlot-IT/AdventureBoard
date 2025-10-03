@@ -178,7 +178,9 @@ export default defineComponent({
     this.loading = true;
     try {
       const preferredTheme =
-        Boolean(Number(localStorage.getItem('darkMode'))) ?? 'auto';
+        localStorage.getItem('darkMode') === null 
+        ? 'auto' 
+        : Boolean(Number(localStorage.getItem('darkMode')));
       this.$q.dark.set(preferredTheme);
 
       const aliveReq = this.$api.get('/api/alive');
