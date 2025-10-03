@@ -6,38 +6,50 @@
   outputs =
     { nixpkgs, ... }:
     let
-      # Define the system architecture
-      system = "x86_64-linux";
-      # system = "x86_64-darwin";
+      # Define the supported systems
+      systems = [
+        "x86_64-linux"
+        "x86_64-darwin"
+      ];
+
+      # Define the development shell for the specified system
+      devShellsBySys = builtins.listToAttrs (
+        map (system: {
+          name = system;
+          value = {
+            default =
+              let
+                pkgs = import nixpkgs { inherit system; };
+              in
+              pkgs.mkShell {
+                name = "impurePythonEnv";
+                venvDir = "./.venv";
+
+                buildInputs = with pkgs; [
+                  mask
+                  nodejs_20
+                  python313
+                  python313Packages.venvShellHook
+                  sqlite
+                ];
+
+                postVenvCreation = ''
+                  unset SOURCE_DATE_EPOCH
+                  cd board && pip install -r requirements.txt
+                '';
+
+                postShellHook = ''
+                  # allow pip to install wheels
+                  unset SOURCE_DATE_EPOCH
+                '';
+              };
+          };
+        }) systems
+      );
     in
     {
-      devShells."${system}".default =
-        let
-          pkgs = import nixpkgs {
-            inherit system;
-          };
-        in
-        pkgs.mkShell {
-          name = "impurePythonEnv";
-          venvDir = "./.venv";
-
-          buildInputs = with pkgs; [
-            mask
-            nodejs
-            python313
-            python313Packages.venvShellHook
-            sqlite
-          ];
-
-          postVenvCreation = ''
-            unset SOURCE_DATE_EPOCH
-            cd board && pip install -r requirements.txt
-          '';
-
-          postShellHook = ''
-            # allow pip to install wheels
-            unset SOURCE_DATE_EPOCH
-          '';
-        };
+      devShells = devShellsBySys // {
+        default = devShellsBySys."${builtins.currentSystem}".default;
+      };
     };
 }
