@@ -27,20 +27,20 @@ import { defineComponent, inject } from 'vue';
 export default defineComponent({
   name: 'SignupsPage',
   emits: ['mustLogin'],
-  setup() {
-    return {
-      me: inject('me') as any,
-    };
-  },
-  data() {
-    if (!this.me) {
-      this.$emit('mustLogin');
-    }
-    else if (this.me.privilege_level < 1) {
+  setup(_, { emit }) {
+    const me = inject<{ privilege_level: number }>('me');
+
+    if (!me) {
+      emit('mustLogin');
+    } else if (me.privilege_level < 1) {
       this.$router.push('/');
     }
+
+    const users: any[] = [];
+
     return {
-      users: [],
+      me,
+      users,
     };
   },
   async mounted() {
