@@ -101,6 +101,22 @@ class SignupSchema(ma.SQLAlchemyAutoSchema):
 
     user = ma.Nested(UserSchema, dump_only=True)
 
+class UserWithSignupsSchema(ma.SQLAlchemyAutoSchema):
+    """Schema for User that excludes the `name` column and exposes
+    `display_name` (as the canonical display identity).
+
+    Only a small set of non-sensitive fields are included by default. If you
+    need to show or hide additional fields (email, google_id, etc.) consider
+    adding parameters when using this schema.
+    """
+    signups = ma.Nested(SignupSchema, many=True, dump_only=True)
+
+    class Meta:
+        model = User
+        include_fk = True
+        load_instance = False
+        sqla_session = db.session
+
 class AdventureQuerySchema(ma.Schema):
     adventure_id = ma.Integer(allow_none=True)
     week_start = ma.Date(allow_none=True)
@@ -205,10 +221,10 @@ class AliveResource(MethodView):
                 extra={"version": current_app.config["VERSION"]["version"], "status": "error"},
             )
     
-@blp_utils.route("/site-map")
+#@blp_utils.route("/site-map")
 class SiteMapResource(MethodView):
-    @blp_utils.response(200, SiteMapLinkSchema(many=True))
-    @login_required
+    #@blp_utils.response(200, SiteMapLinkSchema(many=True))
+    #@login_required
     def get(self):
         """
         Returns a list of all available endpoints (not only api).
@@ -378,9 +394,58 @@ class LockoutResource(MethodView):
 class UsersListResource(MethodView):
     @blp_users.response(200, UserSchema(many=True, exclude=['karma']))
     def get(self):
-        """Return list of all users."""
-        try:
+        """
+        Return list of all users. 
+        
+        Excludes karma.
+        Only non-sensitive fields are included by default. 
+        If you are not an admin.
+        """
+        try:        
             return db.session.execute(db.select(User)).scalars().all()
+        except SQLAlchemyError as e:
+            abort(500, message=f"Database error: {str(e)}")
+
+@blp_users.route("/full/<string:day>")
+class UsersListFullResource(MethodView):
+    @blp_users.response(200, UserWithSignupsSchema(many=True))
+    def get(self, day):
+        """
+        Return list of all users. 
+        
+        Excludes karma.
+        Only non-sensitive fields are included by default. 
+        If you are not an admin.
+        """
+        exclude = []
+        if not is_admin(current_user):
+            exclude=["privilege_level", "email", "signups", "karma"]
+        try:
+            today = date.today()
+            # If day is provided and valid, use it instead of today
+            if (day) and (day != "0"):
+                try:
+                    today = date.fromisoformat(day)
+                except ValueError:
+                    abort(400, message="Invalid date format. Use YYYY-MM-DD.")
+            current_app.logger.info(f"Filtering signups for week of {today}")
+
+            start_of_week, end_of_week = get_upcoming_week(today)
+            stmt = (
+                    db.select(User)
+                    .options(
+                        joinedload(User.signups),
+                        db.with_loader_criteria(
+                            Signup,
+                            Signup.adventure_date.between(start_of_week, end_of_week),
+                            include_aliases=True
+                        )
+                    )
+                )
+            users = db.session.execute(stmt).unique().scalars().all()
+            current_app.logger.info(f"U: {[[u.display_name, u.signups] for u in users]}")
+        
+            return UserWithSignupsSchema(many=True, exclude=exclude).dump(users)
         except SQLAlchemyError as e:
             abort(500, message=f"Database error: {str(e)}")
 
