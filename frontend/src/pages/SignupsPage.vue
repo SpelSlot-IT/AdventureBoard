@@ -22,6 +22,7 @@
 </template>
 
 <script lang="ts">
+import router from 'src/router';
 import { defineComponent, inject } from 'vue';
 
 export default defineComponent({
@@ -33,7 +34,7 @@ export default defineComponent({
     if (!me) {
       emit('mustLogin');
     } else if (me.privilege_level < 1) {
-      this.$router.push('/');
+      router.push('/');
     }
 
     const users: any[] = [];
