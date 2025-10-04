@@ -5,7 +5,7 @@ async function handleNotifications(): Promise<boolean> {
     
     if (Notification.permission !== 'granted') {
         const permission = await Notification.requestPermission();
-        return permission === "granted";
+        return permission === 'granted';
     }
     return true;
 }
@@ -26,14 +26,6 @@ function checkBrowserSupport(): boolean {
     return true;
 }
 
-async function subscribePush(registration: ServiceWorkerRegistration) {
-    //Subscribes user to Push notifications
-    const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true //Set user to see every notification
-    })
-    console.log(subscription);
-}
-
 export async function setupNotifications() {
     try {
         if (!checkBrowserSupport()) {
@@ -43,18 +35,10 @@ export async function setupNotifications() {
         if (!havePermission) {
             throw new Error('We don\'t have the required permissions. Not our fault')
         }
-
+        
         // register the SW
         const path = '/js/service-worker.js';
         await navigator.serviceWorker.register(path);
-        // When it's ready, check if there's a subscription already
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        // If there's not, subscribe to the push notifications
-        if (subscription === null) {
-            subscribePush(registration);
-        }
-        console.log(subscription);
     } catch (err) {
         window.alert(err);
     }
