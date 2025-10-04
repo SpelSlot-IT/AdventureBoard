@@ -22,14 +22,15 @@
 </template>
 
 <script lang="ts">
-import router from 'src/router';
 import { defineComponent, inject } from 'vue';
+import { useRouter } from 'vue-router';
 
 export default defineComponent({
   name: 'SignupsPage',
   emits: ['mustLogin'],
   setup(_, { emit }) {
     const me = inject<{ privilege_level: number }>('me');
+    const router = useRouter();
 
     if (!me) {
       emit('mustLogin');
