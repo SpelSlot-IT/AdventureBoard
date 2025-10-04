@@ -12,7 +12,6 @@
           </template>
 
     </q-item>
-    <div v-if="users.length === 0" class="text-h6">No users found</div>
     <q-footer elevated>
       <div class="q-pa-md text-center">
         {{ num_signups }} users are signed up
