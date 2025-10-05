@@ -30,7 +30,7 @@
     </q-table>
     <q-footer elevated>
       <div class="q-pa-md text-center">
-        {{ num_signups }} users are signed up
+        The number of users that have signed up for at least one adventure is: {{ num_signups }} 
       </div>
   </q-footer>
   </q-page>
