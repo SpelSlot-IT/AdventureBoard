@@ -482,13 +482,17 @@ export default defineComponent({
     };
   },
   data() {
-    let start = new Date();
-    if (start.getDay() > 3) {
-      start.setDate(start.getDate() + 7);
-    }
-    start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+    let today  = new Date();
+    let day = today.getDay(); // Sunday = 0, Monday = 1, ..., Saturday = 6
+
+  // If today is Thursday (4) to Sunday (0), move to next week
+  if (day === 0 || day >= 4) {
+    today.setDate(today.getDate() + (8 - day) % 7); // Move to next Monday
+  } else {
+    today.setDate(today.getDate() - ((day + 6) % 7)); // Move to this week's Monday
+  }
     return {
-      weekStart: start.toISOString().split('T')[0],
+      weekStart: today.toISOString().split('T')[0],
       adventures: [],
       focussed: null as any,
       addAdventure: false,
