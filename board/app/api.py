@@ -467,7 +467,6 @@ class UsersListSignupsResource(MethodView):
 
                 )
             users = db.session.execute(stmt).unique().scalars().all()
-            current_app.logger.info(f"U: {[[u.display_name, u.signups] for u in users]}")
         
             return UserWithSignupsSchema(many=True, exclude=exclude).dump(users)
         except SQLAlchemyError as e:

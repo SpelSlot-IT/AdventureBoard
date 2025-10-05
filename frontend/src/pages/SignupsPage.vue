@@ -84,6 +84,13 @@ export default defineComponent({
           align: 'left',
           sortable: true,
         },
+        {
+          name: 'signup_count',
+          field: (row: any) => row.signups?.length || 0,
+          label: 'Num. Signups',
+          align: 'left',
+          sortable: true,
+        },
       ],
     };
   },

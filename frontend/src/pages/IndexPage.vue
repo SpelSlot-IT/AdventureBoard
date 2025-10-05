@@ -589,7 +589,7 @@ export default defineComponent({
       if (!this.me || this.me.dnd_beyond_name) return;
       this.$q
         .dialog({
-          title: 'Please compleat your profile',
+          title: 'Please complete your profile',
           message:
             'Your profile is missing vital information as for example your D&D Beyond name. Please go to your profile page and fill in all information before signing up for adventures.',
           cancel: true,
