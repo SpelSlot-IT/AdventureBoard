@@ -63,10 +63,10 @@
               </div>
             </div>
             <div class="description">
-              <template v-if="a.short_description">{{
-                a.short_description
-              }}</template
-              ><i v-else>No description</i>
+              <template v-if="a.short_description">
+                 <div style="white-space: pre-line;">{{ a.short_description }}</div>
+              </template>
+              <i v-else>No description</i>
             </div>
             <div class="row justify-between">
               <div>

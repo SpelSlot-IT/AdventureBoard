@@ -91,7 +91,7 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
         # Exclude the database `name` field
         exclude = ("name","google_id","email")
 
-class SignupSchema(ma.SQLAlchemyAutoSchema):
+class SignupUserSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Signup
         include_fk = True
@@ -101,6 +101,26 @@ class SignupSchema(ma.SQLAlchemyAutoSchema):
 
     user = ma.Nested(UserSchema, dump_only=True)
 
+class AdventureSmallSchema(ma.SQLAlchemyAutoSchema):
+    """Auto-schema for Adventure used for both output (dump) and input (load). Without any references
+    """
+
+    class Meta:
+        model = Adventure
+        include_fk = True
+        load_instance = False
+        sqla_session = db.session
+
+class SignupAdventureSchema(ma.SQLAlchemyAutoSchema):
+    class Meta:
+        model = Signup
+        include_fk = True
+        load_instance = True
+        sqla_session = db.session
+        exclude = ("id", "user_id", "adventure_date")
+
+    adventure = ma.Nested(AdventureSmallSchema, dump_only=True)
+
 class UserWithSignupsSchema(ma.SQLAlchemyAutoSchema):
     """Schema for User that excludes the `name` column and exposes
     `display_name` (as the canonical display identity).
@@ -109,13 +129,15 @@ class UserWithSignupsSchema(ma.SQLAlchemyAutoSchema):
     need to show or hide additional fields (email, google_id, etc.) consider
     adding parameters when using this schema.
     """
-    signups = ma.Nested(SignupSchema, many=True, dump_only=True)
+    signups = ma.Nested(SignupAdventureSchema, many=True, dump_only=True)
 
     class Meta:
         model = User
         include_fk = True
-        load_instance = False
+        load_instance = True
         sqla_session = db.session
+
+        exclude = ("id","world_builder_name","name","google_id","email","dnd_beyond_name","privilege_level","karma")
 
 class AdventureQuerySchema(ma.Schema):
     adventure_id = ma.Integer(allow_none=True)
@@ -169,7 +191,7 @@ class AdventureSchema(ma.SQLAlchemyAutoSchema):
     assignments = ma.List(ma.Nested(AssignmentSchema), dump_only=True)
 
     # signups -> nested users (dump only)
-    signups = ma.List(ma.Nested(SignupSchema), dump_only=True)
+    signups = ma.List(ma.Nested(SignupUserSchema), dump_only=True)
 
     # allow the same schema to accept requested_players during creation
     requested_players = ma.List(ma.Integer(), load_only=True, allow_none=True)
@@ -192,6 +214,8 @@ class AdventureSchema(ma.SQLAlchemyAutoSchema):
             raise ValidationError("start_date must be <= end_date.")
         if not (max_players > 0 and max_players <= 30):
             raise ValidationError("max_players between 1 and 30, inclusive.")
+        
+
 
 class ConflictResponseSchema(ma.Schema):
     message = ma.Str(required=True)
@@ -406,9 +430,9 @@ class UsersListResource(MethodView):
         except SQLAlchemyError as e:
             abort(500, message=f"Database error: {str(e)}")
 
-@blp_users.route("/full/<string:day>")
-class UsersListFullResource(MethodView):
-    @blp_users.response(200, UserWithSignupsSchema(many=True))
+@blp_users.route("/signups/<string:day>")
+class UsersListSignupsResource(MethodView):
+    @blp_users.response(200)
     def get(self, day):
         """
         Return list of all users. 
@@ -428,7 +452,6 @@ class UsersListFullResource(MethodView):
                     today = date.fromisoformat(day)
                 except ValueError:
                     abort(400, message="Invalid date format. Use YYYY-MM-DD.")
-            current_app.logger.info(f"Filtering signups for week of {today}")
 
             start_of_week, end_of_week = get_upcoming_week(today)
             stmt = (
@@ -441,6 +464,7 @@ class UsersListFullResource(MethodView):
                             include_aliases=True
                         )
                     )
+
                 )
             users = db.session.execute(stmt).unique().scalars().all()
             current_app.logger.info(f"U: {[[u.display_name, u.signups] for u in users]}")
@@ -934,7 +958,7 @@ class AssignmentResource(MethodView):
 @blp_signups.route('')
 class SignupResource(MethodView):
     @login_required
-    @blp_signups.response(200, SignupSchema(many=True))
+    @blp_signups.response(200, SignupUserSchema(many=True))
     def get(self):
         """
         Returns all the signups (priority medals 1, 2, 3) of the authenticated user.
@@ -954,7 +978,7 @@ class SignupResource(MethodView):
             abort(500, message=str(e))
 
     @login_required
-    @blp_signups.arguments(SignupSchema())
+    @blp_signups.arguments(SignupUserSchema())
     @blp_signups.response(200, MessageSchema())
     def post(self, args):
         """

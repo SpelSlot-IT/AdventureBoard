@@ -43,6 +43,9 @@
                   <q-item clickable v-close-popup @click="updateKarma()">
                     <q-item-section>Update karma</q-item-section>
                   </q-item>
+                  <q-item clickable v-close-popup @click="signups">
+                    <q-item-section>See current signups</q-item-section>
+                  </q-item>
                 </template>
               </q-list>
             </q-menu>
@@ -120,7 +123,7 @@ export default defineComponent({
     async fetchMe() {
       this.me = (await this.$api.get('/api/users/me')).data;
     },
-    logout() {
+    async logout() {
       const currentUrl = window.location.href;
       window.location.href = `/api/logout?next=${encodeURIComponent(
         currentUrl
@@ -131,6 +134,9 @@ export default defineComponent({
       window.location.href = `/api/login?next=${encodeURIComponent(
         currentUrl
       )}`;
+    },
+    async signups() {
+      window.location.href = '/#/signups';
     },
 
     async adminAction(action: string) {

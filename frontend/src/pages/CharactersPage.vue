@@ -53,7 +53,7 @@ export default defineComponent({
           field: 'avatar',
           label: '',
           align: 'left',
-          sortable: true,
+          sortable: false,
         },
         {
           name: 'name',

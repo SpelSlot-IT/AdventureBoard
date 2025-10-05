@@ -1,17 +1,33 @@
 <template>
   <q-page class="row items-center justify-evenly">
-    <q-item v-for="player in users" :key="player.id" class="col-8 q-mb-md">
-          <div class="text-h6">{{ player.display_name }}</div>
-          <template v-if="player.signups && player.signups.length > 0">
-            <div                                  >First Choice: {{ player.signups[0]?.adventure_id }} </div>
-            <div v-if="player.signups.length > 1" >Second Choice: {{ player.signups[1]?.adventure_id }} </div>
-            <div v-if="player.signups.length > 2" >Third Choice: {{ player.signups[2]?.adventure_id }} </div>
-          </template>
-          <template v-else>
-            <div>No signups</div>
-          </template>
+    <q-table
+      :rows="userArray"
+      :columns="columns"
+      :loading="userArray.length == 0"
+      title="Signups"
+      hide-pagination
+      :rows-per-page-options="[0]"
+      wrap-cells
+      table-class="signups"
+    >
+      <template v-slot:body-cell-avatar="props">
+        <q-td :props="props">
+          <router-link :to="'/characters/' + props.row.id" v-if="props.value">
+            <q-avatar>
+              <img :src="props.value" />
+            </q-avatar>
+          </router-link>
+        </q-td>
+      </template>
 
-    </q-item>
+      <template v-slot:body-cell-name="props">
+        <q-td :props="props">
+          <router-link :to="'/characters/' + props.row.id" class="default-text-color">
+            {{ props.value }}
+          </router-link>
+        </q-td>
+      </template>
+    </q-table>
     <q-footer elevated>
       <div class="q-pa-md text-center">
         {{ num_signups }} users are signed up
@@ -21,40 +37,80 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, inject } from 'vue';
-import { useRouter } from 'vue-router';
+import { defineComponent, inject} from 'vue';
 
 export default defineComponent({
   name: 'SignupsPage',
   emits: ['mustLogin'],
-  setup(_, { emit }) {
-    const me = inject<{ privilege_level: number }>('me');
-    const router = useRouter();
 
-    if (!me) {
-      emit('mustLogin');
-    } else if (me.privilege_level < 1) {
-      router.push('/');
-    }
-
-    const users: any[] = [];
-
+  data() {
+    
     return {
-      me,
-      users,
+      me: inject('me') as any,
+      users: [] as any[],
+      columns: [
+        {
+          name: 'avatar',
+          field: 'avatar',
+          label: '',
+          align: 'left',
+          sortable: false,
+        },
+        {
+          name: 'name',
+          field: 'display_name',
+          label: 'Name',
+          align: 'left',
+          sortable: true,
+        },
+        {
+          name: 'first_choice',
+          field: (row: any) => row.signups?.[0]?.adventure.title || '—',
+          label: 'first Choice',
+          align: 'left',
+          sortable: true,
+        },
+        {
+          name: 'second_choice',
+          field: (row: any) => row.signups?.[1]?.adventure.title || '—',
+          label: 'Second Choice',
+          align: 'left',
+          sortable: true,
+        },
+        {
+          name: 'third_choice',
+          field: (row: any) => row.signups?.[2]?.adventure.title || '—',
+          label: 'Third Choice',
+          align: 'left',
+          sortable: true,
+        },
+      ],
     };
   },
-  async mounted() {
-    const req1 = this.$api.get(
-      '/api/users/full/0'
-    );
-    const resp = await req1;
-    this.users = resp.data;
+  async beforeMount() {
+      if (!this.me || this.me?.privilege_level < 1) {
+        this.$emit('mustLogin');
+      }
+      const res = await fetch('/api/users/signups/0');
+      if (res.status === 401) {
+        this.$emit('mustLogin');
+        return;
+      }
+      if (!res.ok) {
+        throw await res.json();
+      }
+      this.users = await res.json();
   },
   computed: {
     num_signups(): number {
       return this.users.filter((u: any) => u.signups && u.signups.length > 0).length;
-    }
+    },
+    userArray() {
+      return Object.values(this.users);
+    },
+    visibleColumns() {
+      return ['name', 'First Choice', 'Second Choice', 'Third Choice'];
+    },
   },
   methods: {
   }
