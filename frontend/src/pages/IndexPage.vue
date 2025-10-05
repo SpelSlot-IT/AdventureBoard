@@ -134,9 +134,12 @@
                       <q-avatar size="sm" class="q-mr-sm">
                         <img :src="p.user.profile_pic" />
                       </q-avatar>
-                      <div class="q-mr-sm">
-                        {{ p.user.display_name }} ({{ p.user.karma }})
-                      </div>
+                        <div class="q-mr-sm">
+                          <router-link :to="'/characters/' + p.user.id" class="default-text-color">
+                            {{ p.user.display_name }}
+                          </router-link>
+                          ({{ p.user.karma }})
+                        </div>
                       <q-btn
                         size="sm"
                         :icon="p.appeared ? 'check' : 'close'"
@@ -164,9 +167,9 @@
                     <q-avatar size="sm" class="q-mr-sm">
                       <img :src="p.user.profile_pic" />
                     </q-avatar>
-                    <div class="q-mr-sm">
-                      {{ p.user.display_name }}
-                    </div>
+                    <router-link :to="'/characters/' + p.user.id" class="default-text-color">
+                            {{ p.user.display_name }}
+                    </router-link>
                     <q-btn
                       v-if="p.user.id == me?.id"
                       size="sm"
