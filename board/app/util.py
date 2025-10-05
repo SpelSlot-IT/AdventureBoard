@@ -314,7 +314,7 @@ def assign_players_to_adventures(today=date.today()):
         .scalars()
         .all()
     )
-    current_app.logger.warning(f"Players signed up for the week {start_of_week} to {end_of_week}:   #{len(players_signedup_not_assigned)}: {[dict({user: user.signups}) for user in players_signedup_not_assigned]} ")
+    current_app.logger.info(f"Players signed up for the week {start_of_week} to {end_of_week}:   #{len(players_signedup_not_assigned)}: {[dict({user: user.signups}) for user in players_signedup_not_assigned]} ")
     MAX_PRIORITY = 3
     
     # -- First round of assigning players --
@@ -332,7 +332,7 @@ def assign_players_to_adventures(today=date.today()):
                     if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
                         round_.append(user.display_name)
                         break
-    current_app.logger.warning(f"- Players assigned in round 1: #{len(round_)}: {round_} => {dict(taken_places)}")
+    current_app.logger.info(f"- Players assigned in round 1: #{len(round_)}: {round_} => {dict(taken_places)}")
 
     # -- Second round of assigning players --
     # Assign all story players sorted by karma.
