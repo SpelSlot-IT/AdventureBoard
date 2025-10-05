@@ -511,17 +511,6 @@ class UserResource(MethodView):
             db.session.rollback()
             abort(500, message=f"Database error: {str(e)}")
     
-    @blp_utils.response(201)
-    def post(self, user_id):
-        """
-        DEMO: Login as the user specified by id
-
-        THIS WILL BE REMOVED
-        ---
-        TODO: REMOVE
-        """
-        login_user(db.session.get(User, user_id), fresh=True)
-        return  
     
 
 @blp_users.route("/me")
