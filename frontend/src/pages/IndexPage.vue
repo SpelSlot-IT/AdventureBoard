@@ -169,10 +169,9 @@
               <div v-if="a.requested_room">Room: {{ a.requested_room }}</div>
              </div>
             <div class="container">
-              <div class="row justify-center q-gutter-sm">
+              <div class="row justify-center q-gutter-sm" v-if="!isDateInPast(a)">
                 <q-btn
                   v-for="n in 3"
-                  :class="isDateInPast(a) ? 'hidden' : 'col'"
                   style="max-width: 8rem"
                   :key="n"
                   icon="person_add"
