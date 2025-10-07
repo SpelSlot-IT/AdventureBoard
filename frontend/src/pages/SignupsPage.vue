@@ -41,7 +41,7 @@ import { defineComponent, inject} from 'vue';
 
 export default defineComponent({
   name: 'SignupsPage',
-  emits: ['mustLogin'],
+  emits: ['mustLogin', 'setErrors'],
 
   data() {
     
