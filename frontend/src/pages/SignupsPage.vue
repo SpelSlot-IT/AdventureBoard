@@ -95,18 +95,16 @@ export default defineComponent({
     };
   },
   async beforeMount() {
-      if (!this.me || this.me?.privilege_level < 1) {
-        this.$emit('mustLogin');
-      }
-      const res = await fetch('/api/users/signups/0');
-      if (res.status === 401) {
-        this.$emit('mustLogin');
-        return;
-      }
-      if (!res.ok) {
-        throw await res.json();
-      }
-      this.users = await res.json();
+    if (!this.me) {
+      this.$emit('mustLogin');
+      return;
+    }
+    if(this.me?.privilege_level < 1) {
+      this.$emit('setErrors', ['You are not an admin']);
+      return;
+    }
+    const resp = await this.$api.get('/api/users/signups/0');
+    this.users = resp.data;
   },
   computed: {
     num_signups(): number {
