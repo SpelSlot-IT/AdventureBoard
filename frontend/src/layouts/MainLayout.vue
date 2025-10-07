@@ -8,6 +8,7 @@
         </div>
         <q-avatar icon="img:spelslot-logo.svg" size="50px"></q-avatar>
         <div>
+          <q-toggle label="Noob" v-if="me?.privilege_level > 0 || droppedPrivileges" color="secondary" :modelValue="droppedPrivileges" @update:modelValue="togglePrivileges" />
           <q-spinner size="lg" v-if="adminActionsActive > 0" />
           <q-btn
             v-if="me"
@@ -102,6 +103,7 @@ export default defineComponent({
       version: '',
       adminActionsActive: 0,
       forceRefresh: 1,
+      droppedPrivileges: false,
       me: null as null | {
         id: number;
         display_name: string;
@@ -122,6 +124,9 @@ export default defineComponent({
     },
     async fetchMe() {
       this.me = (await this.$api.get('/api/users/me')).data;
+      if(this.droppedPrivileges) {
+        this.me!.privilege_level = 0;
+      }
     },
     async logout() {
       const currentUrl = window.location.href;
@@ -176,6 +181,14 @@ export default defineComponent({
         } else {
           throw e;
         }
+      }
+    },
+    togglePrivileges(v: boolean) {
+      this.droppedPrivileges = v;
+      if(v) {
+        this.me!.privilege_level = 0;
+      } else {
+        this.fetchMe();
       }
     },
   },
