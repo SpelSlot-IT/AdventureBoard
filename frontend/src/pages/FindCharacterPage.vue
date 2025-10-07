@@ -21,7 +21,8 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, inject } from 'vue';
+import { defineComponent } from 'vue';
+import { useRouter } from 'vue-router';
 import { Character, fetchCharacterData } from '../util/characters';
 
 export default defineComponent({
@@ -32,6 +33,11 @@ export default defineComponent({
       type: String,
       required: true,
     },
+  },
+  setup() {
+    return {
+      router: useRouter(),
+    };
   },
   data() {
     return {
@@ -71,7 +77,7 @@ export default defineComponent({
     },
     playerCharacters() {
       if(this.playerCharacters && this.playerCharacters.length == 1) {
-        this.$router.replace({name: 'character', params: {id: this.playerCharacters[0].id}});
+        this.router.replace({name: 'character', params: {id: this.playerCharacters[0].id}});
       }
     },
   },
