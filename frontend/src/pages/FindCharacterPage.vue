@@ -54,13 +54,13 @@ export default defineComponent({
       if(this.characters === null || !this.dndbeyondName) {
         return null;
       }
-      return Object.values(this.characters).filter(c => c.dndbeyond_account.toLowerCase() == this.dndbeyondName.toLowerCase());
+      return Object.values(this.characters).filter(c => c.dndbeyond_account.toLowerCase() == this.dndbeyondName!.toLowerCase());
     },
   },
   watch: {
     id: {
       async handler() {
-        if(Number(parseFloat(this.id)) != this.id) {
+        if(isNaN(this.id) || isNaN(parseFloat(this.id))) {
           this.dndbeyondName = this.id;
           return;
         }
@@ -70,7 +70,7 @@ export default defineComponent({
       immediate: true,
     },
     playerCharacters() {
-      if(this.playerCharacters.length == 1) {
+      if(this.playerCharacters && this.playerCharacters.length == 1) {
         this.$router.replace({name: 'character', params: {id: this.playerCharacters[0].id}});
       }
     },
