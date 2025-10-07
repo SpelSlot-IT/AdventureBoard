@@ -71,7 +71,7 @@ export default defineComponent({
           return;
         }
         const resp = await this.$api.get('/api/users/' + this.id);
-        this.dndbeyondName = resp.data.dnd_beyond_name;
+        this.dndbeyondName = resp.data.dnd_beyond_name || '';
       },
       immediate: true,
     },
