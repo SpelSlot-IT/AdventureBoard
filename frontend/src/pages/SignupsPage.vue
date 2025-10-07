@@ -12,7 +12,7 @@
     >
       <template v-slot:body-cell-avatar="props">
         <q-td :props="props">
-          <router-link :to="'/characters/' + props.row.id" v-if="props.value">
+          <router-link :to="{name: 'playerCharacter', params: {id: props.row.id || 'TODO'}}" v-if="props.value">
             <q-avatar>
               <img :src="props.value" />
             </q-avatar>
@@ -22,7 +22,7 @@
 
       <template v-slot:body-cell-name="props">
         <q-td :props="props">
-          <router-link :to="'/characters/' + props.row.id" class="default-text-color">
+          <router-link :to="{name: 'playerCharacter', params: {id: props.row.id || 'TODO'}}" class="default-text-color">
             {{ props.value }}
           </router-link>
         </q-td>

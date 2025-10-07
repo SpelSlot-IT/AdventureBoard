@@ -135,7 +135,7 @@
                         <img :src="p.user.profile_pic" />
                       </q-avatar>
                         <div class="q-mr-sm">
-                          <router-link :to="'/characters/' + p.user.id" class="default-text-color">
+                          <router-link :to="{name: 'playerCharacter', params: {id: p.user.id}}" class="default-text-color">
                             {{ p.user.display_name }}
                           </router-link>
                           ({{ p.user.karma }})
@@ -167,8 +167,8 @@
                     <q-avatar size="sm" class="q-mr-sm">
                       <img :src="p.user.profile_pic" />
                     </q-avatar>
-                    <router-link :to="'/characters/' + p.user.id" class="default-text-color">
-                            {{ p.user.display_name }}
+                    <router-link :to="{name: 'playerCharacter', params: {id: p.user.id}}" class="default-text-color">
+                      {{ p.user.display_name }}
                     </router-link>
                     <q-btn
                       v-if="p.user.id == me?.id"
