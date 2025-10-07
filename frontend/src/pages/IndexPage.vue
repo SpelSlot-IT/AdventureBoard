@@ -45,22 +45,15 @@
             <div class="text-h6 text-center">{{ a.title }}</div>
             <q-separator />
 
-            <div class="row justify-between">
-              <div class="col">
-                <div>{{ describeDuration(a) }}</div>
-                <div v-if="a.requested_room">Room: {{ a.requested_room }}</div>
-              </div>
-              <div class="col">
-                <q-chip
-                  v-for="t in a.tags?.split(',')"
-                  :key="t"
-                  :label="t"
-                  color="accent"
-                  text-color="white"
-                  :ripple="false"
-                  class="float-right"
-                />
-              </div>
+            <div class="row full-width justify-end">
+              <q-chip
+                v-for="t in a.tags?.split(',')"
+                :key="t"
+                :label="t"
+                color="accent"
+                text-color="white"
+                :ripple="false"
+              />
             </div>
             <div class="description">
               <template v-if="a.short_description">
@@ -182,6 +175,10 @@
                 </q-item>
               </Container>
             </q-list>
+            <div class="row justify-between">
+              <div>{{ describeDuration(a) }}</div>
+              <div v-if="a.requested_room">Room: {{ a.requested_room }}</div>
+             </div>
             <div class="container">
               <div class="row justify-center q-gutter-sm">
                 <q-btn
