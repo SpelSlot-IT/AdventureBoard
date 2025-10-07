@@ -60,7 +60,7 @@ export default defineComponent({
   watch: {
     id: {
       async handler() {
-        if(isNaN(this.id) || isNaN(parseFloat(this.id))) {
+        if(!/^\d+$/.test(this.id)) {
           this.dndbeyondName = this.id;
           return;
         }
