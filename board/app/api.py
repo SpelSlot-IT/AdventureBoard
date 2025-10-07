@@ -137,7 +137,7 @@ class UserWithSignupsSchema(ma.SQLAlchemyAutoSchema):
         load_instance = True
         sqla_session = db.session
 
-        exclude = ("id","world_builder_name","name","google_id","email","dnd_beyond_name","privilege_level","karma")
+        exclude = ("id","name","google_id","email","privilege_level","karma")
 
 class AdventureQuerySchema(ma.Schema):
     adventure_id = ma.Integer(allow_none=True)
