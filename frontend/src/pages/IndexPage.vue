@@ -158,6 +158,7 @@
                       class="q-mr-sm flat"
                       icon="delete"
                       @click="cancelAssignment(a.id, p)"
+                      round
                     />
                   </q-item>
                 </q-item>
@@ -222,6 +223,7 @@
                       class="q-mr-sm flat"
                       icon="delete"
                       @click="cancelAssignment(p.id)"
+                      round
                     />
                   </q-item>
                 </Draggable>
