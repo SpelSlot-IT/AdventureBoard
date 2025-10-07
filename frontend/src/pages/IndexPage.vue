@@ -96,7 +96,6 @@
             <q-list v-if="me?.privilege_level >= 2" class="adminDropTarget">
               <Container
                 :class="[
-                  'q-pa-md',
                   'rounded-borders',
                   { 'grid-container': a.assignments.length > 0 },
                 ]"
@@ -142,7 +141,7 @@
               </Container>
             </q-list>
             <q-list v-else>
-              <div class="q-pa-md rounded-borders grid-container">
+              <div class="rounded-borders grid-container">
                 <q-item v-for="p in a.assignments" :key="p.user.id">
                   <q-item class="items-center">
                     <q-avatar size="sm" class="q-mr-sm">
@@ -198,7 +197,7 @@
             <q-separator />
             <q-list v-if="me?.privilege_level >= 2" class="adminDropTarget">
               <Container
-                class="q-pa-md rounded-borders grid-container"
+                class="rounded-borders grid-container"
                 @drop="(dr) => onDrop(dr, a.id)"
                 group-name="assignedPlayers"
                 :get-child-payload="
@@ -229,7 +228,7 @@
               </Container>
             </q-list>
             <q-list v-else>
-              <div class="q-pa-md rounded-borders grid-container">
+              <div class="rounded-borders grid-container">
                 <q-item v-for="p in a.assignments" :key="p.user.id">
                   <q-item class="items-center">
                     <q-avatar size="sm" class="q-mr-sm">
@@ -346,7 +345,7 @@
         <template v-if="me?.privilege_level >= 2">
           <q-list >
             <q-item class="q-pa-md">Signups (Not final assignments):</q-item>
-            <Container class="q-pa-md rounded-borders grid-container">
+            <Container class="rounded-borders grid-container">
               <q-item
                 v-for="s in focussed.signups"
                 :key="s.id"
