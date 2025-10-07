@@ -142,7 +142,7 @@
               </Container>
             </q-list>
             <q-list v-else>
-              <Container class="q-pa-md rounded-borders grid-container">
+              <div class="q-pa-md rounded-borders grid-container">
                 <q-item v-for="p in a.assignments" :key="p.user.id">
                   <q-item class="items-center">
                     <q-avatar size="sm" class="q-mr-sm">
@@ -162,7 +162,7 @@
                     />
                   </q-item>
                 </q-item>
-              </Container>
+              </div >
             </q-list>
             <div class="row justify-between">
               <div>{{ describeDuration(a) }}</div>
@@ -230,7 +230,7 @@
               </Container>
             </q-list>
             <q-list v-else>
-              <Container class="q-pa-md rounded-borders grid-container">
+              <div class="q-pa-md rounded-borders grid-container">
                 <q-item v-for="p in a.assignments" :key="p.user.id">
                   <q-item class="items-center">
                     <q-avatar size="sm" class="q-mr-sm">
@@ -249,7 +249,7 @@
                     />
                   </q-item>
                 </q-item>
-              </Container>
+              </div>
             </q-list>
           </q-card-section>
         </q-card>
