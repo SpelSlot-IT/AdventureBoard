@@ -6,6 +6,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('layouts/MainLayout.vue'),
     children: [
       { path: '', component: () => import('pages/IndexPage.vue') },
+      // TODO: Put the date in the URL
       { path: 'profile', component: () => import('pages/ProfilePage.vue') },
       { path: 'signups', component: () => import('pages/SignupsPage.vue') },
       {
