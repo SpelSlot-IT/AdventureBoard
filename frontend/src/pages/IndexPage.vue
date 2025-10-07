@@ -140,28 +140,24 @@
                 </template>
               </Container>
             </q-list>
-            <q-list v-else>
-              <div class="rounded-borders grid-container">
-                <q-item v-for="p in a.assignments" :key="p.user.id">
-                  <q-item class="items-center">
-                    <q-avatar size="sm" class="q-mr-sm">
-                      <img :src="p.user.profile_pic" />
-                    </q-avatar>
-                    <router-link :to="{name: 'playerCharacter', params: {id: p.user.id}}" class="default-text-color">
-                      {{ p.user.display_name }}
-                    </router-link>
-                    <q-btn
-                      v-if="p.user.id == me?.id"
-                      size="sm"
-                      color="negative"
-                      class="q-mr-sm flat"
-                      icon="delete"
-                      @click="cancelAssignment(a.id, p)"
-                      round
-                    />
-                  </q-item>
-                </q-item>
-              </div >
+            <q-list v-else class="rounded-borders grid-container">
+              <q-item class="items-center" v-for="p in a.assignments" :key="p.user.id">
+                <q-avatar size="sm" class="q-mr-sm">
+                  <img :src="p.user.profile_pic" />
+                </q-avatar>
+                <router-link :to="{name: 'playerCharacter', params: {id: p.user.id}}" class="default-text-color">
+                  {{ p.user.display_name }}
+                </router-link>
+                <q-btn
+                  v-if="p.user.id == me?.id"
+                  size="sm"
+                  color="negative"
+                  class="q-mr-sm flat"
+                  icon="delete"
+                  @click="cancelAssignment(a.id, p)"
+                  round
+                />
+              </q-item>
             </q-list>
             <div class="row justify-between">
               <div>{{ describeDuration(a) }}</div>
@@ -227,27 +223,23 @@
                 </Draggable>
               </Container>
             </q-list>
-            <q-list v-else>
-              <div class="rounded-borders grid-container">
-                <q-item v-for="p in a.assignments" :key="p.user.id">
-                  <q-item class="items-center">
-                    <q-avatar size="sm" class="q-mr-sm">
-                      <img :src="p.user.profile_pic" />
-                    </q-avatar>
-                    <div>
-                      {{ p.user.display_name }}
-                    </div>
-                    <q-btn
-                      v-if="p.user.id == me?.id"
-                      size="sm"
-                      color="negative"
-                      class="q-mr-sm flat"
-                      icon="delete"
-                      @click="cancelAssignment(a.id, p)"
-                    />
-                  </q-item>
-                </q-item>
-              </div>
+            <q-list v-else class="rounded-borders grid-container">
+              <q-item class="items-center" v-for="p in a.assignments" :key="p.user.id">
+                <q-avatar size="sm" class="q-mr-sm">
+                  <img :src="p.user.profile_pic" />
+                </q-avatar>
+                <div>
+                  {{ p.user.display_name }}
+                </div>
+                <q-btn
+                  v-if="p.user.id == me?.id"
+                  size="sm"
+                  color="negative"
+                  class="q-mr-sm flat"
+                  icon="delete"
+                  @click="cancelAssignment(a.id, p)"
+                />
+              </q-item>
             </q-list>
           </q-card-section>
         </q-card>
