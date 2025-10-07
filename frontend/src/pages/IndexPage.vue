@@ -68,11 +68,7 @@
                   :max="3"
                   readonly
                   size="2em"
-                  :icon="
-                    $q.dark.isActive
-                      ? 'img:/light/spiked-dragon-head.svg'
-                      : 'img:/dark/spiked-dragon-head.svg'
-                  "
+                  :icon="rankImage('combat')"
                 />
                 <q-tooltip transition-show="scale" transition-hide="scale">Combat</q-tooltip>
               </div>
@@ -82,11 +78,7 @@
                   :max="3"
                   readonly
                   size="2em"
-                  :icon="
-                    $q.dark.isActive
-                      ? 'img:/light/dungeon-gate.svg'
-                      : 'img:/dark/dungeon-gate.svg'
-                  "
+                  :icon="rankImage('exploration')"
                 />
                 <q-tooltip transition-show="scale" transition-hide="scale">Exploration</q-tooltip>
               </div>
@@ -96,11 +88,7 @@
                   :max="3"
                   readonly
                   size="2em"
-                  :icon="
-                    $q.dark.isActive
-                      ? 'img:/light/drama-masks.svg'
-                      : 'img:/dark/drama-masks.svg'
-                  "
+                  :icon="rankImage('roleplaying')"
                 />
                 <q-tooltip transition-show="scale" transition-hide="scale">Roleplaying</q-tooltip>
               </div>
@@ -314,7 +302,7 @@
                   :max="3"
                   readonly
                   size="2em"
-                  icon="img:spiked-dragon-head.svg"
+                  :icon="rankImage('combat')"
                 />
               </td>
             </tr>
@@ -326,7 +314,7 @@
                   :max="3"
                   readonly
                   size="2em"
-                  icon="img:dungeon-gate.svg"
+                  :icon="rankImage('exploration')"
                 />
               </td>
             </tr>
@@ -338,7 +326,7 @@
                   :max="3"
                   readonly
                   size="2em"
-                  icon="img:drama-masks.svg"
+                  :icon="rankImage('roleplaying')"
                 />
               </td>
             </tr>
@@ -648,6 +636,17 @@ export default defineComponent({
       }
       this.fetch(false);
     },
+    rankImage(what: 'combat' | 'exploration' | 'roleplaying') {
+      const prefix = this.$q.dark.isActive ? 'img:/light/' : 'img:/dark/';
+      switch(what) {
+        case 'combat':
+          return prefix + 'spiked-dragon-head.svg';
+        case 'exploration':
+          return prefix + 'dungeon-gate.svg';
+        case 'roleplaying':
+          return prefix + 'drama-masks.svg';
+      }
+    }
   },
   computed: {
     wednesdate() {
