@@ -39,7 +39,7 @@
                     <q-item-section>Release assignments</q-item-section>
                   </q-item>
                   <q-item clickable v-close-popup @click="adminAction('reset')">
-                    <q-item-section>Reset assignments</q-item-section>
+                    <q-item-section>Unrelease assignments</q-item-section>
                   </q-item>
                   <q-item clickable v-close-popup @click="updateKarma()">
                     <q-item-section>Update karma</q-item-section>
