@@ -8,6 +8,7 @@
         </div>
         <q-avatar icon="img:spelslot-logo.svg" size="50px"></q-avatar>
         <div>
+          <q-toggle label="Noob" v-if="me?.privilege_level > 0 || droppedPrivileges" color="secondary" :modelValue="droppedPrivileges" @update:modelValue="togglePrivileges" />
           <q-spinner size="lg" v-if="adminActionsActive > 0" />
           <q-btn
             v-if="me"
@@ -38,10 +39,13 @@
                     <q-item-section>Release assignments</q-item-section>
                   </q-item>
                   <q-item clickable v-close-popup @click="adminAction('reset')">
-                    <q-item-section>Reset assignments</q-item-section>
+                    <q-item-section>Unrelease assignments</q-item-section>
                   </q-item>
                   <q-item clickable v-close-popup @click="updateKarma()">
                     <q-item-section>Update karma</q-item-section>
+                  </q-item>
+                  <q-item clickable v-close-popup @click="signups">
+                    <q-item-section>See current signups</q-item-section>
                   </q-item>
                 </template>
               </q-list>
@@ -105,6 +109,7 @@ export default defineComponent({
       version: '',
       adminActionsActive: 0,
       forceRefresh: 1,
+      droppedPrivileges: false,
       me: null as null | {
         id: number;
         display_name: string;
@@ -125,8 +130,11 @@ export default defineComponent({
     },
     async fetchMe() {
       this.me = (await this.$api.get('/api/users/me')).data;
+      if(this.droppedPrivileges) {
+        this.me!.privilege_level = 0;
+      }
     },
-    logout() {
+    async logout() {
       const currentUrl = window.location.href;
       window.location.href = `/api/logout?next=${encodeURIComponent(
         currentUrl
@@ -137,6 +145,9 @@ export default defineComponent({
       window.location.href = `/api/login?next=${encodeURIComponent(
         currentUrl
       )}`;
+    },
+    async signups() {
+      window.location.href = '/#/signups';
     },
 
     async adminAction(action: string) {
@@ -178,12 +189,22 @@ export default defineComponent({
         }
       }
     },
+    togglePrivileges(v: boolean) {
+      this.droppedPrivileges = v;
+      if(v) {
+        this.me!.privilege_level = 0;
+      } else {
+        this.fetchMe();
+      }
+    },
   },
   async beforeMount() {
     this.loading = true;
     try {
       const preferredTheme =
-        Boolean(Number(localStorage.getItem('darkMode'))) ?? 'auto';
+        localStorage.getItem('darkMode') === null 
+        ? 'auto' 
+        : Boolean(Number(localStorage.getItem('darkMode')));
       this.$q.dark.set(preferredTheme);
 
       const aliveReq = this.$api.get('/api/alive');

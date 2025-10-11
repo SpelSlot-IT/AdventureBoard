@@ -1,6 +1,6 @@
 services:
   web:
-    image: ghcr.io/shepherd-itsec/adventureboard:latest
+    image: ghcr.io/spelslot-it/adventureboard:latest
     container_name: flask_web
     volumes:
       # mount config.json so hosts can customize without rebuilding

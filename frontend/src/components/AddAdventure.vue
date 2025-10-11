@@ -43,19 +43,31 @@
             v-model="rank_combat"
             :max="3"
             size="2em"
-            icon="sym_o_swords"
+            :icon="
+              $q.dark.isActive
+                ? 'img:/light/spiked-dragon-head.svg'
+                : 'img:/dark/spiked-dragon-head.svg'
+            "
           />
           <q-rating
             v-model="rank_exploration"
             :max="3"
             size="2em"
-            icon="explore"
+            :icon="
+              $q.dark.isActive
+                ? 'img:/light/dungeon-gate.svg'
+                : 'img:/dark/dungeon-gate.svg'
+            "
           />
           <q-rating
             v-model="rank_roleplaying"
             :max="3"
             size="2em"
-            icon="theater_comedy"
+            :icon="
+              $q.dark.isActive
+                ? 'img:/light/drama-masks.svg'
+                : 'img:/dark/drama-masks.svg'
+            "
           />
           <q-input
             v-if="me.privilege_level >= 2"
@@ -159,12 +171,10 @@ export default defineComponent({
       this.$q
         .dialog({
           title: 'Delete',
-          message:
-            'Are you sure you want to delete "' +
-            this.editExisting!.title +
-            '" on the ' +
-            this.editExisting!.date +
-            '?',
+          message: `Are you sure you want to delete "${this.editExisting!.title}" on the ${this.editExisting!.date}?` +
+            (this.editExisting!.signups.length > 0 
+              ? `\n${this.editExisting!.signups.length} player(s) have already signed up for this adventure.` 
+              : ''),
           cancel: true,
         })
         .onOk(async () => {

@@ -45,28 +45,21 @@
             <div class="text-h6 text-center">{{ a.title }}</div>
             <q-separator />
 
-            <div class="row justify-between">
-              <div class="col">
-                <div>{{ describeDuration(a) }}</div>
-                <div v-if="a.requested_room">Room: {{ a.requested_room }}</div>
-              </div>
-              <div class="col">
-                <q-chip
-                  v-for="t in a.tags?.split(',')"
-                  :key="t"
-                  :label="t"
-                  color="accent"
-                  text-color="white"
-                  :ripple="false"
-                  class="float-right"
-                />
-              </div>
+            <div class="row full-width justify-end">
+              <q-chip
+                v-for="t in a.tags?.split(',')"
+                :key="t"
+                :label="t"
+                color="accent"
+                text-color="white"
+                :ripple="false"
+              />
             </div>
             <div class="description">
-              <template v-if="a.short_description">{{
-                a.short_description
-              }}</template
-              ><i v-else>No description</i>
+              <template v-if="a.short_description">
+                 <div style="white-space: pre-line;">{{ a.short_description }}</div>
+              </template>
+              <i v-else>No description</i>
             </div>
             <div class="row justify-between">
               <div>
@@ -75,11 +68,7 @@
                   :max="3"
                   readonly
                   size="2em"
-                  :icon="
-                    $q.dark.isActive
-                      ? 'img:/light/dragon-head.svg'
-                      : 'img:/dark/dragon-head.svg'
-                  "
+                  :icon="rankImage('combat')"
                 />
                 <q-tooltip transition-show="scale" transition-hide="scale">Combat</q-tooltip>
               </div>
@@ -89,11 +78,7 @@
                   :max="3"
                   readonly
                   size="2em"
-                  :icon="
-                    $q.dark.isActive
-                      ? 'img:/light/dungeon-gate.svg'
-                      : 'img:/dark/dungeon-gate.svg'
-                  "
+                  :icon="rankImage('exploration')"
                 />
                 <q-tooltip transition-show="scale" transition-hide="scale">Exploration</q-tooltip>
               </div>
@@ -103,11 +88,7 @@
                   :max="3"
                   readonly
                   size="2em"
-                  :icon="
-                    $q.dark.isActive
-                      ? 'img:/light/drama-masks.svg'
-                      : 'img:/dark/drama-masks.svg'
-                  "
+                  :icon="rankImage('roleplaying')"
                 />
                 <q-tooltip transition-show="scale" transition-hide="scale">Roleplaying</q-tooltip>
               </div>
@@ -115,7 +96,6 @@
             <q-list v-if="me?.privilege_level >= 2" class="adminDropTarget">
               <Container
                 :class="[
-                  'q-pa-md',
                   'rounded-borders',
                   { 'grid-container': a.assignments.length > 0 },
                 ]"
@@ -134,9 +114,12 @@
                       <q-avatar size="sm" class="q-mr-sm">
                         <img :src="p.user.profile_pic" />
                       </q-avatar>
-                      <div class="q-mr-sm">
-                        {{ p.user.display_name }} ({{ p.user.karma }})
-                      </div>
+                        <div class="q-mr-sm">
+                          <router-link :to="{name: 'playerCharacter', params: {id: p.user.id}}" class="default-text-color">
+                            {{ p.user.display_name }}
+                          </router-link>
+                          ({{ p.user.karma }})
+                        </div>
                       <q-btn
                         size="sm"
                         :icon="p.appeared ? 'check' : 'close'"
@@ -157,33 +140,33 @@
                 </template>
               </Container>
             </q-list>
-            <q-list v-else>
-              <Container class="q-pa-md rounded-borders grid-container">
-                <q-item v-for="p in a.assignments" :key="p.user.id">
-                  <q-item class="items-center">
-                    <q-avatar size="sm" class="q-mr-sm">
-                      <img :src="p.user.profile_pic" />
-                    </q-avatar>
-                    <div class="q-mr-sm">
-                      {{ p.user.display_name }}
-                    </div>
-                    <q-btn
-                      v-if="p.user.id == me?.id"
-                      size="sm"
-                      color="negative"
-                      class="q-mr-sm flat"
-                      icon="delete"
-                      @click="cancelAssignment(a.id, p)"
-                    />
-                  </q-item>
-                </q-item>
-              </Container>
+            <q-list v-else class="rounded-borders grid-container">
+              <q-item class="items-center" v-for="p in a.assignments" :key="p.user.id">
+                <q-avatar size="sm" class="q-mr-sm">
+                  <img :src="p.user.profile_pic" />
+                </q-avatar>
+                <router-link :to="{name: 'playerCharacter', params: {id: p.user.id}}" class="default-text-color">
+                  {{ p.user.display_name }}
+                </router-link>
+                <q-btn
+                  v-if="p.user.id == me?.id"
+                  size="sm"
+                  color="negative"
+                  class="q-mr-sm flat"
+                  icon="delete"
+                  @click="cancelAssignment(a.id, p)"
+                  round
+                />
+              </q-item>
             </q-list>
+            <div class="row justify-between">
+              <div>{{ describeDuration(a) }}</div>
+              <div v-if="a.requested_room">Room: {{ a.requested_room }}</div>
+             </div>
             <div class="container">
-              <div class="row justify-center q-gutter-sm">
+              <div class="row justify-center q-gutter-sm" v-if="!isDateInPast(a)">
                 <q-btn
                   v-for="n in 3"
-                  :class="isDateInPast(a) ? 'hidden' : 'col'"
                   style="max-width: 8rem"
                   :key="n"
                   icon="person_add"
@@ -210,7 +193,7 @@
             <q-separator />
             <q-list v-if="me?.privilege_level >= 2" class="adminDropTarget">
               <Container
-                class="q-pa-md rounded-borders grid-container"
+                class="rounded-borders grid-container"
                 @drop="(dr) => onDrop(dr, a.id)"
                 group-name="assignedPlayers"
                 :get-child-payload="
@@ -234,32 +217,29 @@
                       class="q-mr-sm flat"
                       icon="delete"
                       @click="cancelAssignment(p.id)"
+                      round
                     />
                   </q-item>
                 </Draggable>
               </Container>
             </q-list>
-            <q-list v-else>
-              <Container class="q-pa-md rounded-borders grid-container">
-                <q-item v-for="p in a.assignments" :key="p.user.id">
-                  <q-item class="items-center">
-                    <q-avatar size="sm" class="q-mr-sm">
-                      <img :src="p.user.profile_pic" />
-                    </q-avatar>
-                    <div>
-                      {{ p.user.display_name }}
-                    </div>
-                    <q-btn
-                      v-if="p.user.id == me?.id"
-                      size="sm"
-                      color="negative"
-                      class="q-mr-sm flat"
-                      icon="delete"
-                      @click="cancelAssignment(a.id, p)"
-                    />
-                  </q-item>
-                </q-item>
-              </Container>
+            <q-list v-else class="rounded-borders grid-container">
+              <q-item class="items-center" v-for="p in a.assignments" :key="p.user.id">
+                <q-avatar size="sm" class="q-mr-sm">
+                  <img :src="p.user.profile_pic" />
+                </q-avatar>
+                <div>
+                  {{ p.user.display_name }}
+                </div>
+                <q-btn
+                  v-if="p.user.id == me?.id"
+                  size="sm"
+                  color="negative"
+                  class="q-mr-sm flat"
+                  icon="delete"
+                  @click="cancelAssignment(a.id, p)"
+                />
+              </q-item>
             </q-list>
           </q-card-section>
         </q-card>
@@ -314,7 +294,7 @@
                   :max="3"
                   readonly
                   size="2em"
-                  icon="img:spiked-dragon-head.svg"
+                  :icon="rankImage('combat')"
                 />
               </td>
             </tr>
@@ -326,7 +306,7 @@
                   :max="3"
                   readonly
                   size="2em"
-                  icon="img:dungeon-gate.svg"
+                  :icon="rankImage('exploration')"
                 />
               </td>
             </tr>
@@ -338,7 +318,7 @@
                   :max="3"
                   readonly
                   size="2em"
-                  icon="img:drama-masks.svg"
+                  :icon="rankImage('roleplaying')"
                 />
               </td>
             </tr>
@@ -357,7 +337,7 @@
         <template v-if="me?.privilege_level >= 2">
           <q-list >
             <q-item class="q-pa-md">Signups (Not final assignments):</q-item>
-            <Container class="q-pa-md rounded-borders grid-container">
+            <Container class="rounded-borders grid-container">
               <q-item
                 v-for="s in focussed.signups"
                 :key="s.id"
@@ -479,13 +459,17 @@ export default defineComponent({
     };
   },
   data() {
-    let start = new Date();
-    if (start.getDay() > 3) {
-      start.setDate(start.getDate() + 7);
-    }
-    start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+    let today  = new Date();
+    let day = today.getDay(); // Sunday = 0, Monday = 1, ..., Saturday = 6
+
+  // If today is Thursday (4) to Sunday (0), move to next week
+  if (day === 0 || day >= 4) {
+    today.setDate(today.getDate() + (8 - day) % 7); // Move to next Monday
+  } else {
+    today.setDate(today.getDate() - ((day + 6) % 7)); // Move to this week's Monday
+  }
     return {
-      weekStart: start.toISOString().split('T')[0],
+      weekStart: today.toISOString().split('T')[0],
       adventures: [],
       focussed: null as any,
       addAdventure: false,
@@ -589,7 +573,7 @@ export default defineComponent({
       if (!this.me || this.me.dnd_beyond_name) return;
       this.$q
         .dialog({
-          title: 'Please compleat your profile',
+          title: 'Please complete your profile',
           message:
             'Your profile is missing vital information as for example your D&D Beyond name. Please go to your profile page and fill in all information before signing up for adventures.',
           cancel: true,
@@ -644,6 +628,17 @@ export default defineComponent({
       }
       this.fetch(false);
     },
+    rankImage(what: 'combat' | 'exploration' | 'roleplaying') {
+      const prefix = this.$q.dark.isActive ? 'img:/light/' : 'img:/dark/';
+      switch(what) {
+        case 'combat':
+          return prefix + 'spiked-dragon-head.svg';
+        case 'exploration':
+          return prefix + 'dungeon-gate.svg';
+        case 'roleplaying':
+          return prefix + 'drama-masks.svg';
+      }
+    }
   },
   computed: {
     wednesdate() {
