@@ -139,9 +139,12 @@ def make_waiting_list(today=date.today()) -> Adventure:
         db.select(Adventure).where(Adventure.id == WAITING_LIST_ID)
     ).scalars().first()
     if existing_waiting_list:
-        existing_waiting_list.date = next_wed
+        # Set its id to the next available id (simulate auto-increment)
+        next_id = db.session.execute(
+            db.select(func.max(Adventure.id))
+        ).scalar() or 0
+        existing_waiting_list.id = next_id + 1
         db.session.flush()
-        return existing_waiting_list
     # Create a waiting-list adventure and return it
     waiting_list = Adventure.create(
                 id=WAITING_LIST_ID,
@@ -420,8 +423,8 @@ def reassign_karma(today=date.today()):
         .distinct()
     ).scalars().all()
     for user in creators:
-        user.karma += 75
-    current_app.logger.info(f" - Assigned 100 karma to DMs: #{len(creators)}: {[user.display_name for user in creators]}")
+        user.karma += 5
+    current_app.logger.info(f" - Assigned 5 karma to DMs: #{len(creators)}: {[user.display_name for user in creators]}")
 
     # -100 karma for not appearing in this week's adventures
     non_appearances = db.session.execute(
@@ -436,8 +439,8 @@ def reassign_karma(today=date.today()):
         )
     ).scalars().all()
     for user in non_appearances:
-        user.karma -= 100
-    current_app.logger.info(f" - Assigned -100 karma to players who did not appear: #{len(non_appearances)}: {[user.display_name for user in non_appearances]}")
+        user.karma -= 5
+    current_app.logger.info(f" - Assigned -10 karma to players who did not appear: #{len(non_appearances)}: {[user.display_name for user in non_appearances]}")
 
     # +10 karma for being assigned to something not in top three this week
     off_prefs = db.session.execute(
@@ -451,7 +454,7 @@ def reassign_karma(today=date.today()):
         )
     ).scalars().all()
     for user in off_prefs:
-        user.karma += 10
+        user.karma += 3
     current_app.logger.info(f" - Assigned 10 karma to players who did not got what they wanted: #{len(off_prefs)}: {[user.display_name for user in off_prefs]}")
 
     # +1 karma for playing in this week's adventures
