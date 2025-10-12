@@ -5,6 +5,7 @@ Flask>=2.0.0
 Flask-SQLAlchemy>=3.0.0
 PyMySQL>=1.0.0       # MySQL/MariaDB driver
 psycopg[binary]>=3.1 # PostgreSQL driver
+Flask-Migrate>=4.0.0 # Database migrations
 
 # Authentication & Security
 Flask-Login>=0.6.0

@@ -3,6 +3,7 @@ from flask_apscheduler import APScheduler
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_mail import Mail
+from flask_migrate import Migrate
 
 import requests
 from oauthlib.oauth2 import WebApplicationClient
@@ -12,6 +13,7 @@ ma = Marshmallow()
 db = SQLAlchemy()
 login_manager = LoginManager()
 mail = Mail()
+migrate = Migrate()
 
 class GoogleOAuth:
     def __init__(self, app=None):

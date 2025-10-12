@@ -106,6 +106,7 @@ class Adventure(db.Model):
     rank_combat         = db.Column(db.Integer, nullable=False, default=0)
     rank_exploration    = db.Column(db.Integer, nullable=False, default=0)
     rank_roleplaying    = db.Column(db.Integer, nullable=False, default=0)
+    is_waitinglist      = db.Column(db.Integer, nullable=False, default=0) # 0 = no, 1 = yes, 2 = was waitinglist
 
     predecessor     = db.relationship('Adventure', remote_side=[id], foreign_keys=[predecessor_id])
     creator         = db.relationship('User', back_populates='adventures_created')
@@ -116,7 +117,7 @@ class Adventure(db.Model):
         return f"<Adventure(id={self.id}, title='{self.title}')>"
     
     @classmethod
-    def create(cls, commit=True, **kwargs):
+    def create(cls, commit=True, **kwargs) -> "Adventure":
         """
         Factory to create one or multiple Adventures. 
         If num_sessions > 1, it creates that many adventures one week apart,

@@ -5,9 +5,10 @@ import json, os
 from flask import Flask
 from flask_smorest import Api
 from flask_talisman import Talisman
+
 import logging
 
-from .provider import db, ma, ap_scheduler, login_manager, google_oauth, mail
+from .provider import db, ma, ap_scheduler, login_manager, google_oauth, mail, migrate
 from .models import *
 from .util import *
 from .api import *
@@ -56,6 +57,9 @@ def create_app(config_file=None):
     db.init_app(app)
     with app.app_context():
         db.create_all()
+
+    # --- Migrations setup ---
+    migrate.init_app(app, db)
 
 
     # --- (De)Serialization setup ---

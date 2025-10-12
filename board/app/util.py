@@ -126,7 +126,6 @@ def reset_release(today=date.today()):
         raise e  
     
 
-WAITING_LIST_ID = -999             # in-memory placeholder used by the planner
 WAITING_LIST_NAME = "Waiting List" # unique name used to create the waiting-list adventure
 def make_waiting_list(today=date.today()) -> Adventure:
     """
@@ -136,22 +135,19 @@ def make_waiting_list(today=date.today()) -> Adventure:
 
     # Try to find an existing waiting-list adventure
     existing_waiting_list = db.session.execute(
-        db.select(Adventure).where(Adventure.id == WAITING_LIST_ID)
+        db.select(Adventure).where(Adventure.is_waitinglist == 1)
     ).scalars().first()
     if existing_waiting_list:
-        # Set its id to the next available id (simulate auto-increment)
-        next_id = db.session.execute(
-            db.select(func.max(Adventure.id))
-        ).scalar() or 0
-        existing_waiting_list.id = next_id + 1
+        existing_waiting_list.is_waitinglist = 2 # Mark as "was waiting list"
         db.session.flush()
+
     # Create a waiting-list adventure and return it
     waiting_list = Adventure.create(
-                id=WAITING_LIST_ID,
                 title=WAITING_LIST_NAME,
                 max_players=128,
                 short_description='',
                 date=next_wed,
+                is_waitinglist=1, # Mark as waiting list
             )
     db.session.add(waiting_list)
     db.session.flush()
@@ -167,7 +163,7 @@ def assign_rooms_to_adventures(today=date.today()):
                 .filter(
                     Adventure.date >= start_of_week,
                     Adventure.date <= end_of_week,
-                    ~Adventure.id ==[WAITING_LIST_ID],
+                    Adventure.is_waitinglist == 0,  # Exclude waiting list
                 )
                 .order_by(
                     func.random(), # Shuffle
@@ -433,7 +429,7 @@ def reassign_karma(today=date.today()):
         .join(Adventure)
         .where(
             Assignment.appeared.is_(False),
-            Adventure.id != WAITING_LIST_ID,
+            Adventure.is_waitinglist.is_(0),  # Ignore waiting list
             Adventure.date >= start_of_current_week,
             Adventure.date <= end_of_current_week
         )
