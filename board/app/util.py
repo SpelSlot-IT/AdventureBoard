@@ -137,23 +137,27 @@ def make_waiting_list(today=date.today()) -> Adventure:
     existing_waiting_list = db.session.execute(
         db.select(Adventure).where(Adventure.is_waitinglist == 1)
     ).scalars().first()
-    if not existing_waiting_list.date == next_wed:
-        if existing_waiting_list:
-            existing_waiting_list.is_waitinglist = 2 # Mark as "was waiting list"
-            db.session.flush()
-
-        # Create a waiting-list adventure and return it
-        waiting_list = Adventure.create(
-                    title=WAITING_LIST_NAME,
-                    max_players=128,
-                    short_description='',
-                    date=next_wed,
-                    is_waitinglist=1, # Mark as waiting list
-                )
-        db.session.add(waiting_list)
+    if existing_waiting_list and existing_waiting_list.date == next_wed:
+        current_app.logger.info(f"Found existing waiting list adventure: {existing_waiting_list}, skipping creation.")
+        return existing_waiting_list
+    
+    if existing_waiting_list:
+        existing_waiting_list.is_waitinglist = 2 # Mark as "was waiting list"
         db.session.flush()
-        return waiting_list
-    return existing_waiting_list
+        current_app.logger.info(f"Found existing waiting list adventure: {existing_waiting_list}, marking as old and creating a new one.")
+
+    # Create a waiting-list adventure and return it
+    waiting_list = Adventure.create(
+                title=WAITING_LIST_NAME,
+                max_players=128,
+                short_description='',
+                date=next_wed,
+                is_waitinglist=1, # Mark as waiting list
+            )
+    db.session.add(waiting_list)
+    db.session.flush()
+    return waiting_list
+    
 
 def assign_rooms_to_adventures(today=date.today()):
     start_of_week, end_of_week = get_upcoming_week(today)
@@ -399,6 +403,72 @@ def assign_players_to_adventures(today=date.today()):
 
     current_app.logger.warning(f"Assigned players to adventures: {dict(assignment_map)}")
     db.session.commit()
+
+def reassign_players_from_waiting_list(today=date.today()):
+    """
+    Reassign players from the waiting list to newly opened slots in adventures this week.
+    """
+    start_of_week, end_of_week = get_upcoming_week(today)
+
+    # Get the waiting list adventure
+    waiting_list = db.session.execute(
+        db.select(Adventure).where(Adventure.is_waitinglist == 1)
+    ).scalars().first()
+    if not waiting_list:
+        current_app.logger.info("No waiting list adventure found. Skipping reassignment.")
+        return
+
+    # Get all assignments on the waiting list
+    waiting_list_assignments = db.session.execute(
+        db.select(Assignment)
+        .join(Assignment.user)
+        .where(Assignment.adventure_id == waiting_list.id)
+        .options(db.contains_eager(Assignment.user))
+        .order_by(User.karma.desc())  # Prioritize by karma
+    ).scalars().all()
+
+    if not waiting_list_assignments:
+        current_app.logger.info("No players on the waiting list. Skipping reassignment.")
+        return
+
+    # Track reassigned users for logging
+    reassigned_users = []
+
+    for assignment in waiting_list_assignments:
+        user = assignment.user
+
+        # Find adventures this week that the user signed up for and have available slots
+        available_adventures = db.session.execute(
+            db.select(Adventure)
+            .outerjoin(Assignment, Assignment.adventure_id == Adventure.id)
+            .join(Signup, (Signup.adventure_id == Adventure.id) & (Signup.user_id == user.id))
+            .where(
+                Adventure.date >= start_of_week,
+                Adventure.date <= end_of_week,
+                Adventure.is_waitinglist == 0,  # Exclude waiting list
+            )
+            .group_by(Adventure.id)
+            .having(func.count(Assignment.user_id) < Adventure.max_players)
+            .order_by(
+                Signup.priority.asc(),  # 2. User's priority
+                func.random()           # 1. Random
+            ) 
+        ).scalars().all()
+
+        for adventure in available_adventures:
+            # Assign to the first available adventure
+            new_assignment = Assignment(user_id=user.id, adventure_id=adventure.id, top_three=False)
+            db.session.add(new_assignment)
+
+            # Remove from waiting list
+            db.session.delete(assignment)
+
+            reassigned_users.append((user.display_name, adventure.title))
+
+    if reassigned_users:
+        current_app.logger.info(f"Reassigned users from waiting list: {reassigned_users}")
+        db.session.commit()
+
 
 def has_no_empty_params(rule):
     defaults = rule.defaults if rule.defaults is not None else ()

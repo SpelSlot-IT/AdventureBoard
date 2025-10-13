@@ -34,6 +34,13 @@
                   <q-item
                     clickable
                     v-close-popup
+                    @click="adminAction('reassign')"
+                  >
+                    <q-item-section>Reassigne players form the waitinglist</q-item-section>
+                  </q-item>
+                  <q-item
+                    clickable
+                    v-close-popup
                     @click="adminAction('release')"
                   >
                     <q-item-section>Release assignments</q-item-section>

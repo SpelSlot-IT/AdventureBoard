@@ -547,8 +547,8 @@ export default defineComponent({
       }
       return a.num_sessions + ' weeks';
     },
-    isWaitinglist(a: { id: number }): boolean {
-      return a.id == -999;
+    isWaitinglist(a: { is_waitinglist: number }): boolean {
+      return a.is_waitinglist >= 1;
     },
     cancelAssignment(adventure_id: number) {
       this.$q

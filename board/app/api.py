@@ -829,6 +829,10 @@ class AssignmentResource(MethodView):
         elif action == "assign":
             assign_rooms_to_adventures(today)
             assign_players_to_adventures(today) 
+        elif action == "reassign":
+            reassign_players_from_waiting_list(today)
+        elif action == "karma":
+            reassign_karma(today)
         else:
             abort(400, message=f"Invalid action: {action}")
 
