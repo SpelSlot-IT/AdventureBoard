@@ -137,21 +137,23 @@ def make_waiting_list(today=date.today()) -> Adventure:
     existing_waiting_list = db.session.execute(
         db.select(Adventure).where(Adventure.is_waitinglist == 1)
     ).scalars().first()
-    if existing_waiting_list:
-        existing_waiting_list.is_waitinglist = 2 # Mark as "was waiting list"
-        db.session.flush()
+    if not existing_waiting_list.date == next_wed:
+        if existing_waiting_list:
+            existing_waiting_list.is_waitinglist = 2 # Mark as "was waiting list"
+            db.session.flush()
 
-    # Create a waiting-list adventure and return it
-    waiting_list = Adventure.create(
-                title=WAITING_LIST_NAME,
-                max_players=128,
-                short_description='',
-                date=next_wed,
-                is_waitinglist=1, # Mark as waiting list
-            )
-    db.session.add(waiting_list)
-    db.session.flush()
-    return waiting_list
+        # Create a waiting-list adventure and return it
+        waiting_list = Adventure.create(
+                    title=WAITING_LIST_NAME,
+                    max_players=128,
+                    short_description='',
+                    date=next_wed,
+                    is_waitinglist=1, # Mark as waiting list
+                )
+        db.session.add(waiting_list)
+        db.session.flush()
+        return waiting_list
+    return existing_waiting_list
 
 def assign_rooms_to_adventures(today=date.today()):
     start_of_week, end_of_week = get_upcoming_week(today)
