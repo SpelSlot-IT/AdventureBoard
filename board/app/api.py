@@ -915,9 +915,17 @@ class AssignmentResource(MethodView):
         """
         PUNISH_KARMA_MISS = 25
         user_id = current_user.id
+        adventure_id = args.get('adventure_id')
+
+        if not adventure_id:
+            abort(422, message={'error': 'adventure_id is required'})
+
         assignment =  db.session.execute(
-                db.select(Assignment).where(Assignment.user_id == user_id, Assignment.adventure_id == args['adventure_id'])
-            ).scalar_one()
+                db.select(Assignment).where(Assignment.adventure_id == adventure_id)
+            ).scalar_one_or_none()
+        if not assignment:
+            abort(404, message={'error': 'Assignment not found'})
+
         # Check permission: admin or creator
         if not is_admin(current_user) and assignment.user_id != user_id:
             abort(401, message={'error': 'Unauthorized to delete this adventure'})

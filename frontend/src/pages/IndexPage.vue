@@ -154,7 +154,7 @@
                   color="negative"
                   class="q-mr-sm flat"
                   icon="delete"
-                  @click="cancelAssignment(a.id, p)"
+                  @click="cancelAssignment(a.id)"
                   round
                 />
               </q-item>
@@ -216,7 +216,7 @@
                       color="negative"
                       class="q-mr-sm flat"
                       icon="delete"
-                      @click="cancelAssignment(p.id)"
+                      @click="cancelAssignment(a.id)"
                       round
                     />
                   </q-item>
@@ -237,7 +237,7 @@
                   color="negative"
                   class="q-mr-sm flat"
                   icon="delete"
-                  @click="cancelAssignment(a.id, p)"
+                  @click="cancelAssignment(a.id)"
                 />
               </q-item>
             </q-list>
@@ -559,8 +559,11 @@ export default defineComponent({
           cancel: true,
         })
         .onOk(async () => {
-          await this.$api.delete('/api/player-assignments', {
-            data: { adventure_id: adventure_id },
+          await this.$api.request({
+            method: 'DELETE',
+            url: '/api/player-assignments',
+            data: { adventure_id },
+            headers: { 'Content-Type': 'application/json' }
           });
           this.$q.notify({
             message: "And you're off!",
