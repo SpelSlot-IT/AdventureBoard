@@ -10,26 +10,29 @@ from .email import notify_user, notifications_enabled
 def is_admin(user):
     return user.is_authenticated and user.privilege_level >= 2
 
-def get_next_wednesday(today=date.today()):
+def get_next_wednesday(today=None):
+    today = today or date.today()
     days_ahead = (2 - today.weekday() + 7) % 7  # 2 is Wednesday
     return today if days_ahead == 0 else today + timedelta(days=days_ahead)
 
-def get_this_week(today=date.today()):
+def get_this_week(today=None):
     """
     Returns the start (Monday) and end (Sunday) of the this week.
     """
+    today = today or date.today()
     # Find Monday of the current week
     start_of_current_week = today - timedelta(days=today.weekday())
     end_of_current_week = start_of_current_week + timedelta(days=6)
 
     return start_of_current_week, end_of_current_week
 
-def get_upcoming_week(today=date.today()):
+def get_upcoming_week(today=None):
     """
     Returns the start (Monday) and end (Sunday) of the upcoming week.
     - If today is Monday–Wednesday → return this week's Mon–Sun.
     - If today is Thursday–Sunday → return next week's Mon–Sun.
     """
+    today = today or date.today()
     start_of_current_week, end_of_current_week = get_this_week(today)
 
     if today.weekday() <= 2:  # Mon(0), Tue(1), Wed(2)
@@ -39,11 +42,11 @@ def get_upcoming_week(today=date.today()):
         end_of_next_week = end_of_current_week + timedelta(weeks=1)
         return start_of_next_week, end_of_next_week
     
-def get_this_month(today=date.today()):
+def get_this_month(today=None):
     """
     Returns the start (first day) and end (last day) of the current month.
     """
-
+    today = today or date.today()
     # First day of this month
     start_of_month = today.replace(day=1)
 
@@ -56,7 +59,8 @@ def get_this_month(today=date.today()):
 def check_release(adventures):
     return (len(adventures) > 0 and adventures[-1].release_assignments)
 
-def release_assignments(today=date.today()):
+def release_assignments(today=None):
+    today = today or date.today()
     start_of_week, end_of_week = get_upcoming_week(today)
     try:
         adventures = (
@@ -107,7 +111,8 @@ def release_assignments(today=date.today()):
         db.session.rollback()
         raise e
     
-def reset_release(today=date.today()):
+def reset_release(today=None):
+    today = today or date.today()
     start_of_week, end_of_week = get_upcoming_week(today)
     try:
         stmt = (
@@ -127,10 +132,11 @@ def reset_release(today=date.today()):
     
 
 WAITING_LIST_NAME = "Waiting List" # unique name used to create the waiting-list adventure
-def make_waiting_list(today=date.today()) -> Adventure:
+def make_waiting_list(today=None) -> Adventure:
     """
     Ensure a waiting-list Adventure exists in the DB and return it.
     """
+    today = today or date.today()
     next_wed = get_next_wednesday(today)
 
     # Try to find an existing waiting-list adventure
@@ -138,7 +144,7 @@ def make_waiting_list(today=date.today()) -> Adventure:
         db.select(Adventure).where(Adventure.is_waitinglist == 1)
     ).scalars().first()
     if existing_waiting_list and existing_waiting_list.date == next_wed:
-        current_app.logger.info(f"Found existing waiting list adventure: {existing_waiting_list}, skipping creation.")
+        current_app.logger.info(f"Found existing waiting list adventure: {existing_waiting_list} on the {existing_waiting_list.date}, skipping creation.")
         return existing_waiting_list
     
     if existing_waiting_list:
@@ -159,7 +165,8 @@ def make_waiting_list(today=date.today()) -> Adventure:
     return waiting_list
     
 
-def assign_rooms_to_adventures(today=date.today()):
+def assign_rooms_to_adventures(today=None):
+    today = today or date.today()
     start_of_week, end_of_week = get_upcoming_week(today)
     possible_rooms = current_app.config.get("ROOMS", ["A", "B", "C", "D", "E", "Comp", "Hall"])
     try:
@@ -239,7 +246,7 @@ def try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned
     return False  # No slot available
 
 
-def assign_players_to_adventures(today=date.today()):
+def assign_players_to_adventures(today=None):
     """
     Creates assignments for players that signed up this week. Working in 4 rounds:
     1. Signup all players that played last week, if they try to signup again for an ongoing adventure.
@@ -249,8 +256,10 @@ def assign_players_to_adventures(today=date.today()):
     5. Signup the rest of the players to the waiting list.
     This means that a player with more karma will always be preferred also if the adventure was a lower priority of his.
     """
+    today = today or date.today()
     start_of_week, end_of_week = get_upcoming_week(today)
     start_of_month, end_of_month = get_this_month(today)
+    current_app.logger.info(f" >--- Assigning players from waiting list for week {start_of_week} to {end_of_week} ---< ")
     # create a placeholder that will track how many places are already taken per adventure
     taken_places = defaultdict(int)
     assignment_map = defaultdict(list) # trace assignments in moa for human readability.
@@ -404,11 +413,13 @@ def assign_players_to_adventures(today=date.today()):
     current_app.logger.warning(f"Assigned players to adventures: {dict(assignment_map)}")
     db.session.commit()
 
-def reassign_players_from_waiting_list(today=date.today()):
+def reassign_players_from_waiting_list(today=None):
     """
     Reassign players from the waiting list to newly opened slots in adventures this week.
     """
+    today = today or date.today()
     start_of_week, end_of_week = get_upcoming_week(today)
+    current_app.logger.info(f" <--- Reassigning players from waiting list for week {start_of_week} to {end_of_week} ---> ")
 
     # Get the waiting list adventure
     waiting_list = db.session.execute(
@@ -479,7 +490,8 @@ def get_google():
     return current_app.extensions["google_oauth"].client, current_app.extensions["google_oauth"].provider_cfg
 
 
-def reassign_karma(today=date.today()):
+def reassign_karma(today=None):
+    today = today or date.today()
     start_of_current_week, end_of_current_week = get_this_week(today)
     current_app.logger.info(f"Reassigning karma for week {start_of_current_week} to {end_of_current_week}")
 
