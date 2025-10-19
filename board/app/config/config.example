@@ -24,6 +24,10 @@
     "tls": true,
     "ssl": false
   },
+  "VAPID": {
+    "public": "PUBLIC_VAPID_KEY",
+    "private": "PRIVATE_VAPID_KEY",
+  },
   "DB": {
     "host": "localhost",
     "user": "user",
