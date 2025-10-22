@@ -7,6 +7,7 @@ from flask_smorest import Api
 from flask_talisman import Talisman
 
 import logging
+from datetime import datetime
 
 from .provider import db, ma, ap_scheduler, login_manager, google_oauth, mail, migrate
 from .models import *
@@ -30,6 +31,25 @@ def create_app(config_file=None):
     level_name = config['APP'].get('log_level', 'WARNING') 
     app.logger.setLevel(getattr(logging, level_name.upper(), logging.WARNING))
     app.logger.info(f"App logging level set to: {level_name}")
+
+    # also log to a file, create a fresh logfile on every restart
+    try:
+        logs_dir = config['APP'].get('log_dir', None)
+        os.makedirs(logs_dir, exist_ok=True)
+        log_filename = f"adventureboard_start-{datetime.now().strftime('%Y%m%d-%H%M')}.log"
+        log_path = os.path.join(logs_dir, log_filename)
+
+        file_handler = logging.FileHandler(log_path, encoding='utf-8')
+        file_handler.setLevel(app.logger.level)
+
+        # Attach to app logger
+        if not any(isinstance(h, logging.FileHandler) for h in app.logger.handlers):
+            app.logger.addHandler(file_handler)
+
+        app.logger.info(f"File logging enabled at: {log_path}")
+    except Exception as e:
+        # Do not fail app start on logging errors
+        app.logger.warning(f"Failed to initialize file logging: {e}")
 
     # configure WSGI middleware
     if config["APP"]["behind_proxy"]:
@@ -114,6 +134,7 @@ def create_app(config_file=None):
     @ap_scheduler.task('cron', id='make_assignments', day_of_week=a_d, hour=a_h)
     def cron_make_assignments():
         with app.app_context():
+            app.logger.info("--- Triggering scheduled 'make assignment' job ---")
             reassign_karma()
             assign_players_to_adventures()
             assign_rooms_to_adventures()
@@ -121,6 +142,7 @@ def create_app(config_file=None):
     @ap_scheduler.task('cron', id='release_assignment', day_of_week=r_d, hour=r_h)
     def cron_release_assignments():
         with app.app_context():
+            app.logger.info("--- Triggering scheduled 'release assignment' job ---")
             release_assignments()
 
     return app

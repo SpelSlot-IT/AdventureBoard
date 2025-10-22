@@ -13,7 +13,8 @@
     },
     "behind_proxy":"https",
     "log_level": "WARNING",
-    "rooms": ["A", "B", "C", "D", "E", "Comp", "Hall"]
+    "rooms": ["A", "B", "C", "D", "E", "Comp", "Hall"],
+    "log_path": "\logs"
   },
   "EMAIL": {
     "active": false,

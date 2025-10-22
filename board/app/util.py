@@ -362,7 +362,7 @@ def assign_players_to_adventures(today=None):
                 if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
                     round_.append(user.display_name)
                     break
-    current_app.logger.warning(f"- Players assigned in round 2: #{len(round_)}: {round_} => {dict(taken_places)}")
+    current_app.logger.info(f"- Players assigned in round 2: #{len(round_)}: {round_} => {dict(taken_places)}")
 
     # -- Third round of assigning players --
     # Assign all players ranked by their karma to the first available adventure in there signups. 
@@ -374,7 +374,7 @@ def assign_players_to_adventures(today=None):
                 if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
                     round_.append(user.display_name)
                     break
-    current_app.logger.warning(f"- Players assigned in round 3: #{len(round_)}: {round_} => {dict(taken_places)}")
+    current_app.logger.info(f"- Players assigned in round 3: #{len(round_)}: {round_} => {dict(taken_places)}")
 
     adventures_this_week = (
         db.session.execute(
@@ -397,7 +397,7 @@ def assign_players_to_adventures(today=None):
                 if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
                     round_.append(user.display_name)
                     break
-    current_app.logger.warning(f"- Players assigned in round 4: #{len(round_)}: {round_} => {dict(taken_places)}")
+    current_app.logger.info(f"- Players assigned in round 4: #{len(round_)}: {round_} => {dict(taken_places)}")
 
 
     # -- Fifth round of assigning players --
@@ -410,7 +410,7 @@ def assign_players_to_adventures(today=None):
             current_app.logger.error(f"Failed to assign player {user.display_name} to waiting list!")
     current_app.logger.info(f"- Players assigned in round 5: #{len(round_)}: {round_} => {dict(taken_places)}")
 
-    current_app.logger.warning(f"Assigned players to adventures: {dict(assignment_map)}")
+    current_app.logger.info(f"Assigned players to adventures: {dict(assignment_map)}")
     db.session.commit()
 
 def reassign_players_from_waiting_list(today=None):

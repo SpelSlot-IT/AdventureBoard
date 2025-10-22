@@ -360,15 +360,23 @@ class CallbackResource(MethodView):
         userinfo_endpoint = google_provider_cfg["userinfo_endpoint"]
         uri, headers, body = client.add_token(userinfo_endpoint)
         userinfo_response = requests.get(uri, headers=headers, data=body)
+        userinfo = userinfo_response.json() if hasattr(userinfo_response, "json") else {}
+        if not userinfo_response.ok:
+            return redirect(url_for("api.login"))
 
         # We want to make sure their email is verified.
         # The user authenticated with Google, authorized our
         # app, and now we've verified their email through Google!
-        if userinfo_response.json().get("email_verified"):
-            unique_id = userinfo_response.json()["sub"]
-            users_email = userinfo_response.json()["email"]
-            picture = userinfo_response.json()["picture"]
-            users_name = userinfo_response.json()["given_name"]
+        if userinfo.get("email_verified"):
+            unique_id = userinfo.get("sub")
+            users_email = userinfo.get("email")
+            picture = userinfo.get("picture",None)
+            users_name = (
+                userinfo.get("given_name")
+                or userinfo.get("name")
+                or (userinfo.get("email") or "").split("@")[0]
+                or "Unknown User"
+            )
         else:
             abort(400, message="User email not available or not verified by Google.")
 
