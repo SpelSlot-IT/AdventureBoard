@@ -26,5 +26,5 @@ if __name__ == "__main__":
         return render_template('profile.html', user_id=user_id)
 
 
-    webbrowser.open("https://localhost:5000")
+    #webbrowser.open("https://localhost:5000")
     app.run(ssl_context="adhoc")

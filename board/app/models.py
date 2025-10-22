@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from flask_login import UserMixin, AnonymousUserMixin
 from sqlalchemy import func
+import hashlib
 
 from .provider import db
 
@@ -32,6 +33,7 @@ class User(UserMixin, db.Model):
     adventures_created  = db.relationship('Adventure', back_populates='creator', lazy='dynamic')
     signups             = db.relationship('Signup', back_populates='user')
     assignments         = db.relationship('Assignment', back_populates='user')
+    push_subscriptions  = db.relationship('PushSubscription', back_populates='user', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f"<User(display_name='{self.display_name}', karma={self.karma}, privilege_level={self.privilege_level})>"
@@ -184,3 +186,35 @@ class Signup(db.Model):
 
     def __repr__(self):
         return f"<Signup(id={self.id}, user_id={self.user_id}, adventure_id={self.adventure_id}, priority={self.priority})>"
+
+class PushSubscription(db.Model):
+    __tablename__ = 'push_subscriptions'
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'endpoint_hash', name='unique_user_endpoint_hash'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    # Store full endpoint (can be long); do NOT index this directly
+    endpoint = db.Column(db.Text, nullable=False)
+    # Short fixed-length hash suitable for indexing/uniqueness
+    endpoint_hash = db.Column(db.String(64), nullable=False, index=True)
+
+    # Typical lengths for Web Push keys
+    p256dh = db.Column(db.String(110), nullable=False)
+    auth = db.Column(db.String(32), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+    user = db.relationship('User', back_populates='push_subscriptions')
+    
+    def set_endpoint(self, endpoint: str):
+        self.endpoint = endpoint
+        self.endpoint_hash = hashlib.sha256(endpoint.encode('utf-8')).hexdigest()
+
+    def __init__(self, endpoint: str, **kwargs):
+        self.set_endpoint(endpoint)
+        super().__init__(**kwargs)        
+
+    def __repr__(self):
+        return f"<PushSubscription(user_id={self.user_id}, endpoint='{self.endpoint[:32]}...')>"

@@ -21,11 +21,19 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 import json
 import requests
 
-from .models import db, User, Adventure, Assignment
+from .models import db, User, Adventure, Assignment, Signup, PushSubscription
 from .util import *
 from .provider import ma, ap_scheduler
+from .push import (
+    PushSubscriptionSchema,
+    PushMessageSchema, VapidPublicKeySchema, EndpointSchema,
+    send_to_subscription,
+    send_bulk,
+    build_payload,
+    is_configured,
+)
 
-
+# Define core blueprints and list for registration (if missing)
 blp_utils = Blueprint("utils", "utils", url_prefix="/api/",
                description="Utils API: Everything that does not fit in the other categories.")
 blp_adventures = Blueprint("adventures", "adventures", url_prefix="/api/adventures",
@@ -36,8 +44,10 @@ blp_signups = Blueprint("signups", "signups", url_prefix="/api/signups",
                description="Signups API: Everything related to the signups of users. Priority medals 1, 2, 3")
 blp_users = Blueprint("users", "users", url_prefix="/api/users",
                description="Users API: Everything related to the users.")
+blp_push = Blueprint("push", "push", url_prefix="/api/push",
+               description="Web Push API: manage subscriptions and send notifications.")
 
-api_blueprints = [blp_utils, blp_users, blp_adventures, blp_assignments, blp_signups]
+api_blueprints = [blp_utils, blp_users, blp_adventures, blp_assignments, blp_signups, blp_push]
 
 # ----------------------- Schemas ---------------------------------
 
@@ -588,7 +598,7 @@ class AdventureIDlessRequest(MethodView):
             db.session.flush()  # new_adv.id available
 
 
-            # Player requests are only done for the first adventure created
+            # Player requests areonly done for the first adventure created
             mis_assignments = []
             for pid in requested_players:
                 try:
@@ -1046,3 +1056,125 @@ class SignupResource(MethodView):
 
         except Exception as e:
             abort(500, message=str(e))
+
+# --- PUSH ---
+@blp_push.route("/vapid-public-key")
+class VapidKeyResource(MethodView):
+    @blp_push.response(200, VapidPublicKeySchema)
+    def get(self):
+        """Expose VAPID public key to clients for subscription creation."""
+        try:
+            vapid = (current_app.config.get("PUSH_VAPID") or {})
+            if not vapid:
+                abort(503, message="Push not configured")
+            public = vapid.get("public_key")
+            if not public:
+                abort(503, message="VAPID public key not configured")
+            return {"public_key": public}
+        except Exception as e:
+            abort(500, message=str(e))
+
+@blp_push.route("/subscribe")
+class SubscribeResource(MethodView):
+    @login_required
+    @blp_push.arguments(PushSubscriptionSchema)
+    @blp_push.response(200, MessageSchema)
+    def post(self, sub):
+        """Register or update the current user's push subscription."""
+        if not is_configured():
+            abort(503, message="Push not configured")
+        endpoint = sub.get("endpoint")
+        keys = sub.get("keys", {})
+        p256dh = keys.get("p256dh")
+        auth = keys.get("auth")
+        if not endpoint or not p256dh or not auth:
+            abort(400, message="Invalid subscription payload")
+
+        # Upsert subscription
+        existing = db.session.execute(
+            db.select(PushSubscription).where(
+                PushSubscription.user_id == current_user.id,
+                PushSubscription.endpoint == endpoint,
+            )
+        ).scalars().first()
+
+        if existing:
+            existing.p256dh = p256dh
+            existing.auth = auth
+        else:
+            # New subscription
+            ps = PushSubscription(user_id=current_user.id, endpoint=endpoint, p256dh=p256dh, auth=auth)
+            db.session.add(ps)
+        db.session.commit()
+        return {"message": "Subscription saved"}
+
+    @login_required
+    @blp_push.arguments(EndpointSchema)
+    @blp_push.response(200, MessageSchema)
+    def delete(self, args):
+        """Remove the current user's subscription by endpoint."""
+        endpoint = args.get("endpoint")
+        if not endpoint:
+            abort(400, message="Missing endpoint")
+        result = db.session.execute(
+            db.delete(PushSubscription).where(
+                PushSubscription.user_id == current_user.id,
+                PushSubscription.endpoint == endpoint,
+            )
+        ).fetchone()
+        count = result[0] if result else 0
+        db.session.commit()
+        return {"message": f"Unsubscribed {count} entries"}
+
+@blp_push.route("/send-test")
+class SendTestResource(MethodView):
+    @login_required
+    @blp_push.arguments(PushMessageSchema)
+    @blp_push.response(200, MessageSchema)
+    def post(self, msg):
+        """Send a test notification to all of the current user's subscriptions."""
+        if not is_configured():
+            abort(503, message="Push not configured")
+
+        title = msg.get("title", "AdventureBoard")
+        body = msg.get("body", "Test notification")
+        payload = build_payload(
+            title=title,
+            body=body,
+            icon=msg.get("icon"),
+            badge=msg.get("badge"),
+            url=msg.get("url"),
+            tag=msg.get("tag"),
+            data=msg.get("data"),
+            actions=msg.get("actions"),
+        )
+
+        subs = db.session.execute(
+            db.select(PushSubscription).where(PushSubscription.user_id == current_user.id)
+        ).scalars().all()
+
+        # Convert DB objects to dict subscriptions
+        sub_dicts = [
+            {"endpoint": s.endpoint, "keys": {"p256dh": s.p256dh, "auth": s.auth}}
+            for s in subs
+        ]
+
+        results = send_bulk(sub_dicts, payload)
+
+        # Delete gone subscriptions
+        if results.get("gone"):
+            gone_endpoints = [sub_dicts[i]["endpoint"] for i in results["gone"]]
+            # Delete each gone endpoint individually to avoid calling .in_ on a runtime-typed attribute
+            for endpoint in gone_endpoints:
+                db.session.execute(
+                    db.delete(PushSubscription).where(
+                        PushSubscription.user_id == current_user.id,
+                        PushSubscription.endpoint == endpoint,
+                    )
+                )
+            db.session.commit()
+
+        success = len(results.get("success", []))
+        failed = len(results.get("failed", []))
+        gone = len(results.get("gone", []))
+        return {"message": f"Sent: {success}, Failed: {failed}, Removed: {gone}"}
