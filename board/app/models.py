@@ -157,14 +157,17 @@ class Assignment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
     adventure_id = db.Column(db.Integer, db.ForeignKey('adventures.id'), primary_key=True)
     appeared = db.Column(db.Boolean, nullable=False, default=True)
-    top_three = db.Column(db.Boolean, nullable=False, default=False)
+    # preference_place stores the priority of the user's signup that led to this assignment.
+    # 1 = first choice, 2 = second choice, 3 = third choice, 4+ = assigned outside top three
+    # None = not applicable (e.g., waiting list assignment)
+    preference_place = db.Column(db.Integer, nullable=True)
     creation_date = db.Column(db.DateTime, nullable=False, default=datetime.now())
 
     user = db.relationship('User', back_populates='assignments')
     adventure = db.relationship('Adventure', back_populates='assignments')
 
     def __repr__(self):
-        return f"<Assignment(user_id={self.user_id}, adventure_id={self.adventure_id}, appeared={self.appeared}, top_three={self.top_three}, creation_date={self.creation_date})>"
+        return f"<Assignment(user_id={self.user_id}, adventure_id={self.adventure_id}, appeared={self.appeared}, preference_place={self.preference_place}, creation_date={self.creation_date})>"
 
 class Signup(db.Model):
     __tablename__ = 'signups'

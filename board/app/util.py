@@ -217,7 +217,7 @@ def assign_rooms_to_adventures(today=None):
         db.session.rollback()
         raise e
     
-def try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True):
+def try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, preference_place=None):
     """
     Attempts to sign up a user for an adventure.
 
@@ -229,7 +229,7 @@ def try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned
     # Check if there is still room
     if taken_places.get(adventure.id, 0) < adventure.max_players:
         # Create an assignment (assuming this persists automatically)
-        assignment = Assignment(user=user, adventure=adventure, top_three=top_three)
+        assignment = Assignment(user=user, adventure=adventure, preference_place=preference_place)
         db.session.add(assignment)
         if assignment_map is not None: # For human readability
             assignment_map.setdefault(adventure.title, []).append(user.display_name)
@@ -343,7 +343,7 @@ def assign_players_to_adventures(today=None):
                 pre = signup.adventure.predecessor
                 if pre and any(a.user_id == user.id for a in pre.assignments):
                     adventure = signup.adventure
-                    if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
+                    if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, preference_place=prio): 
                         round_.append(user.display_name)
                         break
     current_app.logger.info(f"- Players assigned in round 1: #{len(round_)}: {round_} => {dict(taken_places)}")
@@ -359,7 +359,7 @@ def assign_players_to_adventures(today=None):
                 continue
             for signup in [s for s in user.signups if s.priority == prio]:
                 adventure = signup.adventure
-                if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
+                if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, preference_place=prio): 
                     round_.append(user.display_name)
                     break
     current_app.logger.info(f"- Players assigned in round 2: #{len(round_)}: {round_} => {dict(taken_places)}")
@@ -371,7 +371,7 @@ def assign_players_to_adventures(today=None):
         for user in list(players_signedup_not_assigned):
             for signup in [s for s in user.signups if s.priority == prio]:
                 adventure = signup.adventure
-                if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
+                if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, preference_place=prio): 
                     round_.append(user.display_name)
                     break
     current_app.logger.info(f"- Players assigned in round 3: #{len(round_)}: {round_} => {dict(taken_places)}")
@@ -394,7 +394,8 @@ def assign_players_to_adventures(today=None):
         for adventure in adventures_this_week:
             # Check if player still fits into the adventure
             if taken_places[adventure.id] < adventure.max_players:
-                if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, top_three=True): 
+                # Assigned outside top 3 preferences
+                if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, preference_place=4): 
                     round_.append(user.display_name)
                     break
     current_app.logger.info(f"- Players assigned in round 4: #{len(round_)}: {round_} => {dict(taken_places)}")
@@ -406,7 +407,8 @@ def assign_players_to_adventures(today=None):
     waiting_list = make_waiting_list()
     current_app.logger.info(f"Waiting-list adventure: {waiting_list}")
     for user in list(players_signedup_not_assigned):
-        if not try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, waiting_list, user, assignment_map, top_three=True):
+        # For waiting list, no specific preference_place
+        if not try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, waiting_list, user, assignment_map, preference_place=None):
             current_app.logger.error(f"Failed to assign player {user.display_name} to waiting list!")
     current_app.logger.info(f"- Players assigned in round 5: #{len(round_)}: {round_} => {dict(taken_places)}")
 
@@ -468,7 +470,13 @@ def reassign_players_from_waiting_list(today=None):
 
         for adventure in available_adventures:
             # Assign to the first available adventure
-            new_assignment = Assignment(user_id=user.id, adventure_id=adventure.id, top_three=False)
+            prio = db.session.execute(
+                db.select(Signup.priority)
+                .where(Signup.user_id == user.id, Signup.adventure_id == adventure.id)
+            ).scalar()
+            if prio is None:
+                prio = 4  # outside top three
+            new_assignment = Assignment(user=user, adventure=adventure, preference_place=prio)
             db.session.add(new_assignment)
 
             # Remove from waiting list
@@ -495,7 +503,7 @@ def reassign_karma(today=None):
     start_of_current_week, end_of_current_week = get_this_week(today)
     current_app.logger.info(f"Reassigning karma for week {start_of_current_week} to {end_of_current_week}")
 
-    # +100 karma for creating an adventure this week (DMs)
+    # DM: +500 karma for creating an adventure this week
     creators = db.session.execute(
         db.select(User)
         .join(Adventure)
@@ -503,10 +511,10 @@ def reassign_karma(today=None):
         .distinct()
     ).scalars().all()
     for user in creators:
-        user.karma += 5
-    current_app.logger.info(f" - Assigned 5 karma to DMs: #{len(creators)}: {[user.display_name for user in creators]}")
+        user.karma += 500
+    current_app.logger.info(f" - Assigned +500 karma to DMs: #{len(creators)}: {[user.display_name for user in creators]}")
 
-    # -100 karma for not appearing in this week's adventures
+    # Not attending (non-waiting list): -500 karma
     non_appearances = db.session.execute(
         db.select(User)
         .join(Assignment)
@@ -519,38 +527,74 @@ def reassign_karma(today=None):
         )
     ).scalars().all()
     for user in non_appearances:
-        user.karma -= 5
-    current_app.logger.info(f" - Assigned -10 karma to players who did not appear: #{len(non_appearances)}: {[user.display_name for user in non_appearances]}")
+        user.karma -= 500
+    current_app.logger.info(f" - Assigned -500 karma to players who did not attend: #{len(non_appearances)}: {[user.display_name for user in non_appearances]}")
 
-    # +10 karma for being assigned to something not in top three this week
-    off_prefs = db.session.execute(
+    # Waiting list attending: +200 karma
+    waiting_attending = db.session.execute(
         db.select(User)
         .join(Assignment)
         .join(Adventure)
         .where(
-            Assignment.top_three.is_(False),
-            Adventure.date >= start_of_current_week,
-            Adventure.date <= end_of_current_week
-        )
-    ).scalars().all()
-    for user in off_prefs:
-        user.karma += 3
-    current_app.logger.info(f" - Assigned 10 karma to players who did not got what they wanted: #{len(off_prefs)}: {[user.display_name for user in off_prefs]}")
-
-    # +1 karma for playing in this week's adventures
-    played = db.session.execute(
-        db.select(User)
-        .join(Assignment)
-        .join(Adventure)
-        .where(
+            Adventure.is_waitinglist.is_(1),
             Assignment.appeared.is_(True),
             Adventure.date >= start_of_current_week,
             Adventure.date <= end_of_current_week
         )
+        .distinct()
     ).scalars().all()
-    for user in played:
-        user.karma += 1
-    current_app.logger.info(f" - Assigned 1 karma to players who played: #{len(played)}: {[user.display_name for user in played]}")
+    for user in waiting_attending:
+        user.karma += 200
+    current_app.logger.info(f" - Assigned +200 karma to waiting-list attendees: #{len(waiting_attending)}: {[user.display_name for user in waiting_attending]}")
 
-    
+    # Waiting list not attending: +180 karma
+    waiting_not_attending = db.session.execute(
+        db.select(User)
+        .join(Assignment)
+        .join(Adventure)
+        .where(
+            Adventure.is_waitinglist.is_(1),
+            Assignment.appeared.is_(False),
+            Adventure.date >= start_of_current_week,
+            Adventure.date <= end_of_current_week
+        )
+        .distinct()
+    ).scalars().all()
+    for user in waiting_not_attending:
+        user.karma += 180
+    current_app.logger.info(f" - Assigned +180 karma to waiting-list non-attendees: #{len(waiting_not_attending)}: {[user.display_name for user in waiting_not_attending]}")
+
+    # Choice-based points for players who attended non-waiting-list sessions
+    choice_points = {
+        1: 100,
+        2: 120,
+        3: 140,
+        4: 150,  # assigned outside top three
+    }
+    for prio, pts in choice_points.items():
+        users_for_prio = db.session.execute(
+            db.select(User)
+            .join(Assignment)
+            .join(Adventure)
+            .where(
+                Assignment.preference_place == prio,
+                Assignment.appeared.is_(True),
+                Adventure.is_waitinglist.is_(0),
+                Adventure.date >= start_of_current_week,
+                Adventure.date <= end_of_current_week,
+            )
+            .distinct()
+        ).scalars().all()
+        for user in users_for_prio:
+            user.karma += pts
+        current_app.logger.info(
+            f" - Assigned +{pts} karma to attendees with choice {prio}: #{len(users_for_prio)}: {[user.display_name for user in users_for_prio]}"
+        )
     db.session.commit()
+
+def last_minute_cancel_punish(user_id: int):
+    db.session.execute(
+        db.update(User)
+        .where(User.id == user_id)
+        .values(karma=User.karma - 300)
+    )

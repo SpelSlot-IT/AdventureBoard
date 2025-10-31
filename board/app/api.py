@@ -155,7 +155,7 @@ class AssignmentSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Assignment
         include_fk = True
-        exclude = ("adventure_id","top_three","user_id")
+        exclude = ("adventure_id","preference_place","user_id")
 
     user = ma.Nested(UserSchema, dump_only=True)
 
@@ -605,7 +605,7 @@ class AdventureIDlessRequest(MethodView):
                             adventure_id=new_adv.id,
                             user_id=pid,
                             appeared=True,
-                            top_three=True
+                            preference_place=1
                         )
                         db.session.add(assignment)
                         db.session.flush()
@@ -720,7 +720,7 @@ class AdventureResource(MethodView):
                         adventure_id=adventure_id,
                         user_id=pid,
                         appeared=True,
-                        top_three=True
+                        preference_place=1
                     )
                     db.session.add(assignment)
                     db.session.flush()
@@ -946,13 +946,9 @@ class AssignmentResource(MethodView):
         # Delete assignments related to this adventure
         db.session.delete(assignment)
 
-        # Punish the player
+        # Punish the player if not canceled by admin
         if not is_admin(current_user):
-            db.session.execute(
-                db.update(User)
-                .where(User.id == user_id)
-                .values(karma=User.karma - PUNISH_KARMA_MISS)
-            )
+            last_minute_cancel_punish(user_id) # punishment defined in util.py
 
         try:
             db.session.commit()

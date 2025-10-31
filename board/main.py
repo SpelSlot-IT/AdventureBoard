@@ -1,4 +1,4 @@
-from app import create_app
+from .app import create_app
 import os, webbrowser
 from flask import render_template
 
