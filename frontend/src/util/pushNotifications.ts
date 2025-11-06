@@ -1,5 +1,8 @@
-import * as config from '../../../board/app/config/config.dev.json';
-const publicVAPID = config.VAPID.public;
+async function getPublicVapid() {
+  const response = await fetch('/api/push/vapid-public-key');
+  const json = await response.json();
+  return json.public_key;
+}
 
 async function handleNotifications(): Promise<boolean> {
   if (Notification.permission === 'denied') {
@@ -59,14 +62,15 @@ export async function setupNotifications() {
     // register the SW
     const path = '/js/service-worker.js';
     const register = await navigator.serviceWorker.register(path);
+    const publicVAPID = await getPublicVapid();
 
     const subscription = await register.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(publicVAPID),
     });
 
-    // Make the request to as-yet-still-fictional api endpoint
-    await fetch('/api/subscribe', {
+    // Subscribe to the API
+    await fetch('/api/push/subscribe', {
       method: 'POST',
       body: JSON.stringify(subscription),
       headers: {
