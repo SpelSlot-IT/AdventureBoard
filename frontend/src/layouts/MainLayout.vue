@@ -86,9 +86,6 @@
         @startAdminAction="adminActionsActive++"
         @finishAdminAction="adminActionsActive--"
       />
-      <span v-if="version" class="fixed-bottom-left q-ml-sm">
-        AdventureBoard v{{ version }} 
-      </span>
       <a href="https://github.com/SpelSlot/AdventureBoard" class="fixed-bottom-right q-mr-sm">
         <q-icon name="github" size="lg" />
       </a>
@@ -107,7 +104,6 @@ export default defineComponent({
     return {
       loading: true,
       errors: [] as string[],
-      version: '',
       adminActionsActive: 0,
       forceRefresh: 1,
       droppedPrivileges: false,
@@ -215,7 +211,6 @@ export default defineComponent({
       if (aliveResp.data.status != 'ok') {
         this.errors = ['Service is unavailable'];
       }
-      this.version = aliveResp.data.version;
       await meReq;
     } finally {
       this.loading = false;
