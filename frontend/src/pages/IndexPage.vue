@@ -145,7 +145,15 @@
                 <q-avatar size="sm" class="q-mr-sm">
                   <img :src="p.user.profile_pic" />
                 </q-avatar>
-                <router-link :to="{name: 'playerCharacter', params: {id: p.user.id}}" class="default-text-color">
+                <router-link
+                  :to="{ name: 'playerCharacter', params: { id: p.user.id } }"
+                  class="default-text-color"
+                  :style="
+                    p.user.story_player && me?.id === a.creator.id
+                      ? 'color: var(--q-warning);'
+                      : ''
+                  "
+                >
                   {{ p.user.display_name }}
                 </router-link>
                 <q-btn
