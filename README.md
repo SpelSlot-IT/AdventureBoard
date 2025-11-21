@@ -3,7 +3,7 @@ See http://shepherd-itsec.com/dnd/ for a live demoW
 - See the [HELP](http://shepherd-itsec.com/dnd/cgi-bin/app.cgi/help) section of the live demo in the top right for usage help.
 - See the documentation of the [REST API](http://shepherd-itsec.com/dnd/cgi-bin/app.cgi/openapi/docs) for developer help.
 
-# Hosting
+# Backend Hosting
 ## Hosting raw
 This method is recommended if you want to develop and locally test the app with minimal setup.
 1. Clone the repository.
@@ -52,8 +52,26 @@ npm clean-install
 npx quasar dev
 ```
 
-You can fake logging in by stealing the cookie from https://signup.spelslot.nl/, and using the developer console to set `document.cookie = 'session=xxx'`.
+## Running without local backend
+You can fake logging in by stealing the cookie from https://signup.spelslot.nl/, and using the developer console to set `document.cookie = 'session=xxx'`, if you don't want to host a own backend server.
 
+The server configuration in [`quasar.config.js`](frontend/quasar.config.js) needs to be changed to
+```js
+devServer: {
+      server: {
+        type: 'http',
+      },
+      port: 8080,
+      proxy: {
+        '/api/': {
+          target: 'https://signup.spelslot.nl/', // defines if the api target is the local or remote backend
+                     secure: false,
+          changeOrigin: true,
+        },
+      },
+      open: true, // opens browser window automatically
+    },
+```
 
 # Further information
 Trello: https://trello.com/b/uaEDW0Ks/adventure-board-spelslot
