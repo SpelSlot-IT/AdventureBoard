@@ -25,7 +25,10 @@
     </q-card>
     <div v-else class="row justify-evenly q-col-gutter-lg">
       <div
-        :class="(isInAdventure(a, me?.id) ? 'order-first' : '') + ' col-xs-12 col-sm-6 col-md-4 col-lg-3'"
+        :class="
+          (isInAdventure(a, me?.id) ? 'order-first' : '') +
+          ' col-xs-12 col-sm-6 col-md-4 col-lg-3'
+        "
         v-for="a in adventures"
         :key="a.id"
       >
@@ -57,7 +60,9 @@
             </div>
             <div class="description">
               <template v-if="a.short_description">
-                 <div style="white-space: pre-line;">{{ a.short_description }}</div>
+                <div style="white-space: pre-line">
+                  {{ a.short_description }}
+                </div>
               </template>
               <i v-else>No description</i>
             </div>
@@ -70,7 +75,9 @@
                   size="2em"
                   :icon="rankImage('combat')"
                 />
-                <q-tooltip transition-show="scale" transition-hide="scale">Combat</q-tooltip>
+                <q-tooltip transition-show="scale" transition-hide="scale"
+                  >Combat</q-tooltip
+                >
               </div>
               <div>
                 <q-rating
@@ -80,7 +87,9 @@
                   size="2em"
                   :icon="rankImage('exploration')"
                 />
-                <q-tooltip transition-show="scale" transition-hide="scale">Exploration</q-tooltip>
+                <q-tooltip transition-show="scale" transition-hide="scale"
+                  >Exploration</q-tooltip
+                >
               </div>
               <div>
                 <q-rating
@@ -90,7 +99,9 @@
                   size="2em"
                   :icon="rankImage('roleplaying')"
                 />
-                <q-tooltip transition-show="scale" transition-hide="scale">Roleplaying</q-tooltip>
+                <q-tooltip transition-show="scale" transition-hide="scale"
+                  >Roleplaying</q-tooltip
+                >
               </div>
             </div>
             <q-list v-if="me?.privilege_level >= 2" class="adminDropTarget">
@@ -110,16 +121,29 @@
               >
                 <template v-if="a.assignments.length > 0">
                   <Draggable v-for="p in a.assignments" :key="p.user.id">
-                    <q-item class="items-center round-borders character" :style="p.user.story_player ? 'border-color: var(--q-warning);' : ''">
+                    <q-item
+                      class="items-center round-borders character"
+                      :style="
+                        p.user.story_player
+                          ? 'border-color: var(--q-warning);'
+                          : ''
+                      "
+                    >
                       <q-avatar size="sm" class="q-mr-sm">
                         <img :src="p.user.profile_pic" />
                       </q-avatar>
-                        <div class="q-mr-sm">
-                          <router-link :to="{name: 'playerCharacter', params: {id: p.user.id}}" class="default-text-color">
-                            {{ p.user.display_name }}
-                          </router-link>
-                          ({{ p.user.karma }})
-                        </div>
+                      <div class="q-mr-sm">
+                        <router-link
+                          :to="{
+                            name: 'playerCharacter',
+                            params: { id: p.user.id },
+                          }"
+                          class="default-text-color"
+                        >
+                          {{ p.user.display_name }}
+                        </router-link>
+                        ({{ p.user.karma }})
+                      </div>
                       <q-btn
                         size="sm"
                         :icon="p.appeared ? 'check' : 'close'"
@@ -141,11 +165,23 @@
               </Container>
             </q-list>
             <q-list v-else class="rounded-borders grid-container">
-              <q-item class="items-center" v-for="p in a.assignments" :key="p.user.id">
+              <q-item
+                class="items-center"
+                v-for="p in a.assignments"
+                :key="p.user.id"
+              >
                 <q-avatar size="sm" class="q-mr-sm">
                   <img :src="p.user.profile_pic" />
                 </q-avatar>
-                <router-link :to="{name: 'playerCharacter', params: {id: p.user.id}}" class="default-text-color">
+                <router-link
+                  :to="{ name: 'playerCharacter', params: { id: p.user.id } }"
+                  class="default-text-color"
+                  :style="
+                    p.user.story_player && me?.id === a.creator.id
+                      ? 'color: var(--q-warning);'
+                      : ''
+                  "
+                >
                   {{ p.user.display_name }}
                 </router-link>
                 <q-btn
@@ -162,9 +198,12 @@
             <div class="row justify-between">
               <div>{{ describeDuration(a) }}</div>
               <div v-if="a.requested_room">Room: {{ a.requested_room }}</div>
-             </div>
+            </div>
             <div class="container">
-              <div class="row justify-center q-gutter-sm" v-if="!isDateInPast(a)">
+              <div
+                class="row justify-center q-gutter-sm"
+                v-if="!isDateInPast(a)"
+              >
                 <q-btn
                   v-for="n in 3"
                   style="max-width: 8rem"
@@ -212,7 +251,7 @@
                       {{ p.user.display_name }} ({{ p.user.karma }})
                     </div>
                     <q-btn
-                      size="sm" 
+                      size="sm"
                       color="negative"
                       class="q-mr-sm flat"
                       icon="delete"
@@ -224,7 +263,11 @@
               </Container>
             </q-list>
             <q-list v-else class="rounded-borders grid-container">
-              <q-item class="items-center" v-for="p in a.assignments" :key="p.user.id">
+              <q-item
+                class="items-center"
+                v-for="p in a.assignments"
+                :key="p.user.id"
+              >
                 <q-avatar size="sm" class="q-mr-sm">
                   <img :src="p.user.profile_pic" />
                 </q-avatar>
@@ -335,7 +378,7 @@
           </div>
         </q-card-section>
         <template v-if="me?.privilege_level >= 2">
-          <q-list >
+          <q-list>
             <q-item class="q-pa-md">Signups (Not final assignments):</q-item>
             <Container class="rounded-borders grid-container">
               <q-item
@@ -347,13 +390,14 @@
                   <img :src="s.user?.profile_pic" />
                 </q-avatar>
                 <div class="q-mr-sm">
-                  {{ s.user?.display_name }} ({{ s.user?.karma }}) - {{ choiceLabels[s.priority] }}
+                  {{ s.user?.display_name }} ({{ s.user?.karma }}) -
+                  {{ choiceLabels[s.priority] }}
                 </div>
               </q-item>
             </Container>
           </q-list>
         </template>
-        
+
         <q-separator />
         <q-card-actions class="justify-end">
           <q-btn
@@ -459,15 +503,15 @@ export default defineComponent({
     };
   },
   data() {
-    let today  = new Date();
+    let today = new Date();
     let day = today.getDay(); // Sunday = 0, Monday = 1, ..., Saturday = 6
 
-  // If today is Thursday (4) to Sunday (0), move to next week
-  if (day === 0 || day >= 4) {
-    today.setDate(today.getDate() + (8 - day) % 7); // Move to next Monday
-  } else {
-    today.setDate(today.getDate() - ((day + 6) % 7)); // Move to this week's Monday
-  }
+    // If today is Thursday (4) to Sunday (0), move to next week
+    if (day === 0 || day >= 4) {
+      today.setDate(today.getDate() + ((8 - day) % 7)); // Move to next Monday
+    } else {
+      today.setDate(today.getDate() - ((day + 6) % 7)); // Move to this week's Monday
+    }
     return {
       weekStart: today.toISOString().split('T')[0],
       adventures: [],
@@ -483,7 +527,7 @@ export default defineComponent({
   },
   methods: {
     async fetch(reloadSignups: boolean) {
-      if(!this.loadedSignups) {
+      if (!this.loadedSignups) {
         reloadSignups = true;
       }
       try {
@@ -511,7 +555,7 @@ export default defineComponent({
         this.loading = false;
       }
     },
-    isDateInPast(a: {date: string}) {
+    isDateInPast(a: { date: string }) {
       const currentDay = new Date().toISOString().split('T')[0];
       const sessionDay = new Date(a.date).toISOString().split('T')[0];
       return new Date(currentDay).getTime() > new Date(sessionDay).getTime();
@@ -563,7 +607,7 @@ export default defineComponent({
             method: 'DELETE',
             url: '/api/player-assignments',
             data: { adventure_id },
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
           });
           this.$q.notify({
             message: "And you're off!",
@@ -574,19 +618,17 @@ export default defineComponent({
     },
     annoyUserToFinishProfileSetup() {
       if (!this.me || this.me.dnd_beyond_name) return;
-      this.$q
-        .dialog({
-          title: 'Please complete your profile',
-          message:
-            'Your profile is missing vital information as for example your D&D Beyond name. Please go to your profile page and fill in all information before signing up for adventures.',
-          cancel: true,
-          ok: {
-            label: 'Go to Profile',
-            color: 'positive',
-            to: '/profile',
-          }
-        })
-
+      this.$q.dialog({
+        title: 'Please complete your profile',
+        message:
+          'Your profile is missing vital information as for example your D&D Beyond name. Please go to your profile page and fill in all information before signing up for adventures.',
+        cancel: true,
+        ok: {
+          label: 'Go to Profile',
+          color: 'positive',
+          to: '/profile',
+        },
+      });
     },
     isInAdventure(a: any, id: any) {
       if (id === undefined) return false;
@@ -594,9 +636,9 @@ export default defineComponent({
       for (const p of a.assignments) {
         if (p.user.id === id) {
           console.log("you're in session: ", a.title);
-          return true
-        };
-      } 
+          return true;
+        }
+      }
       return false;
     },
     async togglePresence(adventure_id: number, assignment: any) {
@@ -633,7 +675,7 @@ export default defineComponent({
     },
     rankImage(what: 'combat' | 'exploration' | 'roleplaying') {
       const prefix = this.$q.dark.isActive ? 'img:/light/' : 'img:/dark/';
-      switch(what) {
+      switch (what) {
         case 'combat':
           return prefix + 'spiked-dragon-head.svg';
         case 'exploration':
@@ -641,7 +683,7 @@ export default defineComponent({
         case 'roleplaying':
           return prefix + 'drama-masks.svg';
       }
-    }
+    },
   },
   computed: {
     wednesdate() {
