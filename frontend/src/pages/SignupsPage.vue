@@ -65,21 +65,21 @@ export default defineComponent({
         },
         {
           name: 'first_choice',
-          field: (row: any) => row.signups?.[0]?.adventure.title || '—',
+          field: (row: any) => row.first?.adventure.title || '—',
           label: 'first Choice',
           align: 'left',
           sortable: true,
         },
         {
           name: 'second_choice',
-          field: (row: any) => row.signups?.[1]?.adventure.title || '—',
+          field: (row: any) => row.second?.adventure.title || '—',
           label: 'Second Choice',
           align: 'left',
           sortable: true,
         },
         {
           name: 'third_choice',
-          field: (row: any) => row.signups?.[2]?.adventure.title || '—',
+          field: (row: any) => row.third?.adventure.title || '—',
           label: 'Third Choice',
           align: 'left',
           sortable: true,
@@ -111,7 +111,28 @@ export default defineComponent({
       return this.users.filter((u: any) => u.signups && u.signups.length > 0).length;
     },
     userArray() {
-      return Object.values(this.users);
+			return Object.values(this.users).map(u => {
+				const ret = {
+					...u,
+					first: null,
+					second: null,
+					third: null,
+				};
+				for(const s of u.signups || []) {
+					switch(s.priority) {
+						case 1:
+							ret.first = s;
+							break;
+						case 2:
+							ret.second = s;
+							break;
+						case 3:
+							ret.third = s;
+							break;
+					}
+				}
+				return ret;
+			});
     },
     visibleColumns() {
       return ['name', 'First Choice', 'Second Choice', 'Third Choice'];
