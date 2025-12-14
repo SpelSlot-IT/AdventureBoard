@@ -86,8 +86,8 @@
         @startAdminAction="adminActionsActive++"
         @finishAdminAction="adminActionsActive--"
       />
-      <a href="https://github.com/SpelSlot/AdventureBoard" class="fixed-bottom-right q-mr-sm">
-        <q-icon name="github" size="lg" />
+      <a href="https://github.com/SpelSlot-IT/AdventureBoard" class="fixed-bottom-right q-mr-sm">
+        <q-icon name="img:https://github.com/favicon.ico" size="lg" class="bg-grey-5" />
       </a>
     </q-page-container>
   </q-layout>
