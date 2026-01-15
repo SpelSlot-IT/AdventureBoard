@@ -21,7 +21,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError, MultipleResultsFound
 import json
 import requests
 
-from .models import db, User, Adventure, Assignment
+from .models import db, User, Adventure, Assignment, AdventureRequestedPlayer
 from .util import *
 from .provider import ma, ap_scheduler
 
@@ -585,32 +585,26 @@ class AdventureIDlessRequest(MethodView):
             ) # this will only return the first adventure if repeat > 1
             db.session.flush()  # new_adv.id available
 
-
+            # Store DM-requested players (they will be automatically assigned during assignment rounds)
             # Player requests are only done for the first adventure created
-            mis_assignments = []
             for pid in requested_players:
                 try:
-                    with db.session.begin_nested():  # savepoint per assignment
-                        assignment = Assignment(
-                            adventure_id=new_adv.id,  # type: ignore
-                            user_id=pid,  # type: ignore
-                            appeared=True,  # type: ignore
-                            preference_place=1  # type: ignore
-                        )
-                        db.session.add(assignment)
-                        db.session.flush()
+                    # Check if this user exists
+                    user = db.session.get(User, pid)
+                    if not user:
+                        continue
+                    
+                    # Create requested player record
+                    requested_player = AdventureRequestedPlayer(
+                        adventure_id=new_adv.id,  # type: ignore
+                        user_id=pid  # type: ignore
+                    )
+                    db.session.add(requested_player)
                 except IntegrityError:
-                    db.session.rollback()
-                    mis_assignments.append(pid)
+                    # Already requested, skip
+                    pass
 
             db.session.commit()
-            if mis_assignments:
-                conflict_payload = ConflictResponseSchema().dump({
-                    "message": "Adventure added, but some players could not be assigned.",
-                    "adventure": new_adv,
-                    "mis_assignments": mis_assignments
-                })
-                return conflict_payload, 409
 
             # Normal success: return the model instance (decorator will dump it)
             return new_adv
@@ -694,42 +688,39 @@ class AdventureResource(MethodView):
                     continue
             setattr(adventure, field, args[field])
 
-        mis_assignments = []
-
-        # Player reassignment
+        # Update requested players if provided
         if "requested_players" in args:
-            new_player_ids = args["requested_players"] or []
+            new_player_ids = args.pop("requested_players") or []
 
+            # Remove existing requested players
             db.session.execute(
-                delete(Assignment).where(Assignment.adventure_id == adventure_id)
+                delete(AdventureRequestedPlayer).where(
+                    AdventureRequestedPlayer.adventure_id == adventure_id
+                )
             )
 
+            # Add new requested players
             for pid in new_player_ids:
                 try:
-                    assignment = Assignment(
+                    # Check if this user exists
+                    user = db.session.get(User, pid)
+                    if not user:
+                        continue
+                    
+                    requested_player = AdventureRequestedPlayer(
                         adventure_id=adventure_id,  # type: ignore
-                        user_id=pid,  # type: ignore
-                        appeared=True,  # type: ignore
-                        preference_place=1  # type: ignore
+                        user_id=pid  # type: ignore
                     )
-                    db.session.add(assignment)
-                    db.session.flush()
+                    db.session.add(requested_player)
                 except IntegrityError:
-                    db.session.rollback()
-                    mis_assignments.append(pid)
+                    # Already exists, skip
+                    pass
 
         try:
             db.session.commit()
         except Exception as e:
             db.session.rollback()
             abort(500, message=str(e))
-
-        if mis_assignments:
-            abort(
-                409,
-                message="Adventure updated; some players could not be assigned.",
-                extra={"mis_assignments": mis_assignments}
-            )
 
         return {"message": "Adventure updated successfully"}
     

@@ -248,9 +248,10 @@ def try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned
 
 def assign_players_to_adventures(today=None):
     """
-    Creates assignments for players that signed up this week. Working in 4 rounds:
+    Creates assignments for players that signed up this week. Working in 6 rounds:
+    0. Assign DM-requested players who have signed up for the adventure (highest priority)
     1. Signup all players that played last week, if they try to signup again for an ongoing adventure.
-    2.
+    2. Assign all story players sorted by karma.
     3. Signup all remaining players ranked by their karma to the first available adventure they signed up for according to there priority.
     4. Signup all remaining players ranked by their karma to any available adventure. Sorted by random.
     5. Signup the rest of the players to the waiting list.
@@ -330,6 +331,47 @@ def assign_players_to_adventures(today=None):
     )
     current_app.logger.info(f"Players signed up for the week {start_of_week} to {end_of_week}:   #{len(players_signedup_not_assigned)}: {[dict({user: user.signups}) for user in players_signedup_not_assigned]} ")
     MAX_PRIORITY = 3
+    
+    # -- Round 0: Assign DM-requested players who have signed up --
+    # Get all adventures with requested players this week
+    adventures_with_requests = (
+        db.session.execute(
+            db.select(Adventure)
+            .join(AdventureRequestedPlayer)
+            .filter(
+                Adventure.date >= start_of_week,
+                Adventure.date <= end_of_week,
+                Adventure.is_waitinglist == 0  # Exclude waiting list
+            )
+            .distinct()
+        )
+        .scalars()
+        .all()
+    )
+    
+    round_ = []
+    for adventure in adventures_with_requests:
+        # Get requested players for this adventure
+        requested_player_ids = [
+            rp.user_id for rp in adventure.requested_players
+        ]
+        
+        # Find requested players who have signed up for this adventure and are not yet assigned
+        for user in list(players_signedup_not_assigned):
+            if user.id in requested_player_ids:
+                # Check if they signed up for this specific adventure
+                signup = next(
+                    (s for s in user.signups if s.adventure_id == adventure.id),
+                    None
+                )
+                if signup:
+                    # They signed up for this adventure - assign them with their priority
+                    prio = signup.priority
+                    if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, preference_place=prio):
+                        round_.append(user.display_name)
+                        current_app.logger.info(f"Assigned DM-requested player {user.display_name} to {adventure.title}")
+    
+    current_app.logger.info(f"- Players assigned in round 0 (DM-requested): #{len(round_)}: {round_} => {dict(taken_places)}")
     
     # -- First round of assigning players --
     # Assign all players that already played last week.

@@ -112,6 +112,7 @@ class Adventure(db.Model):
     creator         = db.relationship('User', back_populates='adventures_created')
     signups         = db.relationship('Signup', back_populates='adventure')
     assignments     = db.relationship('Assignment', back_populates='adventure')
+    requested_players = db.relationship('AdventureRequestedPlayer', back_populates='adventure', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f"<Adventure(id={self.id}, title='{self.title}')>"
@@ -187,3 +188,22 @@ class Signup(db.Model):
 
     def __repr__(self):
         return f"<Signup(id={self.id}, user_id={self.user_id}, adventure_id={self.adventure_id}, priority={self.priority})>"
+
+class AdventureRequestedPlayer(db.Model):
+    """Tracks players that DMs have requested for their adventures.
+    These players will be prioritized during automatic assignment."""
+    __tablename__ = 'adventure_requested_players'
+    __table_args__ = (
+        db.UniqueConstraint('adventure_id', 'user_id', name='unique_adventure_requested_player'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    adventure_id = db.Column(db.Integer, db.ForeignKey('adventures.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now())
+
+    adventure = db.relationship('Adventure', back_populates='requested_players')
+    user = db.relationship('User')
+
+    def __repr__(self):
+        return f"<AdventureRequestedPlayer(adventure_id={self.adventure_id}, user_id={self.user_id})>"
