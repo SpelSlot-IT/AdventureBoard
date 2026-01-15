@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY board/ .
 
 # Copy migrations directory from root
-COPY migrations /app/migrations
+COPY migrations/ /app/migrations
 
 # Make entrypoint script executable
 RUN chmod +x /app/entrypoint.sh
