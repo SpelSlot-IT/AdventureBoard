@@ -17,7 +17,7 @@ from flask import (
     )
 from sqlalchemy import text, delete
 from sqlalchemy.orm import joinedload
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError, MultipleResultsFound
 import json
 import requests
 
@@ -68,11 +68,6 @@ class JobSchema(ma.Schema):
 class SiteMapLinkSchema(ma.Schema):
     url = ma.Url(required=True)
     endpoint = ma.Str(required=True)
-
-class AssignmentUpdateSchema(ma.Schema):
-    player_id = ma.Integer(required=True)
-    from_adventure_id = ma.Integer(required=True)
-    to_adventure_id = ma.Integer(required=True)
 
 class UserSchema(ma.SQLAlchemyAutoSchema):
     """Schema for User that excludes the `name` column and exposes
@@ -169,14 +164,9 @@ class AssignmentUpdateSchema(ma.Schema):
     adventure_id = ma.Integer(required=True)
     appeared = ma.Boolean(required=True)
 
-
-class AssignmentUpdateSchema(ma.Schema):
-    user_id = ma.Integer(required=True)
-    adventure_id = ma.Integer(required=True)
-    appeared = ma.Boolean(required=True)
-
 class AssignmentDeleteSchema(ma.Schema):
     adventure_id = ma.Integer(required=True)
+    user_id = ma.Integer(required=False)  # Optional: for admins to specify which user's assignment to delete
 
 
 class AdventureSchema(ma.SQLAlchemyAutoSchema):
@@ -465,7 +455,7 @@ class UsersListSignupsResource(MethodView):
             stmt = (
                     db.select(User)
                     .options(
-                        joinedload(User.signups),
+                        joinedload(User.signups),  # type: ignore
                         db.with_loader_criteria(
                             Signup,
                             Signup.adventure_date.between(start_of_week, end_of_week),
@@ -547,7 +537,7 @@ class AdventureIDlessRequest(MethodView):
 
             # Eager-load assignments -> user to avoid N+1 queries
             stmt = db.select(Adventure).options(
-                joinedload(Adventure.assignments).joinedload(Assignment.user)
+                joinedload(Adventure.assignments).joinedload(Assignment.user)  # type: ignore
             ).order_by(Adventure.date)
 
 
@@ -602,10 +592,10 @@ class AdventureIDlessRequest(MethodView):
                 try:
                     with db.session.begin_nested():  # savepoint per assignment
                         assignment = Assignment(
-                            adventure_id=new_adv.id,
-                            user_id=pid,
-                            appeared=True,
-                            preference_place=1
+                            adventure_id=new_adv.id,  # type: ignore
+                            user_id=pid,  # type: ignore
+                            appeared=True,  # type: ignore
+                            preference_place=1  # type: ignore
                         )
                         db.session.add(assignment)
                         db.session.flush()
@@ -651,7 +641,7 @@ class AdventureResource(MethodView):
         try:
             # Eager-load assignments -> user to avoid N+1 queries
             stmt = db.select(Adventure).options(
-                joinedload(Adventure.assignments).joinedload(Assignment.user)
+                joinedload(Adventure.assignments).joinedload(Assignment.user)  # type: ignore
             )
 
             stmt = db.select(Adventure).where(Adventure.id == int(adventure_id))
@@ -717,10 +707,10 @@ class AdventureResource(MethodView):
             for pid in new_player_ids:
                 try:
                     assignment = Assignment(
-                        adventure_id=adventure_id,
-                        user_id=pid,
-                        appeared=True,
-                        preference_place=1
+                        adventure_id=adventure_id,  # type: ignore
+                        user_id=pid,  # type: ignore
+                        appeared=True,  # type: ignore
+                        preference_place=1  # type: ignore
                     )
                     db.session.add(assignment)
                     db.session.flush()
@@ -926,20 +916,36 @@ class AssignmentResource(MethodView):
         Deletes a players assignment from one adventure and punishes the player.
         """
         PUNISH_KARMA_MISS = 25
-        user_id = current_user.id
+        current_user_id = current_user.id
         adventure_id = args.get('adventure_id')
+        target_user_id = args.get('user_id')  # Optional: for admins to specify which user
 
         if not adventure_id:
             abort(422, message={'error': 'adventure_id is required'})
 
-        assignment =  db.session.execute(
-                db.select(Assignment).where(Assignment.adventure_id == adventure_id)
-            ).scalar_one_or_none()
+        # Build query: non-admins can only delete their own assignment
+        # Admins can delete any assignment, optionally specified by user_id
+        query = db.select(Assignment).where(Assignment.adventure_id == adventure_id)
+        
+        if is_admin(current_user):
+            # Admin: if user_id is provided, filter by it
+            if target_user_id:
+                query = query.where(Assignment.user_id == target_user_id)
+            try:
+                assignment = db.session.execute(query).scalar_one_or_none()
+            except MultipleResultsFound:
+                # If multiple results and no user_id specified, provide helpful error
+                abort(400, message={'error': 'Multiple assignments found for this adventure. Please specify user_id to delete a specific assignment.'})
+        else:
+            # Non-admin: must be their own assignment
+            query = query.where(Assignment.user_id == current_user_id)
+            assignment = db.session.execute(query).scalar_one_or_none()
+        
         if not assignment:
             abort(404, message={'error': 'Assignment not found'})
 
         # Check permission: admin or creator
-        if not is_admin(current_user) and assignment.user_id != user_id:
+        if not is_admin(current_user) and assignment.user_id != current_user_id:
             abort(401, message={'error': 'Unauthorized to delete this adventure'})
 
 
@@ -948,7 +954,7 @@ class AssignmentResource(MethodView):
 
         # Punish the player if not canceled by admin
         if not is_admin(current_user):
-            last_minute_cancel_punish(user_id) # punishment defined in util.py
+            last_minute_cancel_punish(current_user_id) # punishment defined in util.py
 
         try:
             db.session.commit()
@@ -1033,10 +1039,10 @@ class SignupResource(MethodView):
 
                 # Add new signup
                 new_signup = Signup(
-                    user_id=user_id, 
-                    adventure_id=adventure_id, 
-                    priority=priority,
-                    adventure_date=adventure_date
+                    user_id=user_id,  # type: ignore
+                    adventure_id=adventure_id,  # type: ignore
+                    priority=priority,  # type: ignore
+                    adventure_date=adventure_date  # type: ignore
                 )
                 db.session.add(new_signup)
                 message = 'Signup registered'

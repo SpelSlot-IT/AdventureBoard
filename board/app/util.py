@@ -229,7 +229,7 @@ def try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned
     # Check if there is still room
     if taken_places.get(adventure.id, 0) < adventure.max_players:
         # Create an assignment (assuming this persists automatically)
-        assignment = Assignment(user=user, adventure=adventure, preference_place=preference_place)
+        assignment = Assignment(user=user, adventure=adventure, preference_place=preference_place)  # type: ignore
         db.session.add(assignment)
         if assignment_map is not None: # For human readability
             assignment_map.setdefault(adventure.title, []).append(user.display_name)
@@ -476,7 +476,7 @@ def reassign_players_from_waiting_list(today=None):
             ).scalar()
             if prio is None:
                 prio = 4  # outside top three
-            new_assignment = Assignment(user=user, adventure=adventure, preference_place=prio)
+            new_assignment = Assignment(user=user, adventure=adventure, preference_place=prio)  # type: ignore
             db.session.add(new_assignment)
 
             # Remove from waiting list
@@ -521,7 +521,7 @@ def reassign_karma(today=None):
         .join(Adventure)
         .where(
             Assignment.appeared.is_(False),
-            Adventure.is_waitinglist.is_(0),  # Ignore waiting list
+            Adventure.is_waitinglist == 0,  # Ignore waiting list
             Adventure.date >= start_of_current_week,
             Adventure.date <= end_of_current_week
         )
@@ -536,7 +536,7 @@ def reassign_karma(today=None):
         .join(Assignment)
         .join(Adventure)
         .where(
-            Adventure.is_waitinglist.is_(1),
+            Adventure.is_waitinglist == 1,
             Assignment.appeared.is_(True),
             Adventure.date >= start_of_current_week,
             Adventure.date <= end_of_current_week
@@ -553,7 +553,7 @@ def reassign_karma(today=None):
         .join(Assignment)
         .join(Adventure)
         .where(
-            Adventure.is_waitinglist.is_(1),
+            Adventure.is_waitinglist == 1,
             Assignment.appeared.is_(False),
             Adventure.date >= start_of_current_week,
             Adventure.date <= end_of_current_week
@@ -579,7 +579,7 @@ def reassign_karma(today=None):
             .where(
                 Assignment.preference_place == prio,
                 Assignment.appeared.is_(True),
-                Adventure.is_waitinglist.is_(0),
+                Adventure.is_waitinglist == 0,
                 Adventure.date >= start_of_current_week,
                 Adventure.date <= end_of_current_week,
             )
