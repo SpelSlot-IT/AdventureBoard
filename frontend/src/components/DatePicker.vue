@@ -35,6 +35,11 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
+const fromDateString = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 export default defineComponent({
   name: 'DatePicker',
   emits: ['update:modelValue'],
@@ -58,7 +63,7 @@ export default defineComponent({
       if (!this.onlyWednesdays) {
         return true;
       }
-      const d = new Date(v);
+      const d = fromDateString(v);
       return d.getDay() % 7 == 3;
     },
   },

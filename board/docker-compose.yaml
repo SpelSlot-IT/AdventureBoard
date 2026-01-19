@@ -1,7 +1,7 @@
 services:
   web:
     build:
-      context: ..
+      context: .
       dockerfile: board/Dockerfile
     container_name: flask_web
     volumes:

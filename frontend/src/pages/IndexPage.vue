@@ -451,6 +451,18 @@ import { defineComponent, inject } from 'vue';
 import { Container, Draggable } from 'vue3-smooth-dnd';
 import AddAdventure from '../components/AddAdventure.vue';
 
+const toLocalDateString = (d: Date): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const fromDateString = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 export default defineComponent({
   name: 'IndexPage',
   components: { AddAdventure, Container, Draggable },
@@ -477,7 +489,7 @@ export default defineComponent({
     today.setDate(today.getDate() - ((day + 6) % 7)); // Move to this week's Monday
   }
     return {
-      weekStart: today.toISOString().split('T')[0],
+      weekStart: toLocalDateString(today),
       adventures: [],
       focussed: null as any,
       addAdventure: false,
@@ -520,9 +532,9 @@ export default defineComponent({
       }
     },
     isDateInPast(a: {date: string}) {
-      const currentDay = new Date().toISOString().split('T')[0];
-      const sessionDay = new Date(a.date).toISOString().split('T')[0];
-      return new Date(currentDay).getTime() > new Date(sessionDay).getTime();
+      const currentDay = toLocalDateString(new Date());
+      const sessionDay = toLocalDateString(fromDateString(a.date));
+      return fromDateString(currentDay).getTime() > fromDateString(sessionDay).getTime();
     },
     async signup(e: { date: string; id: string }, prio: number) {
       try {
@@ -545,9 +557,9 @@ export default defineComponent({
       this.fetch(false);
     },
     switchWeek(offset: number) {
-      const d = new Date(this.weekStart);
+      const d = fromDateString(this.weekStart);
       d.setDate(d.getDate() + offset * 7);
-      this.weekStart = d.toISOString().split('T')[0];
+      this.weekStart = toLocalDateString(d);
     },
     describeDuration(a: { num_sessions: number }): string {
       if (a.num_sessions == 1) {
@@ -653,18 +665,18 @@ export default defineComponent({
   },
   computed: {
     wednesdate() {
-      const d = new Date(this.weekStart);
+      const d = fromDateString(this.weekStart);
       d.setDate(d.getDate() + 2);
 
-      const result = d.toISOString().split('T')[0];
-      const today = new Date().toISOString().split('T')[0];
+      const result = toLocalDateString(d);
+      const today = toLocalDateString(new Date());
 
       return result === today ? 'this week' : result;
     },
     weekEnd() {
-      const d = new Date(this.weekStart);
+      const d = fromDateString(this.weekStart);
       d.setDate(d.getDate() + 6);
-      return d.toISOString().split('T')[0];
+      return toLocalDateString(d);
     },
   },
   watch: {
