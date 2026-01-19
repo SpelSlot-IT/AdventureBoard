@@ -491,6 +491,7 @@ def reassign_players_from_waiting_list(today=None):
 
     for assignment in waiting_list_assignments:
         user = assignment.user
+        assigned = False
 
         # Find adventures this week that the user signed up for and have available slots
         available_adventures = db.session.execute(
@@ -525,6 +526,33 @@ def reassign_players_from_waiting_list(today=None):
             db.session.delete(assignment)
 
             reassigned_users.append((user.display_name, adventure.title))
+            assigned = True
+            break
+
+        if assigned:
+            continue
+
+        # If no signed-up adventures are available, assign to any open adventure
+        fallback_adventures = db.session.execute(
+            db.select(Adventure)
+            .outerjoin(Assignment, Assignment.adventure_id == Adventure.id)
+            .where(
+                Adventure.date >= start_of_week,
+                Adventure.date <= end_of_week,
+                Adventure.is_waitinglist == 0,  # Exclude waiting list
+            )
+            .group_by(Adventure.id)
+            .having(func.count(Assignment.user_id) < Adventure.max_players)
+            .order_by(func.random())
+        ).scalars().all()
+
+        for adventure in fallback_adventures:
+            # Assigned outside top three preferences (no signup)
+            new_assignment = Assignment(user=user, adventure=adventure, preference_place=4)  # type: ignore
+            db.session.add(new_assignment)
+            db.session.delete(assignment)
+            reassigned_users.append((user.display_name, adventure.title))
+            break
 
     if reassigned_users:
         current_app.logger.info(f"Reassigned users from waiting list: {reassigned_users}")
