@@ -1,6 +1,6 @@
 [project]
 name = "adventureboard"
-version = "0.1.0"
+version = "1.0.1"
 description = "Adventure Board backend"
 requires-python = ">=3.11"
 dependencies = [
@@ -29,3 +29,6 @@ test = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = [
+  "ignore:Multiple schemas resolved to the name:UserWarning",
+]

@@ -5,6 +5,7 @@ import json, os
 from flask import Flask
 from flask_smorest import Api
 from flask_talisman import Talisman
+from apispec.ext.marshmallow import MarshmallowPlugin
 
 import logging
 from datetime import datetime
@@ -84,7 +85,8 @@ def create_app(config_file=None):
 
     # --- (De)Serialization setup ---
     ma.init_app(app)
-    api = Api(app)
+    marshmallow_plugin = MarshmallowPlugin(schema_name_resolver=custom_name_resolver)
+    api = Api(app, spec_kwargs={"marshmallow_plugin": marshmallow_plugin})
     for blp in api_blueprints:
         api.register_blueprint(blp)
 

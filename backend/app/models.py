@@ -5,7 +5,12 @@ from sqlalchemy import func
 from .provider import db
 
 def custom_name_resolver(schema):
-    return schema.__class__.__name__ + "Schema"
+    """Return a unique schema name by appending parent class context if needed."""
+    name = schema.__class__.__name__
+    # Avoid double-suffixing if name already ends with Schema
+    if name.endswith("Schema"):
+        return name
+    return name + "Schema"
 
 class Anonymous(AnonymousUserMixin):
   def __init__(self):
