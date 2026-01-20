@@ -2,7 +2,7 @@ services:
   web:
     build:
       context: .
-      dockerfile: board/Dockerfile
+      dockerfile: Dockerfile
     container_name: flask_web
     volumes:
       # mount config.dev.json so hosts can customize without rebuilding

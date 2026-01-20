@@ -1,0 +1,31 @@
+[project]
+name = "adventureboard"
+version = "0.1.0"
+description = "Adventure Board backend"
+requires-python = ">=3.11"
+dependencies = [
+  "Flask>=2.0.0",
+  "Flask-SQLAlchemy>=3.0.0",
+  "PyMySQL>=1.0.0",
+  "psycopg[binary]>=3.1",
+  "Flask-Migrate>=4.0.0",
+  "Flask-Login>=0.6.0",
+  "oauthlib>=3.2.0",
+  "cryptography>=41.0.0",
+  "flask-talisman>=1.0.0",
+  "marshmallow-sqlalchemy>=0.29.0",
+  "flask-marshmallow>=0.15.0",
+  "flask-smorest>=0.44.0",
+  "Flask-APScheduler>=1.13.0",
+  "gunicorn>=20.1.0",
+  "flask-mail>=0.10.0",
+  "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

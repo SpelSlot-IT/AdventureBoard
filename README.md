@@ -8,16 +8,16 @@ See http://shepherd-itsec.com/dnd/ for a live demoW
 This method is recommended if you want to develop and locally test the app with minimal setup.
 1. Clone the repository.
 2. Set up a database. Currently using MySQL, but other flavors are also supported.
-3. Navigate to the `board` directory of the repository.
-4. Please set up a venv and run `pip install -r requirements.txt` to install dependencies.
-5. Create a `config.local.json` file in the `app/config` directory based on [`config.example`](board/app/config/config.example).
-6. Run `python main.py` to run a local flask server.
+3. Navigate to the `backend` directory of the repository.
+4. Install uv (https://docs.astral.sh/uv/), then run `uv venv` and `uv sync`.
+5. Create a `config.local.json` file in the `app/config` directory based on [`config.example`](backend/app/config/config.example).
+6. Run `uv run python main.py` to run a local flask server.
 
 ## Hosting with docker (Developer)
 This method is recommended if you want to develop and locally test the app under real conditions.
 1. Clone the repository.
-2. Navigate to the `board` directory of the repository.
-3. Create a `config.dev.json` file in the `app/config` directory based on [`config.example`](board/app/config/config.example).
+2. Navigate to the `backend` directory of the repository.
+3. Create a `config.dev.json` file in the `app/config` directory based on [`config.example`](backend/app/config/config.example).
 3. Run `docker compose up --build`
 
 ## Hosting with docker (User)
@@ -71,6 +71,22 @@ devServer: {
       },
       open: true, // opens browser window automatically
     },
+```
+
+# Tests
+
+Backend tests (pytest):
+```shell
+cd backend
+uv sync --extra test
+uv run pytest
+```
+
+Frontend tests (vitest):
+```shell
+cd frontend
+npm ci
+npm test
 ```
 
 # Further information

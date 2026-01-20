@@ -1,3 +1,12 @@
+###############################################################
+# This is a old redundant requirements file.
+# New changes are made in the backend/pyproject.toml file.
+# It is not used anymore. It is kept here for reference.
+###############################################################
+
+
+
+
 # Core framework
 Flask>=2.0.0
 
