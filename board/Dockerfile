@@ -18,5 +18,5 @@ RUN chmod +x entrypoint.sh
 EXPOSE 5000
 
 # Use entrypoint to run migrations before starting app
-ENTRYPOINT ["entrypoint.sh"]
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:5000", "app:create_app()"]

@@ -17,7 +17,15 @@
         ><span class="gt-sm">Later</span>
       </q-btn>
     </div>
-    <q-spinner size="xl" v-if="loading" />
+    <div v-if="loading" class="column flex flex-center q-my-xl">
+      <q-spinner size="xl" />
+      <div class="text-h6 q-mt-md text-center">
+        Oh no, our servers rolled a natural one.
+      </div>
+      <div class="text-subtitle2 text-center q-mt-sm">
+        Please wait or inform admins.
+      </div>
+    </div>
     <q-card v-else-if="adventures.length == 0" class="q-mx-lg">
       <q-card-section class="text-center">
         No sessions this week yet. Make one!
