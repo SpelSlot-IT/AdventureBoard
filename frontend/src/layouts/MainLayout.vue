@@ -23,6 +23,10 @@
                 <q-item clickable v-close-popup @click="logout">
                   <q-item-section>Log out</q-item-section>
                 </q-item>
+                <q-separator v-if="me.privilege_level >= 2" />
+                <q-item-label v-if="me.privilege_level >= 2" header>
+                  Admin
+                </q-item-label>
                 <template v-if="me.privilege_level >= 2">
                   <q-item
                     clickable

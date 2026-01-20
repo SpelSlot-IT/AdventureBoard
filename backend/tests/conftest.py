@@ -11,6 +11,7 @@ if str(BACKEND_DIR) not in sys.path:
 from app import create_app
 from app import provider
 from app.provider import db
+from app.models import User
 
 
 @pytest.fixture()
@@ -83,3 +84,23 @@ def app(tmp_path, monkeypatch):
 @pytest.fixture()
 def client(app):
     return app.test_client()
+
+
+def login(client, user_id: int):
+    with client.session_transaction() as session:
+        session["_user_id"] = str(user_id)
+        session["_fresh"] = True
+
+
+@pytest.fixture()
+def admin_user_id(app):
+    with app.app_context():
+        user = User.create(google_id="admin-user", name="Admin", privilege_level=2)
+        return user.id
+
+
+@pytest.fixture()
+def normal_user_id(app):
+    with app.app_context():
+        user = User.create(google_id="regular-user", name="Regular", privilege_level=0)
+        return user.id
