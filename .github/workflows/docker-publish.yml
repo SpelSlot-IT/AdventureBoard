@@ -26,10 +26,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Install uv
         run: pip install uv
-
       - name: Run backend tests
         run: |
           uv sync --extra test
@@ -67,9 +65,7 @@ jobs:
         id: push
         uses: docker/build-push-action@v6
         with:
-          # Build context is the backend folder.
           context: backend
-          # build-push-action uses "file" (not "dockerfile") for the Dockerfile path.
           file: backend/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}

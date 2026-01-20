@@ -8,7 +8,9 @@ WORKDIR /app
 # Install dependencies with uv
 COPY pyproject.toml .
 RUN pip install --no-cache-dir uv
-RUN uv sync --system --no-dev
+ENV UV_PROJECT_ENVIRONMENT=/app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+RUN uv sync --no-dev
 
 # Copy app code
 COPY . .
