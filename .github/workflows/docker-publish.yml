@@ -9,14 +9,31 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  test:
+  prebuild:
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
-      packages: write
-      attestations: write
-      id-token: write
+      packages: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prebuild Docker layers (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  backend_test:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout repository
@@ -33,6 +50,16 @@ jobs:
           uv sync --extra test
           uv run pytest
         working-directory: backend/
+
+  frontend_test:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Use Node.js 23
         uses: actions/setup-node@v4
@@ -56,7 +83,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [backend_test, frontend_test]
 
     permissions:
       contents: read
@@ -94,5 +121,7 @@ jobs:
           context: backend
           file: backend/Dockerfile
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
