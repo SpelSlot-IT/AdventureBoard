@@ -944,8 +944,9 @@ class AssignmentResource(MethodView):
         db.session.delete(assignment)
 
         # Punish the player if not canceled by admin
-        if not is_admin(current_user):
-            last_minute_cancel_punish(current_user_id) # punishment defined in util.py
+        # TODO: DISABLED: Last minute sign-off punishment temporarily disabled
+        # if not is_admin(current_user):
+        #     last_minute_cancel_punish(current_user_id) # punishment defined in util.py
 
         try:
             db.session.commit()
