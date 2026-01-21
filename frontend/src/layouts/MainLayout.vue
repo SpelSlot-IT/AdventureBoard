@@ -166,18 +166,38 @@ export default defineComponent({
         this.adminActionsActive--;
       }
     },
-    async updateKarma() {
-      this.adminActionsActive++;
-      try {
-        await this.$api.post('/api/update-karma');
-        this.forceRefresh++;
-        this.$q.notify({
-          message: 'Karma updated.',
-          type: 'positive',
+    updateKarma() {
+      // Calculate current week (Monday to Sunday)
+      const today = new Date();
+      const day = today.getDay();
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - ((day + 6) % 7));
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      
+      const formatDate = (d: Date) => d.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' });
+      const weekRange = `${formatDate(monday)} - ${formatDate(sunday)}`;
+
+      this.$q
+        .dialog({
+          title: 'Update Karma',
+          message:
+            `You are about to assign karma for the week of: ${weekRange}. Karma changes are cumulative. Running this multiple times for the same week will apply the karma adjustments repeatedly.`,
+          cancel: true,
+        })
+        .onOk(async () => {
+          this.adminActionsActive++;
+          try {
+            await this.$api.post('/api/update-karma');
+            this.forceRefresh++;
+            this.$q.notify({
+              message: 'Karma updated.',
+              type: 'positive',
+            });
+          } finally {
+            this.adminActionsActive--;
+          }
         });
-      } finally {
-        this.adminActionsActive--;
-      }
     },
     async optionallyFetchUser() {
       try {
