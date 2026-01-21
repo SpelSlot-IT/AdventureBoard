@@ -24,9 +24,6 @@
                   <q-item-section>Log out</q-item-section>
                 </q-item>
                 <q-separator v-if="me.privilege_level >= 2" />
-                <q-item-label v-if="me.privilege_level >= 2" header>
-                  Admin
-                </q-item-label>
                 <template v-if="me.privilege_level >= 2">
                   <q-item
                     clickable
@@ -187,14 +184,15 @@ export default defineComponent({
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
       
-      const formatDate = (d: Date) => d.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' });
+      const formatDate = (d: Date) => d.toLocaleDateString('default', { month: 'numeric', day: 'numeric', year: 'numeric' });
       const weekRange = `${formatDate(monday)} - ${formatDate(sunday)}`;
 
       this.$q
         .dialog({
           title: 'Update Karma',
           message:
-            `You are about to assign karma for the week of: ${weekRange}. Karma changes are cumulative. Running this multiple times for the same week will apply the karma adjustments repeatedly.`,
+            `You are about to assign karma for the week of: ${weekRange}. 
+            Karma changes are cumulative. Running this multiple times for the same week will apply the karma adjustments repeatedly.`,
           cancel: true,
         })
         .onOk(async () => {
