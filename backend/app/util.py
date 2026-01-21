@@ -577,7 +577,11 @@ def reassign_karma(today=None):
     creators = db.session.execute(
         db.select(User)
         .join(Adventure)
-        .where(Adventure.date >= start_of_current_week, Adventure.date <= end_of_current_week)
+        .where(
+            Adventure.date >= start_of_current_week,
+            Adventure.date <= end_of_current_week,
+            Adventure.exclude_from_karma.is_(False),
+        )
         .distinct()
     ).scalars().all()
     for user in creators:
@@ -592,6 +596,7 @@ def reassign_karma(today=None):
         .where(
             Assignment.appeared.is_(False),
             Adventure.is_waitinglist == 0,  # Ignore waiting list
+            Adventure.exclude_from_karma.is_(False),
             Adventure.date >= start_of_current_week,
             Adventure.date <= end_of_current_week
         )
@@ -608,6 +613,7 @@ def reassign_karma(today=None):
         .where(
             Adventure.is_waitinglist == 1,
             Assignment.appeared.is_(True),
+            Adventure.exclude_from_karma.is_(False),
             Adventure.date >= start_of_current_week,
             Adventure.date <= end_of_current_week
         )
@@ -625,6 +631,7 @@ def reassign_karma(today=None):
         .where(
             Adventure.is_waitinglist == 1,
             Assignment.appeared.is_(False),
+            Adventure.exclude_from_karma.is_(False),
             Adventure.date >= start_of_current_week,
             Adventure.date <= end_of_current_week
         )
@@ -650,6 +657,7 @@ def reassign_karma(today=None):
                 Assignment.preference_place == prio,
                 Assignment.appeared.is_(True),
                 Adventure.is_waitinglist == 0,
+                Adventure.exclude_from_karma.is_(False),
                 Adventure.date >= start_of_current_week,
                 Adventure.date <= end_of_current_week,
             )

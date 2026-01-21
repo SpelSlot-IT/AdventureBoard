@@ -75,6 +75,10 @@
             label="Requested room"
           />
           <q-input v-model="tags" label="Tags" type="textarea" autogrow />
+          <q-toggle
+            v-model="exclude_from_karma"
+            label="Exclude from karma generation"
+          />
         </div>
       </q-card-section>
       <q-card-actions class="row justify-end">
@@ -123,6 +127,7 @@ export default defineComponent({
       rank_roleplaying: this.editExisting?.rank_roleplaying || 0,
       requested_room: this.editExisting?.requested_room || null,
       tags: this.editExisting?.tags || null,
+      exclude_from_karma: (this.editExisting as any)?.exclude_from_karma ?? false,
     };
   },
   computed: {
@@ -131,6 +136,16 @@ export default defineComponent({
     },
   },
   methods: {
+    isFirstWeekOfMonth(dateStr: string) {
+      if (!dateStr) {
+        return false;
+      }
+      const parsed = new Date(dateStr);
+      if (Number.isNaN(parsed.getTime())) {
+        return false;
+      }
+      return parsed.getDate() <= 7;
+    },
     async save() {
       if (
         this.rank_combat == 0 &&
@@ -154,6 +169,7 @@ export default defineComponent({
         rank_exploration: this.rank_exploration,
         rank_roleplaying: this.rank_roleplaying,
         tags: this.tags,
+        exclude_from_karma: this.exclude_from_karma,
       } as any;
       // Only include requested_room if user is admin
       if (this.me.privilege_level >= 2) {
@@ -193,6 +209,15 @@ export default defineComponent({
   watch: {
     filledIn(v) {
       this.$emit('canClose', !v);
+    },
+    date: {
+      immediate: true,
+      handler(newDate) {
+        if (this.editExisting) {
+          return;
+        }
+        this.exclude_from_karma = this.isFirstWeekOfMonth(newDate);
+      },
     },
   },
 });

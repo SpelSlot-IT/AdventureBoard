@@ -49,6 +49,41 @@ def test_dm_gets_karma_for_creating_adventure(app, users):
         assert dm.karma == initial_karma + 500
 
 
+def test_excluded_adventure_does_not_affect_karma(app, users):
+    """Excluded adventures should not change DM or player karma."""
+    today = date.today()
+    start_of_week, _ = get_this_week(today)
+
+    with app.app_context():
+        dm = db.session.get(User, users["dm"])
+        player = db.session.get(User, users["player1"])
+        initial_dm_karma = dm.karma
+        initial_player_karma = player.karma
+
+        adventure = Adventure.create(
+            title="Excluded Adventure",
+            short_description="A test",
+            user_id=dm.id,
+            date=start_of_week + timedelta(days=2),
+            exclude_from_karma=True,
+        )
+        assignment = Assignment(
+            user_id=player.id,
+            adventure_id=adventure.id,
+            appeared=False,
+            preference_place=1,
+        )
+        db.session.add(assignment)
+        db.session.commit()
+
+        reassign_karma(today)
+
+        dm = db.session.get(User, users["dm"])
+        player = db.session.get(User, users["player1"])
+        assert dm.karma == initial_dm_karma
+        assert player.karma == initial_player_karma
+
+
 def test_dm_karma_not_assigned_for_different_week(app, users):
     """DMs should NOT receive karma for adventures in a different week."""
     today = date.today()
