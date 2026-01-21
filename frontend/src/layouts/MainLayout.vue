@@ -75,12 +75,24 @@
 
     <q-page-container>
       <q-page v-if="errors.length > 0" class="q-px-lg q-pt-md">
+        <div class="column flex flex-center q-my-xl">
+          <q-spinner size="xl" />
+          <div class="text-h6 q-mt-md text-center">
+            Oh no, our servers rolled a natural one.
+          </div>
+          <div class="text-subtitle2 text-center q-mt-sm">
+            Please wait or inform admins.
+          </div>
+        </div>
         <q-banner v-for="e in errors" :key="e" class="bg-negative" rounded>{{
           e
         }}</q-banner>
       </q-page>
       <q-page v-else-if="loading" class="q-px-lg q-pt-md">
-        <q-spinner size="xl" />
+        <div class="column flex flex-center q-my-xl">
+          <q-spinner size="xl" />
+          <div class="text-h6 q-mt-md text-center">Loading...</div>
+        </div>
       </q-page>
       <router-view
         v-else
