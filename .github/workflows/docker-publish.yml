@@ -9,7 +9,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     permissions:
@@ -47,6 +47,32 @@ jobs:
       - run: npm run build
         working-directory: frontend/
       - run: rsync -a --delete frontend/dist/spa/ backend/app/static/
+
+      - name: Upload static assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-assets
+          path: backend/app/static/
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download static assets
+        uses: actions/download-artifact@v4
+        with:
+          name: static-assets
+          path: backend/app/static/
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
