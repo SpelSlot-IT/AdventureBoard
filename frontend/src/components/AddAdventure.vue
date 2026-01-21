@@ -153,9 +153,12 @@ export default defineComponent({
         rank_combat: this.rank_combat,
         rank_exploration: this.rank_exploration,
         rank_roleplaying: this.rank_roleplaying,
-        requested_room: this.requested_room,
         tags: this.tags,
       } as any;
+      // Only include requested_room if user is admin
+      if (this.me.privilege_level >= 2) {
+        body.requested_room = this.requested_room;
+      }
       if (this.editExisting) {
         await this.$api.patch('/api/adventures/' + this.editExisting.id, body);
       } else {

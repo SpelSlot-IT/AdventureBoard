@@ -4,10 +4,13 @@ FROM python:3.11-slim
 # Set workdir
 WORKDIR /app
 
-#
-# Install dependencies with uv
-COPY pyproject.toml .
+# Install uv
 RUN pip install --no-cache-dir uv
+
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies with uv
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 RUN uv sync --no-dev
