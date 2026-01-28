@@ -227,7 +227,7 @@
                       color="negative"
                       class="q-mr-sm flat"
                       icon="delete"
-                      @click="cancelAssignment(a.id)"
+                      @click="cancelAssignment(a.id, p.user.id)"
                       round
                     />
                   </q-item>
@@ -573,7 +573,7 @@ export default defineComponent({
     isWaitinglist(a: { is_waitinglist: number }): boolean {
       return a.is_waitinglist >= 1;
     },
-    cancelAssignment(adventure_id: number) {
+    cancelAssignment(adventure_id: number, user_id?: number) {
       this.$q
         .dialog({
           title: 'Cancel Assignment',
@@ -582,10 +582,16 @@ export default defineComponent({
           cancel: true,
         })
         .onOk(async () => {
+          const data: { adventure_id: number; user_id?: number } = {
+            adventure_id,
+          };
+          if (user_id) {
+            data.user_id = user_id;
+          }
           await this.$api.request({
             method: 'DELETE',
             url: '/api/player-assignments',
-            data: { adventure_id },
+            data,
             headers: { 'Content-Type': 'application/json' }
           });
           this.$q.notify({
