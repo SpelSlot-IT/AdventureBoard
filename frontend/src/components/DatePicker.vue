@@ -36,7 +36,12 @@
 import { defineComponent } from 'vue';
 
 const fromDateString = (dateStr: string): Date => {
-  const [year, month, day] = dateStr.split('-').map(Number);
+  const separator = dateStr.includes('/') ? '/' : '-';
+  const parts = dateStr.split(separator).map(Number);
+  if (parts.length !== 3 || parts.some((p) => Number.isNaN(p))) {
+    return new Date(NaN);
+  }
+  const [year, month, day] = parts;
   return new Date(year, month - 1, day);
 };
 
@@ -64,6 +69,9 @@ export default defineComponent({
         return true;
       }
       const d = fromDateString(v);
+      if (Number.isNaN(d.getTime())) {
+        return false;
+      }
       return d.getDay() % 7 == 3;
     },
   },
