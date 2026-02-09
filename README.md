@@ -11,7 +11,7 @@ This method is recommended if you want to develop and locally test the app with 
 3. Navigate to the `backend` directory of the repository.
 4. Install uv (https://docs.astral.sh/uv/), then run `uv venv` and `uv sync`.
 5. Create a `config.local.json` file in the `app/config` directory based on [`config.example`](backend/app/config/config.example).
-6. Run `uv run python main.py` to run a local flask server.
+6. Run a local flask server: `uv run python main.py`.
 
 ## Hosting with docker (Developer)
 This method is recommended if you want to develop and locally test the app under real conditions.
