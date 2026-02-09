@@ -5,6 +5,7 @@
         <div class="q-gutter-x-md">
           <q-btn label="Home" icon="home" to="/" />
           <q-btn label="Characters" icon="sym_o_chess_pawn" to="/characters" />
+          <q-btn label="FAQ" icon="help" to="/faq" />
         </div>
         <q-avatar icon="img:spelslot-logo.svg" size="50px"></q-avatar>
         <div>

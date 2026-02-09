@@ -50,6 +50,14 @@
 
             <div class="row full-width justify-end">
               <q-chip
+                v-if="a.is_story_adventure"
+                label="Story Adventure"
+                color="warning"
+                text-color="dark"
+                :ripple="false"
+                class="q-mr-xs"
+              />
+              <q-chip
                 v-for="t in a.tags?.split(',')"
                 :key="t"
                 :label="t"
@@ -276,6 +284,14 @@
         <q-card-section>
           <div class="text-h6">{{ focussed.title }}</div>
           <q-separator />
+          <q-chip
+            v-if="focussed.is_story_adventure"
+            label="Story Adventure"
+            color="warning"
+            text-color="dark"
+            :ripple="false"
+            class="q-mr-xs"
+          />
           <q-chip
             v-for="t in focussed.tags?.split(',')"
             :key="t"

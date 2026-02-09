@@ -74,7 +74,12 @@
             v-model="requested_room"
             label="Requested room"
           />
+          <q-toggle
+            v-model="is_story_adventure"
+            label="Story adventure (prefers story players)"
+          />
           <q-input v-model="tags" label="Tags" type="textarea" autogrow />
+          
           <q-toggle
             v-model="exclude_from_karma"
             label="Exclude from karma generation"
@@ -127,6 +132,7 @@ export default defineComponent({
       rank_roleplaying: this.editExisting?.rank_roleplaying || 0,
       requested_room: this.editExisting?.requested_room || null,
       tags: this.editExisting?.tags || null,
+      is_story_adventure: (this.editExisting as any)?.is_story_adventure ?? false,
       exclude_from_karma: (this.editExisting as any)?.exclude_from_karma ?? false,
     };
   },
@@ -169,6 +175,7 @@ export default defineComponent({
         rank_exploration: this.rank_exploration,
         rank_roleplaying: this.rank_roleplaying,
         tags: this.tags,
+        is_story_adventure: this.is_story_adventure,
         exclude_from_karma: this.exclude_from_karma,
       } as any;
       // Only include requested_room if user is admin

@@ -391,7 +391,7 @@ def assign_players_to_adventures(today=None):
     current_app.logger.info(f"- Players assigned in round 1: #{len(round_)}: {round_} => {dict(taken_places)}")
 
     # -- Second round of assigning players --
-    # Assign all story players sorted by karma.
+    # Assign all story players sorted by karma, but only on story adventures.
     round_ = []
     # go through priorities one by one
     for prio in range(1, MAX_PRIORITY + 1):
@@ -401,6 +401,9 @@ def assign_players_to_adventures(today=None):
                 continue
             for signup in [s for s in user.signups if s.priority == prio]:
                 adventure = signup.adventure
+                # Only prefer story players on story adventures
+                if not adventure.is_story_adventure:
+                    continue
                 if try_to_signup_user_for_adventure(taken_places, players_signedup_not_assigned, adventure, user, assignment_map, preference_place=prio): 
                     round_.append(user.display_name)
                     break

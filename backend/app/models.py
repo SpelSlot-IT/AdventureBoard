@@ -113,6 +113,7 @@ class Adventure(db.Model):
     rank_roleplaying    = db.Column(db.Integer, nullable=False, default=0)
     is_waitinglist      = db.Column(db.Integer, nullable=False, default=0) # 0 = no, 1 = yes, 2 = was waitinglist
     exclude_from_karma  = db.Column(db.Boolean, nullable=False, default=False)
+    is_story_adventure  = db.Column(db.Boolean, nullable=False, default=False)
 
     predecessor     = db.relationship('Adventure', remote_side=[id], foreign_keys=[predecessor_id])
     creator         = db.relationship('User', back_populates='adventures_created')
