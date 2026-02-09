@@ -1,19 +1,18 @@
 # Adventure Board
 See http://shepherd-itsec.com/dnd/ for a live demoW
-- See the [HELP](http://shepherd-itsec.com/dnd/cgi-bin/app.cgi/help) section of the live demo in the top right for usage help.
-- See the documentation of the [REST API](http://shepherd-itsec.com/dnd/cgi-bin/app.cgi/openapi/docs) for developer help.
+- See the documentation of the [REST API](https://signup.spelslot.nl/openapi/docs) for developer help.
 
 # Backend Hosting
-## Hosting raw
+## Hosting raw (Recommended)
 This method is recommended if you want to develop and locally test the app with minimal setup.
 1. Clone the repository.
-2. Set up a database. Currently using MySQL, but other flavors are also supported.
+2. Set up a database. Currently using MySQL, but other flavors are also supported. (Or use the mock setup via `bash backend/setup_mock_db.sh`)
 3. Navigate to the `backend` directory of the repository.
-4. Install uv (https://docs.astral.sh/uv/), then run `uv venv` and `uv sync`.
-5. Create a `config.local.json` file in the `app/config` directory based on [`config.example`](backend/app/config/config.example).
-6. Run a local flask server: `uv run python main.py`.
+4. Install [UV](https://docs.astral.sh/uv/), then run `uv venv` followed by `uv sync`.
+5. Create a `config.local.json` file in the `app/config` directory based on [`config.example`](backend/app/config/config.example). (For more information on this see **Configuration** later on in this document.)
+6. Run the local flask server: `uv run python main.py`.
 
-## Hosting with docker (Developer)
+## Hosting with docker (Develop)
 This method is recommended if you want to develop and locally test the app under real conditions.
 1. Clone the repository.
 2. Navigate to the `backend` directory of the repository.
@@ -34,7 +33,9 @@ wget https://raw.githubusercontent.com/Shepherd-ITSec/AdventureBoard/refs/heads/
 3. Create a `config.json`, see [`config.example`](config.example)
 4. Run `docker compose up --build`
 
-# Configuration
+
+
+## Configuration
 The configuration depends on the hosting method. Please always see the corresponding examples. After copying the example the following variables **need** to be set:
 - `APP`: `SECRET_KEY`
 - `DB`: `USER`,`PASSWORD` and `NAME`
@@ -44,16 +45,17 @@ Please see that `DB`: `flavor` only supports `mysql+pymysql` and `postgresql+psy
 
 # Frontend development
 
-The frontend is written in VueJS with the Quasar framework. To get started:
-
-```shell
-cd frontend
-npm clean-install
-npx quasar dev
-```
+The frontend is written in VueJS with the Quasar framework. 
+1. Clone the repository.
+2. Navigate to the `frontend` directory of the repository.
+3. Install `NodeJS`
+4. Install the required packages started: `npm clean-install`
+5. Run the frontend: `npx quasar dev`
 
 ## Running without local backend
-You can fake logging in by stealing the cookie from https://signup.spelslot.nl/, and using the developer console to set `document.cookie = 'session=xxx'`, if you don't want to host a own backend server.
+If you want to run without a local backend you can use the oficla websites backend my making the following changes. 
+
+> Note: You can fake logging to the online backend by stealing the cookie from https://signup.spelslot.nl/, and using the developer console to set `document.cookie = 'session=xxx'`.
 
 The server configuration in [`quasar.config.js`](frontend/quasar.config.js) needs to be changed to
 ```js
@@ -74,6 +76,7 @@ devServer: {
 ```
 
 # Tests
+Tests can be run with the following commands
 
 Backend tests (pytest):
 ```shell

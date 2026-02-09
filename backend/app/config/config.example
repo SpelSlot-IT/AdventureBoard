@@ -26,6 +26,7 @@
     "ssl": false
   },
   "DB": {
+    "flavor": "mysql+pymysql",
     "host": "localhost",
     "user": "user",
     "password": "password",
