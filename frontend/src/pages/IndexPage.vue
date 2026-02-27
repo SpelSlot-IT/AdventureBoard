@@ -9,6 +9,7 @@
         ><span class="gt-sm">Earlier</span>
       </q-btn>
       <div class="text-h6 col-6 text-center">Wednesday {{ wednesdate }}</div>
+      <q-btn label="Enable Notifications" color="primary" @click="setupNotifications" />
       <q-btn
         icon-right="chevron_right"
         aria-label="Later"
@@ -469,6 +470,7 @@
 import { defineComponent, inject } from 'vue';
 import { Container, Draggable } from 'vue3-smooth-dnd';
 import AddAdventure from '../components/AddAdventure.vue';
+import { getToken } from 'src/boot/firebase';
 
 const toLocalDateString = (d: Date): string => {
   const year = d.getFullYear();
@@ -521,6 +523,58 @@ export default defineComponent({
     };
   },
   methods: {
+async setupNotifications() {
+  if (!this.me) {
+    this.$q.notify({
+      color: 'negative',
+      message: 'You need to be logged in to enable notifications.',
+      icon: 'error'
+    });
+    return;
+  }
+  try {
+    // 1. Request Browser Permission
+    // This triggers the browser's "Allow Notifications?" popup.
+    const permission = await Notification.requestPermission();
+    
+    if (permission !== 'granted') {
+      this.$q.notify({
+        color: 'negative',
+        message: 'Permission denied for notifications.',
+        icon: 'notifications_off'
+      });
+      return;
+    }
+
+    // 2. Get the unique FCM Token
+    // We pass our $messaging instance and the VAPID key.
+    const token = await getToken(this.$messaging, {
+      vapidKey: 'BHdufWLs6iJn8hQ_ZtNSRtEpF9mVdXjlNhvoqWx2fOkWe-FpDNX0T2_bPr3eeV-oTfpz-0MLIKdbiatQ4nEF6xg'
+    });
+
+    if (token) {
+      // 3. Send the token to the Flask Backend
+      // We use this.$api (Axios) which is already configured in your boot files.
+      const response = await this.$api.post('/api/notifications/save-token', {
+        token: token
+      });
+
+      this.$q.notify({
+        color: 'positive',
+        message: response.data.message || 'Notifications linked!',
+        icon: 'notifications_active'
+      });
+    } else {
+      console.error('No registration token available. Request permission to generate one.');
+    }
+  } catch (err) {
+    console.error('An error occurred while retrieving token. ', err);
+    this.$q.notify({
+      color: 'negative',
+      message: 'Failed to enable notifications.'
+    });
+  }
+},
     async fetch(reloadSignups: boolean) {
       if(!this.loadedSignups) {
         reloadSignups = true;

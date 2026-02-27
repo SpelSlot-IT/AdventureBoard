@@ -6,6 +6,7 @@ import calendar
 
 from .models import *
 from .email import notify_user, notifications_enabled
+from firebase_admin import messaging
 
 def is_admin(user):
     return user.is_authenticated and user.privilege_level >= 2
@@ -103,6 +104,7 @@ def release_assignments(today=None):
                     user = assignment.user
                     if user.id not in notified_users:
                         notify_user(user, f"You have been assigned to {adventure.title}")
+                        send_fcm_notification(user, "Assignment Released!", f"You have been assigned to {adventure.title}")
                         notified_users.add(user.id)
         else:
             current_app.logger.info("Notifications where disabled. Skipped email notifications.")
@@ -679,3 +681,34 @@ def last_minute_cancel_punish(user_id: int):
         .where(User.id == user_id)
         .values(karma=User.karma - 300)
     )
+
+def send_fcm_notification(user, title, body, category=None, link="OPEN_APP"):
+    """Sends a push notification to all devices registered by a specific user."""
+
+    if category:
+        setting_name = f"notify_{category}"
+        if hasattr(user, setting_name) and not getattr(user, setting_name):
+            return  # User has disabled notifications for this category
+    # Fetch tokens for this user
+    tokens = [t.token for t in FCMToken.query.filter_by(user_id=user.id).all()]
+    
+    if not tokens:
+        return  # User has no registered devices
+
+    message = messaging.MulticastMessage(
+        data = {
+            "title": title,
+            "body": body,
+            "click_action": link  # This can be used on the client to trigger specific behavior
+        },
+        tokens=tokens,
+        webpush=messaging.WebpushConfig(
+            Headers={
+                "Urgency": "high"  # Ensure high priority for web push
+            },
+        )
+    )
+    try:
+        messaging.send_each_for_multicast(message)
+    except Exception as e:
+        print(f"FCM Error: {e}")

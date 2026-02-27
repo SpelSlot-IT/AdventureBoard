@@ -6,9 +6,12 @@ from flask import Flask
 from flask_smorest import Api
 from flask_talisman import Talisman
 from apispec.ext.marshmallow import MarshmallowPlugin
+import firebase_admin
+from firebase_admin import credentials
 
 import logging
-from datetime import datetime
+from datetime import datetime, date
+from sqlalchemy import not_
 
 from .provider import db, ma, ap_scheduler, login_manager, google_oauth, mail, migrate
 from .models import *
@@ -19,6 +22,16 @@ def create_app(config_file=None):
     # --- Launch app --- 
     app = Flask(__name__)
     app.logger.info(f"App running in {os.getenv('FLASK_ENV')} mode")
+
+    # --- Firebase Admin Setup ---
+    # We check if it's already initialized to prevent errors during reloads
+    if not firebase_admin._apps:
+        # Load the path to your credentials file from your config
+        # Or hardcode the path for this local test
+        cred_path = os.path.join(app.root_path, 'config', 'serviceAccountKey.json')
+        cred = credentials.Certificate(cred_path)
+        firebase_admin.initialize_app(cred)
+        app.logger.info("Firebase Admin initialized successfully")
 
     # load config
     if not config_file:
@@ -146,5 +159,27 @@ def create_app(config_file=None):
         with app.app_context():
             app.logger.info("--- Triggering scheduled 'release assignment' job ---")
             release_assignments()
+
+    @ap_scheduler.task('cron', id='deadline_nudge', day_of_week=a_d, hour=int(a_h)-4)
+    def cron_deadline_nudge():
+        with app.app_context():
+            today = date.today()
+            start_of_week, end_of_week = get_upcoming_week(today)
+
+            signed_up_users_ids = db.session.scalars(
+                db.select(Signup.user_id)
+                .where(Signup.adventure_date >= start_of_week,
+                       Signup.adventure_date <= end_of_week)
+            ).all()
+
+            users_to_nudge = db.session.scalars(
+                db.select(User)
+                .join(FCMToken)
+                .where(not_(User.id.in_(signed_up_users_ids)))
+            ).all()
+
+            for user in users_to_nudge:
+                send_fcm_notification(user, "Deadline Reminder", "Don't forget to sign up for your next adventure!")
+            app.logger.info("--- Triggering scheduled 'deadline nudge' job ---")
 
     return app
