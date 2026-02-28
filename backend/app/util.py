@@ -81,31 +81,41 @@ def release_assignments(today=None):
 
         # Commit the update before notifications
         db.session.commit()
+# ... after your db.session.commit() ...
         current_app.logger.info(
             f"Releasing assignments for adventures between {start_of_week} and {end_of_week}: #{len(adventures)}: {[adventure.title for adventure in adventures]}"
         )
-        if notifications_enabled(current_app.config.get("EMAIL")):
 
-            adventures = (
-                db.session.scalars(
-                    db.select(Adventure)
-                    .options(db.selectinload(Adventure.assignments))  # eager load users
-                    .where(
-                        Adventure.date >= start_of_week,
-                        Adventure.date <= end_of_week,
-                        Adventure.release_assignments
-                    )
-                ).all()
+        # 1. Fetch the adventures again (already in your code)
+        adventures_to_notify = db.session.scalars(
+            db.select(Adventure)
+            .options(db.selectinload(Adventure.assignments).selectinload(Assignment.user))
+            .where(
+                Adventure.date >= start_of_week,
+                Adventure.date <= end_of_week,
+                Adventure.release_assignments == True
             )
-            # Notify assigned users (avoid duplicates)
-            notified_users = set()
-            for adventure in adventures:
-                for assignment in adventure.assignments:
-                    user = assignment.user
-                    if user.id not in notified_users:
-                        notify_user(user, f"You have been assigned to {adventure.title}")
+        ).all()
+
+        # 2. Track who we've notified to avoid double-poking people
+        notified_users = set()
+
+        for adventure in adventures_to_notify:
+            for assignment in adventure.assignments:
+                user = assignment.user
+                if user and user.id not in notified_users:
+                    # SEND FCM REGARDLESS OF EMAIL CONFIG
+                    try:
                         send_fcm_notification(user, "Assignment Released!", f"You have been assigned to {adventure.title}")
-                        notified_users.add(user.id)
+                        current_app.logger.info(f"FCM sent to {user.display_name}")
+                    except Exception as fcm_err:
+                        current_app.logger.error(f"FCM failed for {user.display_name}: {fcm_err}")
+
+                    # Only send email if the config allows it
+                    if notifications_enabled(current_app.config.get("EMAIL")):
+                        notify_user(user, f"You have been assigned to {adventure.title}")
+                    
+                    notified_users.add(user.id)
         else:
             current_app.logger.info("Notifications where disabled. Skipped email notifications.")
 
@@ -704,7 +714,7 @@ def send_fcm_notification(user, title, body, category=None, link="OPEN_APP"):
         },
         tokens=tokens,
         webpush=messaging.WebpushConfig(
-            Headers={
+            headers={
                 "Urgency": "high"  # Ensure high priority for web push
             },
         )
