@@ -1112,8 +1112,11 @@ class FCMSaveToken(MethodView):
 
 @blp_notifications.route("/broadcast-test")
 class FCMBroadcast(MethodView):
+    @login_required
     def get(self):
-        """A simple GET route to ping everyone who has registered."""
+        """Broadcast to all registered devices. Admin only"""
+        if not is_admin(current_user):
+            abort(403, message="Admin only")
         # 1. Fetch all tokens from the DB
         tokens = [t.token for t in FCMToken.query.all()]
         
@@ -1184,10 +1187,13 @@ class TestAutomation(MethodView):
         Manually triggers one of the three notification scenarios.
         target can be: 'new_adventure', 'deadline', or 'release'
         """
-        from app.util import send_fcm_notification, get_upcoming_week
+        
+        
 
         if target == "new_adventure":
-            # Test 1: New Adventure (to everyone with tokens)
+            # Test 1: New Adventure (to everyone with tokens) — admin only
+            if not is_admin(current_user):
+                abort(403, message="Admin only")
             tokens = [t.token for t in FCMToken.query.all()]
             if tokens:
                 message = messaging.MulticastMessage(
@@ -1218,7 +1224,7 @@ class TestAutomation(MethodView):
             send_fcm_notification(
                 current_user, 
                 "Party Assigned! 🎲", 
-                "TEST: You've been assigned to: Mystery Dungeon",
+                "TEST: You've been assigned to: test adventure",
                 category="assignments"
             )
             return {"message": "Sent 'Assignment Release' to your device"}

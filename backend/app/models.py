@@ -51,9 +51,9 @@ class User(UserMixin, db.Model):
     assignments         = db.relationship('Assignment', back_populates='user')
 
     # Notification Toggles (Default to True)
-    notify_new_adventure = db.Column(db.Boolean, default=True, server_default="1")
-    notify_deadline = db.Column(db.Boolean, default=True, server_default="1")
-    notify_assignments = db.Column(db.Boolean, default=True, server_default="1")
+    notify_new_adventure = db.Column(db.Boolean, default=True)
+    notify_deadline = db.Column(db.Boolean, default=True)
+    notify_assignments = db.Column(db.Boolean, default=True)
 
     def __repr__(self):
         return f"<User(display_name='{self.display_name}', karma={self.karma}, privilege_level={self.privilege_level})>"

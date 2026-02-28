@@ -3,6 +3,7 @@ name: Build and Push Docker Image
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:  # allows manual run from Actions tab; branch is chosen when you run it
 
 env:
   REGISTRY: ghcr.io

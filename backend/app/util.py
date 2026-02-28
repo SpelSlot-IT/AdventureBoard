@@ -693,6 +693,7 @@ def send_fcm_notification(user, title, body, category=None, link="OPEN_APP"):
     tokens = [t.token for t in FCMToken.query.filter_by(user_id=user.id).all()]
     
     if not tokens:
+        current_app.logger.info(f"User {user.display_name} has no registered devices")
         return  # User has no registered devices
 
     message = messaging.MulticastMessage(
@@ -711,4 +712,4 @@ def send_fcm_notification(user, title, body, category=None, link="OPEN_APP"):
     try:
         messaging.send_each_for_multicast(message)
     except Exception as e:
-        print(f"FCM Error: {e}")
+        current_app.logger.error(f"FCM Error: {e}")
