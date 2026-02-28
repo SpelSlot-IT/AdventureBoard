@@ -21,9 +21,10 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError, MultipleResultsFound
 import json
 import requests
 
-from .models import db, User, Adventure, Assignment, AdventureRequestedPlayer
+from .models import db, User, Adventure, Assignment, AdventureRequestedPlayer, FCMToken
 from .util import *
 from .provider import ma, ap_scheduler
+from firebase_admin import messaging
 
 
 blp_utils = Blueprint("utils", "utils", url_prefix="/api/",
@@ -36,8 +37,10 @@ blp_signups = Blueprint("signups", "signups", url_prefix="/api/signups",
                description="Signups API: Everything related to the signups of users. Priority medals 1, 2, 3")
 blp_users = Blueprint("users", "users", url_prefix="/api/users",
                description="Users API: Everything related to the users.")
-
-api_blueprints = [blp_utils, blp_users, blp_adventures, blp_assignments, blp_signups]
+# 1. Define the Blueprint for Notifications
+blp_notifications = Blueprint("notifications", "notifications", url_prefix="/api/notifications",
+               description="FCM Operations: Saving tokens and triggering test pushes.")
+api_blueprints = [blp_utils, blp_users, blp_adventures, blp_assignments, blp_signups, blp_notifications]
 
 # ----------------------- Schemas ---------------------------------
 
@@ -339,7 +342,7 @@ class CallbackResource(MethodView):
             auth=(current_app.config["GOOGLE"]["client_id"], current_app.config["GOOGLE"]["client_secret"]),
         )
         if not token_response.ok:
-            return redirect(url_for("api.login"))
+            return redirect(url_for("utils.LoginResource"))
 
         # Parse the tokens!
         client.parse_request_body_response(json.dumps(token_response.json()))
@@ -352,7 +355,7 @@ class CallbackResource(MethodView):
         userinfo_response = requests.get(uri, headers=headers, data=body)
         userinfo = userinfo_response.json() if hasattr(userinfo_response, "json") else {}
         if not userinfo_response.ok:
-            return redirect(url_for("api.login"))
+            return redirect(url_for("utils.LoginResource"))
 
         # We want to make sure their email is verified.
         # The user authenticated with Google, authorized our
@@ -605,7 +608,16 @@ class AdventureIDlessRequest(MethodView):
                     pass
 
             db.session.commit()
-
+            all_tokens = [t.token for t in FCMToken.query.all()]
+            if all_tokens:
+                message = messaging.MulticastMessage(
+                    notification=messaging.Notification(
+                        title="New Adventure Alert! ⚔️",
+                        body=f"{current_user.name} just posted: {new_adv.title}",
+                    ),
+                    tokens=all_tokens,
+                )
+                messaging.send_each_for_multicast(message)
             # Normal success: return the model instance (decorator will dump it)
             return new_adv
 
@@ -1048,3 +1060,173 @@ class SignupResource(MethodView):
 
         except Exception as e:
             abort(500, message=str(e))
+
+# --- NOTIFICATIONS ---
+@blp_notifications.route("/save-token")
+class FCMSaveToken(MethodView):
+    @login_required 
+    def post(self):
+        """Securely link the FCM token to the logged-in user."""
+        data = request.get_json()
+        fcm_token = data.get("token")
+
+        if not fcm_token:
+            abort(400, message="Token is required")
+
+        try:
+            # 1. Clean up: One device, one user. 
+            # If this token exists elsewhere, reassign it.
+            existing = FCMToken.query.filter_by(token=fcm_token).first()
+            if existing:
+                if existing.user_id != current_user.id:
+                    existing.user_id = current_user.id
+                    db.session.commit()
+            else:
+                new_token = FCMToken(user_id=current_user.id, token=fcm_token)
+                db.session.add(new_token)
+                db.session.commit()
+
+            # 2. Trigger the success notification using our NEW DATA-ONLY format
+            # Use current_user.display_name (matching your ProfilePage.vue field)
+            name = getattr(current_user, 'display_name', 'Adventurer')
+            
+            message = messaging.Message(
+                data={
+                    "title": "Account Linked! 🛡️",
+                    "body": f"Hi {name}, your device is now registered.",
+                    "click_action": "OPEN_APP" 
+                },
+                token=fcm_token,
+            )
+            messaging.send(message)
+
+            return {"message": "Token linked to your account successfully"}, 200
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return {"message": "Database error", "error": str(e)}, 500
+        except Exception as e:
+            # We return 200 even if the welcome msg fails, 
+            # because the token WAS successfully saved.
+            return {"message": "Token saved, but welcome notification failed", "error": str(e)}, 200
+
+@blp_notifications.route("/broadcast-test")
+class FCMBroadcast(MethodView):
+    @login_required
+    def get(self):
+        """Broadcast to all registered devices. Admin only"""
+        if not is_admin(current_user):
+            abort(403, message="Admin only")
+        # 1. Fetch all tokens from the DB
+        tokens = [t.token for t in FCMToken.query.all()]
+        
+        if not tokens:
+            return {"message": "No tokens found in DB"}, 404
+
+        # 2. Create a Multicast message (sends to many at once)
+        message = messaging.MulticastMessage(
+            data={
+                "title": "Global Announcement",
+                "body": "This is a broadcast test from the Flask server!",
+            },
+            tokens=tokens,
+            webpush=messaging.WebpushConfig(
+                headers={"Urgency": "high"}
+            ),
+        )
+
+        # 3. Send
+        response = messaging.send_each_for_multicast(message)
+        
+        return {
+            "success_count": response.success_count,
+            "failure_count": response.failure_count,
+            "message": "Broadcast attempted"
+        }, 200
+    
+@blp_notifications.route("/debug-push")
+class DebugPush(MethodView):
+    @login_required
+    def get(self):
+        """Forces a push notification to the logged-in user."""
+        # 1. Find tokens for the real logged-in user
+        user_tokens = FCMToken.query.filter_by(user_id=current_user.id).all()
+        
+        if not user_tokens:
+            return {
+                "status": "error",
+                "message": f"No tokens found in DB for user {current_user.name} (ID: {current_user.id})"
+            }, 404
+
+        token_list = [t.token for t in user_tokens]
+        
+        # 2. Try to send
+        message = messaging.MulticastMessage(
+            notification=messaging.Notification(
+                title="System Check 🛡️",
+                body=f"Connection confirmed for {current_user.name}!",
+            ),
+            tokens=token_list,
+        )
+        
+        response = messaging.send_each_for_multicast(message)
+        
+        return {
+            "status": "success",
+            "user": current_user.name,
+            "tokens_found": len(token_list),
+            "success_count": response.success_count,
+            "failure_count": response.failure_count
+        }, 200
+    
+@blp_notifications.route("/test-automation/<string:target>")
+class TestAutomation(MethodView):
+    @login_required
+    def post(self, target):
+        """
+        Manually triggers one of the three notification scenarios.
+        target can be: 'new_adventure', 'deadline', or 'release'
+        """
+        
+        
+
+        if target == "new_adventure":
+            # Test 1: New Adventure (to everyone with tokens) — admin only
+            if not is_admin(current_user):
+                abort(403, message="Admin only")
+            tokens = [t.token for t in FCMToken.query.all()]
+            if tokens:
+                message = messaging.MulticastMessage(
+                    data={
+                        "title": "New Adventure Alert! ⚔️",
+                        "body": f"Test DM just posted: The Dragon's Lair",
+                    },
+                    tokens=tokens,
+                    webpush=messaging.WebpushConfig(
+                        headers={"Urgency": "high"}
+                    ),
+                )
+                messaging.send_each_for_multicast(message)
+            return {"message": f"Sent 'New Adventure' to {len(tokens)} devices"}
+
+        elif target == "deadline":
+            # Test 2: Deadline Nudge (to you only)
+            send_fcm_notification(
+                current_user, 
+                "The clock is ticking! ⏳", 
+                "TEST: You haven't signed up for any adventures next week.",
+                category="deadline"
+            )
+            return {"message": "Sent 'Deadline Nudge' to your device"}
+
+        elif target == "release":
+            # Test 3: Assignments Released (to you only)
+            send_fcm_notification(
+                current_user, 
+                "Party Assigned! 🎲", 
+                "TEST: You've been assigned to: test adventure",
+                category="assignments"
+            )
+            return {"message": "Sent 'Assignment Release' to your device"}
+
+        return {"error": "Invalid target"}, 400

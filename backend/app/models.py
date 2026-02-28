@@ -17,6 +17,18 @@ class Anonymous(AnonymousUserMixin):
     self.privilege_level = -1
     self.id = -1
 
+class FCMToken(db.Model):
+    __tablename__ = 'fcm_tokens'
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Create a real relationship to the User table
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    token = db.Column(db.Text, nullable=False, unique=True)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+    # Optional: allow us to see user info from a token object
+    user = db.relationship('User', backref=db.backref('fcm_tokens', lazy=True))
+
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
 
@@ -30,13 +42,18 @@ class User(UserMixin, db.Model):
     privilege_level     = db.Column(db.Integer, nullable=False, default=0)
     personal_room       = db.Column(db.String(16), nullable=True)
     email               = db.Column(db.String(255), nullable=True)
-    profile_pic         = db.Column(db.String(255), nullable=True)
+    profile_pic         = db.Column(db.Text, nullable=True)
     karma               = db.Column(db.Integer, default=1000)
     story_player        = db.Column(db.Boolean, nullable=False, default=False)
 
     adventures_created  = db.relationship('Adventure', back_populates='creator', lazy='dynamic')
     signups             = db.relationship('Signup', back_populates='user')
     assignments         = db.relationship('Assignment', back_populates='user')
+
+    # Notification Toggles (Default to True)
+    notify_new_adventure = db.Column(db.Boolean, default=True)
+    notify_deadline = db.Column(db.Boolean, default=True)
+    notify_assignments = db.Column(db.Boolean, default=True)
 
     def __repr__(self):
         return f"<User(display_name='{self.display_name}', karma={self.karma}, privilege_level={self.privilege_level})>"
