@@ -140,6 +140,26 @@
                         class="q-mr-sm flat"
                         @click="togglePresence(a.id, p)"
                       />
+                      <q-btn flat round dense icon="castle" size="sm" color="primary">
+                        <q-menu>
+                          <q-list>
+                            <q-item
+                              v-for="targetAdv in adventures.filter((adv: any) => adv.id !== a.id)"
+                              :key="targetAdv.id"
+                              clickable
+                              v-close-popup
+                              @click="movePlayer(p.user.id, a.id, targetAdv.id)"
+                            >
+                              <q-item-section avatar>
+                                <q-icon name="castle" color="primary" size="xs" />
+                              </q-item-section>
+                              <q-item-section>
+                                {{ targetAdv.title }}
+                              </q-item-section>
+                            </q-item>
+                          </q-list>
+                        </q-menu>
+                      </q-btn>
                     </q-item>
                   </Draggable>
                 </template>
@@ -239,6 +259,26 @@
                       @click="cancelAssignment(a.id, p.user.id)"
                       round
                     />
+                    <q-btn flat round dense icon="castle" size="sm" color="primary">
+                      <q-menu>
+                        <q-list>
+                          <q-item
+                            v-for="targetAdv in adventures.filter((adv: any) => adv.id !== a.id)"
+                            :key="targetAdv.id"
+                            clickable
+                            v-close-popup
+                            @click="movePlayer(p.user.id, a.id, targetAdv.id)"
+                          >
+                            <q-item-section avatar>
+                              <q-icon name="castle" color="primary" size="xs" />
+                            </q-item-section>
+                            <q-item-section>
+                              {{ targetAdv.title }}
+                            </q-item-section>
+                          </q-item>
+                        </q-list>
+                      </q-menu>
+                    </q-btn>
                   </q-item>
                 </Draggable>
               </Container>
@@ -705,6 +745,17 @@ async setupNotifications() {
         user_id: assignment.user.id,
         appeared: assignment.appeared,
       });
+    },
+    async movePlayer(userId: number, fromAdventureId: number, toAdventureId: number) {
+      const simulatedDropResult = {
+        payload: {
+          from_adventure: fromAdventureId,
+          user_id: userId,
+        },
+        addedIndex: 0,
+        removedIndex: null,
+      };
+      await this.onDrop(simulatedDropResult, toAdventureId);
     },
     async onDrop(
       dropResult: {
