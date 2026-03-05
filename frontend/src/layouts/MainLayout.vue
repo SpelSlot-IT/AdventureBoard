@@ -111,6 +111,8 @@
 <script lang="ts">
 import { defineComponent, computed } from 'vue';
 import { isAxiosError } from 'axios';
+import { getToken } from 'src/boot/firebase';
+
 
 export default defineComponent({
   name: 'MainLayout',
@@ -135,6 +137,58 @@ export default defineComponent({
   },
 
   methods: {
+    async setupNotifications() {
+  if (!this.me) {
+    this.$q.notify({
+      color: 'negative',
+      message: 'You need to be logged in to enable notifications.',
+      icon: 'error'
+    });
+    return;
+  }
+  try {
+    // 1. Request Browser Permission
+    // This triggers the browser's "Allow Notifications?" popup.
+    const permission = await Notification.requestPermission();
+    
+    if (permission !== 'granted') {
+      this.$q.notify({
+        color: 'negative',
+        message: 'Permission denied for notifications.',
+        icon: 'notifications_off'
+      });
+      return;
+    }
+
+    // 2. Get the unique FCM Token
+    // We pass our $messaging instance and the VAPID key.
+    const token = await getToken(this.$messaging, {
+      vapidKey: process.env.FIREBASE_VAPID_KEY
+    });
+
+    if (token) {
+      // 3. Send the token to the Flask Backend
+      // We use this.$api (Axios) which is already configured in your boot files.
+      const response = await this.$api.post('/api/notifications/save-token', {
+        token: token
+      });
+
+      this.$q.notify({
+        color: 'positive',
+        message: response.data.message || 'Notifications linked!',
+        icon: 'notifications_active'
+      });
+    } else {
+      console.error('No registration token available. Request permission to generate one.');
+    }
+  } catch (err) {
+    console.error('An error occurred while retrieving token. ', err);
+    this.$q.notify({
+      color: 'negative',
+      message: 'Failed to enable notifications.'
+    });
+  }
+},
     toggleDarkMode() {
       const darkModeEnabled = !this.$q.dark.isActive;
       localStorage.setItem('darkMode', String(+darkModeEnabled));

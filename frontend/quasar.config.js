@@ -11,6 +11,8 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 
 const { configure } = require('quasar/wrappers');
+const dotenv = require('dotenv');
+dotenv.config();
 
 module.exports = configure(function (ctx) {
   return {
@@ -53,6 +55,7 @@ module.exports = configure(function (ctx) {
     // Full list of options: https://v2.quasar.dev/quasar-cli-webpack/quasar-config-js#Property%3A-build
     build: {
       vueRouterMode: 'hash', // available values: 'hash', 'history'
+      env: {
       FIREBASE_API_KEY: process.env.FB_API_KEY,
       FIREBASE_AUTH_DOMAIN: process.env.FB_AUTH_DOMAIN,
       FIREBASE_PROJECT_ID: process.env.FB_PROJECT_ID,
@@ -61,6 +64,7 @@ module.exports = configure(function (ctx) {
       FIREBASE_APP_ID: process.env.FB_APP_ID,
       FIREBASE_MEASUREMENT_ID: process.env.FB_MEASUREMENT_ID,
       FIREBASE_VAPID_KEY: process.env.FB_VAPID_KEY
+      },
 
       // transpile: false,
       // publicPath: '/',
