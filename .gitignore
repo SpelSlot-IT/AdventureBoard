@@ -8,5 +8,5 @@ __pycache__/
 /external
 /venv
 *.venv
-*.env
+.env
 *_cache/
