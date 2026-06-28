@@ -214,6 +214,47 @@ class Signup(db.Model):
     def __repr__(self):
         return f"<Signup(id={self.id}, user_id={self.user_id}, adventure_id={self.adventure_id}, priority={self.priority})>"
 
+class InstantModeRange(db.Model):
+    """Defines date ranges where instant assignment mode is active.
+    Two types:
+    - One-time range: start_date to end_date (inclusive)
+    - Recurring rule: every Nth weekday of each month (e.g. every 1st Wednesday)
+    """
+    __tablename__ = 'instant_mode_ranges'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    label = db.Column(db.String(100), nullable=True)
+
+    # One-time range fields
+    start_date = db.Column(db.Date, nullable=True)
+    end_date = db.Column(db.Date, nullable=True)
+
+    # Recurring rule fields
+    is_recurring = db.Column(db.Boolean, nullable=False, default=False)
+    recurrence_weekday = db.Column(db.Integer, nullable=True)    # 0=Mon ... 6=Sun
+    recurrence_week_of_month = db.Column(db.Integer, nullable=True)  # 1–5
+
+    def matches(self, session_date) -> bool:
+        if self.is_recurring:
+            if self.recurrence_weekday is None or self.recurrence_week_of_month is None:
+                return False
+            if session_date.weekday() != self.recurrence_weekday:
+                return False
+            occurrence = (session_date.day - 1) // 7 + 1
+            return occurrence == self.recurrence_week_of_month
+        else:
+            if self.start_date is None or self.end_date is None:
+                return False
+            return self.start_date <= session_date <= self.end_date
+
+    def __repr__(self):
+        if self.is_recurring:
+            days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+            day_name = days[self.recurrence_weekday] if self.recurrence_weekday is not None else '?'
+            return f"<InstantModeRange(recurring: {self.recurrence_week_of_month}th {day_name})>"
+        return f"<InstantModeRange({self.start_date} – {self.end_date})>"
+
+
 class AdventureRequestedPlayer(db.Model):
     """Tracks players that DMs have requested for their adventures.
     These players will be prioritized during automatic assignment."""

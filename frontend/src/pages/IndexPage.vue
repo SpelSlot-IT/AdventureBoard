@@ -204,16 +204,52 @@
              </div>
             <div class="container">
               <div class="row justify-center q-gutter-sm" v-if="!isDateInPast(a)">
-                <q-btn
-                  v-for="n in 3"
-                  style="max-width: 8rem"
-                  :key="n"
-                  icon="person_add"
-                  :label="`${n}`"
-                  color="primary"
-                  :outline="mySignups[a.id] === n"
-                  @click="signup(a, n)"
-                />
+                <!-- Instant mode: single sign-up button -->
+                <template v-if="a.is_instant_mode">
+                  <q-btn
+                    v-if="isAssigned(a)"
+                    icon="person_remove"
+                    label="Cancel spot"
+                    color="negative"
+                    outline
+                    @click="signup(a, null)"
+                  />
+                  <q-btn
+                    v-else-if="isAdventureFull(a)"
+                    icon="block"
+                    label="Full"
+                    color="grey"
+                    disable
+                  />
+                  <q-btn
+                    v-else-if="hasSpotThisNight(a)"
+                    icon="block"
+                    label="Already signed up"
+                    color="grey"
+                    disable
+                  />
+                  <q-btn
+                    v-else
+                    icon="person_add"
+                    label="Sign up"
+                    color="primary"
+                    :loading="saving"
+                    @click="signup(a, null)"
+                  />
+                </template>
+                <!-- Karma mode: three priority buttons -->
+                <template v-else>
+                  <q-btn
+                    v-for="n in 3"
+                    style="max-width: 8rem"
+                    :key="n"
+                    icon="person_add"
+                    :label="`${n}`"
+                    color="primary"
+                    :outline="mySignups[a.id] === n"
+                    @click="signup(a, n)"
+                  />
+                </template>
               </div>
               <div class="row justify-center q-my-md">
                 <q-btn
@@ -423,43 +459,76 @@
         
         <q-separator />
         <q-card-actions class="justify-end">
-          <q-btn
-            label="Cancel signup"
-            color="negative"
-            v-if="focussed.id in mySignups"
-            class="q-mr-md"
-            @click="signup(focussed, mySignups[focussed.id])"
-          />
-          <q-btn-dropdown
-            split
-            color="primary"
-            label="Sign up"
-            content-class="q-px-lg"
-            @click="signup(focussed, 1)"
-            :loading="saving"
-          >
-            <q-list>
-              <template v-for="n in [1, 2, 3]" :key="n">
-                <q-item
-                  clickable
-                  v-close-popup
-                  @click="signup(focussed, n)"
-                  :disable="mySignups[focussed.id] == n"
-                >
-                  <q-item-section avatar v-if="focussed.id in mySignups">
-                    <q-avatar
-                      icon="check"
-                      text-color="positive"
-                      v-if="mySignups[focussed.id] == n"
-                    />
-                  </q-item-section>
-                  <q-item-section>
-                    <q-item-label>{{ choiceLabels[n] }}</q-item-label>
-                  </q-item-section>
-                </q-item>
-              </template>
-            </q-list>
-          </q-btn-dropdown>
+          <!-- Instant mode actions -->
+          <template v-if="focussed.is_instant_mode">
+            <q-btn
+              v-if="isAssigned(focussed)"
+              label="Cancel spot"
+              color="negative"
+              class="q-mr-md"
+              @click="signup(focussed, null)"
+            />
+            <q-btn
+              v-else-if="isAdventureFull(focussed)"
+              label="Full"
+              color="grey"
+              disable
+            />
+            <q-btn
+              v-else-if="hasSpotThisNight(focussed)"
+              label="Already signed up tonight"
+              color="grey"
+              disable
+            />
+            <q-btn
+              v-else
+              label="Sign up"
+              icon="person_add"
+              color="primary"
+              :loading="saving"
+              @click="signup(focussed, null)"
+            />
+          </template>
+          <!-- Karma mode actions -->
+          <template v-else>
+            <q-btn
+              label="Cancel signup"
+              color="negative"
+              v-if="focussed.id in mySignups"
+              class="q-mr-md"
+              @click="signup(focussed, mySignups[focussed.id])"
+            />
+            <q-btn-dropdown
+              split
+              color="primary"
+              label="Sign up"
+              content-class="q-px-lg"
+              @click="signup(focussed, 1)"
+              :loading="saving"
+            >
+              <q-list>
+                <template v-for="n in [1, 2, 3]" :key="n">
+                  <q-item
+                    clickable
+                    v-close-popup
+                    @click="signup(focussed, n)"
+                    :disable="mySignups[focussed.id] == n"
+                  >
+                    <q-item-section avatar v-if="focussed.id in mySignups">
+                      <q-avatar
+                        icon="check"
+                        text-color="positive"
+                        v-if="mySignups[focussed.id] == n"
+                      />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label>{{ choiceLabels[n] }}</q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-list>
+            </q-btn-dropdown>
+          </template>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -648,13 +717,12 @@ async setupNotifications() {
       const sessionDay = toLocalDateString(fromDateString(a.date));
       return fromDateString(currentDay).getTime() > fromDateString(sessionDay).getTime();
     },
-    async signup(e: { date: string; id: string }, prio: number) {
+    async signup(e: { date: string; id: string }, prio: number | null) {
       try {
         this.saving = true;
-        await this.$api.post('/api/signups', {
-          adventure_id: e.id,
-          priority: prio,
-        });
+        const payload: Record<string, unknown> = { adventure_id: e.id };
+        if (prio !== null) payload.priority = prio;
+        await this.$api.post('/api/signups', payload);
         this.$q.notify({
           message: 'Your signup is submitted!',
           type: 'positive',
@@ -663,6 +731,24 @@ async setupNotifications() {
       } finally {
         this.saving = false;
       }
+    },
+    isAssigned(a: any): boolean {
+      if (!this.me || !a.assignments) return false;
+      return a.assignments.some((p: any) => p.user?.id === this.me?.id);
+    },
+    isAdventureFull(a: any): boolean {
+      if (!a.assignments) return false;
+      return a.assignments.length >= a.max_players;
+    },
+    hasSpotThisNight(a: any): boolean {
+      if (!this.me) return false;
+      return this.adventures.some(
+        (other: any) =>
+          other.id !== a.id &&
+          other.date === a.date &&
+          !other.is_waitinglist &&
+          other.assignments?.some((p: any) => p.user?.id === this.me?.id)
+      );
     },
     eventChange() {
       this.addAdventure = false;

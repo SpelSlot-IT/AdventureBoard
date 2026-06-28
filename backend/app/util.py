@@ -57,6 +57,44 @@ def get_this_month(today=None):
 
     return start_of_month, end_of_month
     
+def is_instant_mode_for_session(session_date, adventure=None) -> bool:
+    """Check if a session date should use instant assignment mode.
+
+    Checks all configured InstantModeRange rules. The optional `adventure`
+    parameter is the extension point for a future "post-release instant signup"
+    feature — once assignments are released and slots are still open, passing
+    the adventure object here will allow that check without changing callers.
+    """
+    ranges = db.session.execute(db.select(InstantModeRange)).scalars().all()
+    for r in ranges:
+        if r.matches(session_date):
+            return True
+
+    # Future extension:
+    # if adventure and adventure.release_assignments:
+    #     assigned = sum(1 for a in adventure.assignments if not adventure.is_waitinglist)
+    #     if assigned < adventure.max_players:
+    #         return True
+
+    return False
+
+
+def get_instant_mode_dates_in_range(start_date, end_date) -> set:
+    """Return the set of dates in [start_date, end_date] that are in instant mode."""
+    ranges = db.session.execute(db.select(InstantModeRange)).scalars().all()
+    if not ranges:
+        return set()
+    instant_dates = set()
+    current = start_date
+    while current <= end_date:
+        for r in ranges:
+            if r.matches(current):
+                instant_dates.add(current)
+                break
+        current += timedelta(days=1)
+    return instant_dates
+
+
 def check_release(adventures):
     return (len(adventures) > 0 and adventures[-1].release_assignments)
 
@@ -273,12 +311,17 @@ def assign_players_to_adventures(today=None):
     start_of_week, end_of_week = get_upcoming_week(today)
     start_of_month, end_of_month = get_this_month(today)
     current_app.logger.info(f" >--- Assigning players from waiting list for week {start_of_week} to {end_of_week} ---< ")
+
+    instant_dates = get_instant_mode_dates_in_range(start_of_week, end_of_week)
+    if instant_dates:
+        current_app.logger.info(f"Skipping instant-mode dates during assignment: {instant_dates}")
+
     # create a placeholder that will track how many places are already taken per adventure
     taken_places = defaultdict(int)
     assignment_map = defaultdict(list) # trace assignments in moa for human readability.
 
 
-    # Query old assignments per adventure in the date window to check for taken places
+    # Query old assignments per adventure in the date window (excluding instant-mode dates)
     already_taken = (
         db.session.execute(
             db.select(
@@ -289,6 +332,7 @@ def assign_players_to_adventures(today=None):
             .filter(
                 Adventure.date >= start_of_week,
                 Adventure.date <= end_of_week,
+                Adventure.date.notin_(instant_dates) if instant_dates else True,
             )
             .group_by(Assignment.adventure_id)
         ).all()
@@ -318,6 +362,7 @@ def assign_players_to_adventures(today=None):
     )
 
     # Main query: players signed up this week but NOT in assigned_ids_subq
+    # Also exclude signups for instant-mode dates (those are handled by instant signup)
     players_signedup_not_assigned = list(
         db.session.execute(
             db.select(User)
@@ -326,6 +371,7 @@ def assign_players_to_adventures(today=None):
             .filter(
                 Adventure.date >= start_of_week,
                 Adventure.date <= end_of_week,
+                Adventure.date.notin_(instant_dates) if instant_dates else True,
                 ~User.id.in_(assigned_ids_subq)   # exclude already assigned player
             )
             .options(
@@ -436,7 +482,11 @@ def assign_players_to_adventures(today=None):
     adventures_this_week = (
         db.session.execute(
             db.select(Adventure)
-            .filter(Adventure.date >= start_of_week, Adventure.date <= end_of_week)
+            .filter(
+                Adventure.date >= start_of_week,
+                Adventure.date <= end_of_week,
+                Adventure.date.notin_(instant_dates) if instant_dates else True,
+            )
             .order_by(func.random())
             .distinct()
         )
@@ -478,6 +528,7 @@ def reassign_players_from_waiting_list(today=None):
     """
     today = today or date.today()
     start_of_week, end_of_week = get_upcoming_week(today)
+    instant_dates = get_instant_mode_dates_in_range(start_of_week, end_of_week)
     current_app.logger.info(f" <--- Reassigning players from waiting list for week {start_of_week} to {end_of_week} ---> ")
 
     # Get the waiting list adventure
@@ -509,6 +560,7 @@ def reassign_players_from_waiting_list(today=None):
         assigned = False
 
         # Find adventures this week that the user signed up for and have available slots
+        # Exclude instant-mode adventures (players self-assign there)
         available_adventures = db.session.execute(
             db.select(Adventure)
             .outerjoin(Assignment, Assignment.adventure_id == Adventure.id)
@@ -517,6 +569,7 @@ def reassign_players_from_waiting_list(today=None):
                 Adventure.date >= start_of_week,
                 Adventure.date <= end_of_week,
                 Adventure.is_waitinglist == 0,  # Exclude waiting list
+                Adventure.date.notin_(instant_dates) if instant_dates else True,
             )
             .group_by(Adventure.id)
             .having(func.count(Assignment.user_id) < Adventure.max_players)
@@ -548,6 +601,7 @@ def reassign_players_from_waiting_list(today=None):
             continue
 
         # If no signed-up adventures are available, assign to any open adventure
+        # Exclude instant-mode adventures (players self-assign there)
         fallback_adventures = db.session.execute(
             db.select(Adventure)
             .outerjoin(Assignment, Assignment.adventure_id == Adventure.id)
@@ -555,6 +609,7 @@ def reassign_players_from_waiting_list(today=None):
                 Adventure.date >= start_of_week,
                 Adventure.date <= end_of_week,
                 Adventure.is_waitinglist == 0,  # Exclude waiting list
+                Adventure.date.notin_(instant_dates) if instant_dates else True,
             )
             .group_by(Adventure.id)
             .having(func.count(Assignment.user_id) < Adventure.max_players)
@@ -586,7 +641,10 @@ def get_google():
 def reassign_karma(today=None):
     today = today or date.today()
     start_of_current_week, end_of_current_week = get_this_week(today)
+    instant_dates = get_instant_mode_dates_in_range(start_of_current_week, end_of_current_week)
     current_app.logger.info(f"Reassigning karma for week {start_of_current_week} to {end_of_current_week}")
+    if instant_dates:
+        current_app.logger.info(f"Skipping instant-mode dates during karma reassignment: {instant_dates}")
 
     # DM: +500 karma for creating an adventure this week
     creators = db.session.execute(
@@ -596,6 +654,7 @@ def reassign_karma(today=None):
             Adventure.date >= start_of_current_week,
             Adventure.date <= end_of_current_week,
             Adventure.exclude_from_karma.is_(False),
+            Adventure.date.notin_(instant_dates) if instant_dates else True,
         )
         .distinct()
     ).scalars().all()
@@ -613,7 +672,8 @@ def reassign_karma(today=None):
             Adventure.is_waitinglist == 0,  # Ignore waiting list
             Adventure.exclude_from_karma.is_(False),
             Adventure.date >= start_of_current_week,
-            Adventure.date <= end_of_current_week
+            Adventure.date <= end_of_current_week,
+            Adventure.date.notin_(instant_dates) if instant_dates else True,
         )
     ).scalars().all()
     for user in non_appearances:
@@ -630,7 +690,8 @@ def reassign_karma(today=None):
             Assignment.appeared.is_(True),
             Adventure.exclude_from_karma.is_(False),
             Adventure.date >= start_of_current_week,
-            Adventure.date <= end_of_current_week
+            Adventure.date <= end_of_current_week,
+            Adventure.date.notin_(instant_dates) if instant_dates else True,
         )
         .distinct()
     ).scalars().all()
@@ -648,7 +709,8 @@ def reassign_karma(today=None):
             Assignment.appeared.is_(False),
             Adventure.exclude_from_karma.is_(False),
             Adventure.date >= start_of_current_week,
-            Adventure.date <= end_of_current_week
+            Adventure.date <= end_of_current_week,
+            Adventure.date.notin_(instant_dates) if instant_dates else True,
         )
         .distinct()
     ).scalars().all()
@@ -675,6 +737,7 @@ def reassign_karma(today=None):
                 Adventure.exclude_from_karma.is_(False),
                 Adventure.date >= start_of_current_week,
                 Adventure.date <= end_of_current_week,
+                Adventure.date.notin_(instant_dates) if instant_dates else True,
             )
             .distinct()
         ).scalars().all()

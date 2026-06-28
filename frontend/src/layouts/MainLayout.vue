@@ -57,6 +57,9 @@
                   <q-item clickable v-close-popup @click="signups">
                     <q-item-section>See current signups</q-item-section>
                   </q-item>
+                  <q-item clickable v-close-popup to="/instant-mode">
+                    <q-item-section>Manage instant mode</q-item-section>
+                  </q-item>
                 </template>
               </q-list>
             </q-menu>

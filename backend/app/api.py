@@ -15,13 +15,13 @@ from flask import (
     jsonify, 
     g 
     )
-from sqlalchemy import text, delete
+from sqlalchemy import text, delete, func
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError, MultipleResultsFound
 import json
 import requests
 
-from .models import db, User, Adventure, Assignment, AdventureRequestedPlayer, FCMToken
+from .models import db, User, Adventure, Assignment, AdventureRequestedPlayer, FCMToken, InstantModeRange
 from .util import *
 from .provider import ma, ap_scheduler
 from firebase_admin import messaging
@@ -40,7 +40,9 @@ blp_users = Blueprint("users", "users", url_prefix="/api/users",
 # 1. Define the Blueprint for Notifications
 blp_notifications = Blueprint("notifications", "notifications", url_prefix="/api/notifications",
                description="FCM Operations: Saving tokens and triggering test pushes.")
-api_blueprints = [blp_utils, blp_users, blp_adventures, blp_assignments, blp_signups, blp_notifications]
+blp_instant_mode = Blueprint("instant-mode", "instant-mode", url_prefix="/api/instant-mode-ranges",
+               description="Instant Mode API: Manage date ranges where instant signup is active.")
+api_blueprints = [blp_utils, blp_users, blp_adventures, blp_assignments, blp_signups, blp_notifications, blp_instant_mode]
 
 # ----------------------- Schemas ---------------------------------
 
@@ -97,6 +99,8 @@ class SignupUserSchema(ma.SQLAlchemyAutoSchema):
         sqla_session = db.session
         exclude = ("id", "user_id", "adventure_date")
 
+    # priority is optional so instant-mode signups can omit it
+    priority = ma.Integer(required=False, allow_none=True, load_default=None)
     user = ma.Nested(UserSchema, dump_only=True)
 
 class AdventureSmallSchema(ma.SQLAlchemyAutoSchema):
@@ -170,6 +174,16 @@ class AssignmentUpdateSchema(ma.Schema):
 class AssignmentDeleteSchema(ma.Schema):
     adventure_id = ma.Integer(required=True)
     user_id = ma.Integer(required=False)  # Optional: for admins to specify which user's assignment to delete
+
+
+class InstantModeRangeSchema(ma.Schema):
+    id = ma.Integer(dump_only=True)
+    label = ma.String(allow_none=True, load_default=None)
+    start_date = ma.Date(allow_none=True, load_default=None)
+    end_date = ma.Date(allow_none=True, load_default=None)
+    is_recurring = ma.Boolean(load_default=False)
+    recurrence_weekday = ma.Integer(allow_none=True, load_default=None)      # 0=Mon..6=Sun
+    recurrence_week_of_month = ma.Integer(allow_none=True, load_default=None)  # 1–5
 
 
 class AdventureSchema(ma.SQLAlchemyAutoSchema):
@@ -557,16 +571,19 @@ class AdventureIDlessRequest(MethodView):
 
             # Determine display rights
             user_is_admin = is_admin(current_user)
-            display_players = user_is_admin or check_release(adventures) # check for last one cause handling separately is annoying
+            has_instant_mode = any(is_instant_mode_for_session(a.date) for a in adventures)
+            display_players = user_is_admin or check_release(adventures) or has_instant_mode
             exclude = []
             if not user_is_admin:
                 exclude = ["assignments.user.karma", "signups"]
-                pass
             if not display_players:
                 exclude = exclude + ["assignments"]
-                pass
-            
-            return AdventureSchema(many=True, exclude=exclude).dump(adventures)
+
+            dumped = AdventureSchema(many=True, exclude=exclude).dump(adventures)
+            # Attach is_instant_mode flag per adventure so the frontend can branch UI
+            for adv_data, adv in zip(dumped, adventures):
+                adv_data['is_instant_mode'] = is_instant_mode_for_session(adv.date)
+            return dumped
 
         except ValidationError as ve:
             abort(400, message=str(ve))
@@ -1001,62 +1018,109 @@ class SignupResource(MethodView):
     def post(self, args):
         """
         Makes a signup for a specific adventure.
-        Deletes old ones if a signup already exists.
-        Acts as a toggle: if the same signup exists, it removes it.
+        - In instant mode: immediately creates an Assignment (toggle: cancels if already assigned).
+        - In karma mode: creates a priority Signup (toggle: removes if same signup exists).
         """
         adventure_id = args["adventure_id"]
-        priority = args["priority"]
+        priority = args.get("priority")
         user_id = current_user.id
 
         try:
+            adventure = db.session.get(Adventure, adventure_id)
+            if not adventure:
+                abort(404, message="Adventure not found")
 
-            # Fetch the adventure date
-            adventure_date = db.session.execute(
-                db.select(Adventure.date).where(Adventure.id == adventure_id)
-            ).scalar_one()
-            
-            # Check if exact same signup already exists (toggle behavior)
-            stmt = db.select(Signup).where(
-                Signup.user_id == user_id,
-                Signup.adventure_id == adventure_id,
-                Signup.priority == priority
-            )
-
-            existing_signup = db.session.scalars(stmt).first()
-
-            if existing_signup:
-                db.session.delete(existing_signup)
-                message = 'Signup removed'
-            else:
-               # Remove any existing signup with same priority and date (regardless of adventure)
-                db.session.execute(
-                    delete(Signup).where(
-                        Signup.user_id == user_id, 
-                        Signup.priority == priority,
-                        Signup.adventure_date == adventure_date
+            if is_instant_mode_for_session(adventure.date):
+                # --- Instant mode: direct Assignment ---
+                existing = db.session.execute(
+                    db.select(Assignment).where(
+                        Assignment.user_id == user_id,
+                        Assignment.adventure_id == adventure_id,
                     )
-                )
+                ).scalar_one_or_none()
 
-                # Remove any existing signup for same adventure (regardless of priority)
-                db.session.execute(
-                    delete(Signup).where(
-                        Signup.user_id == user_id, 
-                        Signup.adventure_id == adventure_id
+                if existing:
+                    db.session.delete(existing)
+                    db.session.commit()
+                    return {"message": "Signup cancelled"}, 200
+
+                # Enforce one spot per session night
+                conflict = db.session.execute(
+                    db.select(Assignment)
+                    .join(Assignment.adventure)
+                    .where(
+                        Assignment.user_id == user_id,
+                        Adventure.date == adventure.date,
+                        Adventure.is_waitinglist == 0,
                     )
-                )
+                ).scalar_one_or_none()
+                if conflict:
+                    abort(409, message="You already have a spot on another adventure this night")
 
-                # Add new signup
-                new_signup = Signup(
+                # Enforce capacity
+                taken = db.session.execute(
+                    db.select(func.count(Assignment.user_id)).where(
+                        Assignment.adventure_id == adventure_id
+                    )
+                ).scalar_one()
+                if taken >= adventure.max_players:
+                    abort(409, message="This adventure is full")
+
+                new_assignment = Assignment(
                     user_id=user_id,  # type: ignore
                     adventure_id=adventure_id,  # type: ignore
-                    priority=priority,  # type: ignore
-                    adventure_date=adventure_date  # type: ignore
+                    preference_place=None,
                 )
-                db.session.add(new_signup)
-                message = 'Signup registered'
+                db.session.add(new_assignment)
+                db.session.commit()
+                return {"message": "Signed up!"}, 200
 
-            db.session.commit()
-            return {"message": message}, 200
+            else:
+                # --- Karma mode: Signup with priority ---
+                if priority is None:
+                    abort(422, message="priority is required in karma mode")
+
+                adventure_date = adventure.date
+
+                # Check if exact same signup already exists (toggle behavior)
+                existing_signup = db.session.scalars(
+                    db.select(Signup).where(
+                        Signup.user_id == user_id,
+                        Signup.adventure_id == adventure_id,
+                        Signup.priority == priority
+                    )
+                ).first()
+
+                if existing_signup:
+                    db.session.delete(existing_signup)
+                    message = 'Signup removed'
+                else:
+                    # Remove any existing signup with same priority and date (regardless of adventure)
+                    db.session.execute(
+                        delete(Signup).where(
+                            Signup.user_id == user_id,
+                            Signup.priority == priority,
+                            Signup.adventure_date == adventure_date
+                        )
+                    )
+                    # Remove any existing signup for same adventure (regardless of priority)
+                    db.session.execute(
+                        delete(Signup).where(
+                            Signup.user_id == user_id,
+                            Signup.adventure_id == adventure_id
+                        )
+                    )
+                    new_signup = Signup(
+                        user_id=user_id,  # type: ignore
+                        adventure_id=adventure_id,  # type: ignore
+                        priority=priority,  # type: ignore
+                        adventure_date=adventure_date  # type: ignore
+                    )
+                    db.session.add(new_signup)
+                    message = 'Signup registered'
+
+                db.session.commit()
+                return {"message": message}, 200
 
         except SQLAlchemyError as e:
             db.session.rollback()
@@ -1251,3 +1315,61 @@ class TestAutomation(MethodView):
             return {"message": "Sent 'Create Adventure Reminder' to your device"}
 
         return {"error": "Invalid target"}, 400
+
+
+# --- INSTANT MODE RANGES ---
+
+@blp_instant_mode.route('')
+class InstantModeRangeListResource(MethodView):
+
+    @blp_instant_mode.response(200, InstantModeRangeSchema(many=True))
+    def get(self):
+        """Return all instant mode ranges (public — frontend needs this to render buttons)."""
+        return db.session.execute(db.select(InstantModeRange)).scalars().all()
+
+    @login_required
+    @blp_instant_mode.arguments(InstantModeRangeSchema())
+    @blp_instant_mode.response(201, InstantModeRangeSchema())
+    def post(self, args):
+        """Create a new instant mode range (admin only)."""
+        if not is_admin(current_user):
+            abort(403, message="Admin only")
+
+        is_recurring = args.get("is_recurring", False)
+        if is_recurring:
+            if args.get("recurrence_weekday") is None or args.get("recurrence_week_of_month") is None:
+                abort(422, message="recurrence_weekday and recurrence_week_of_month are required for recurring rules")
+        else:
+            if args.get("start_date") is None or args.get("end_date") is None:
+                abort(422, message="start_date and end_date are required for one-time ranges")
+            if args["start_date"] > args["end_date"]:
+                abort(422, message="start_date must be <= end_date")
+
+        new_range = InstantModeRange(
+            label=args.get("label"),
+            start_date=args.get("start_date"),
+            end_date=args.get("end_date"),
+            is_recurring=is_recurring,
+            recurrence_weekday=args.get("recurrence_weekday"),
+            recurrence_week_of_month=args.get("recurrence_week_of_month"),
+        )
+        db.session.add(new_range)
+        db.session.commit()
+        return new_range
+
+
+@blp_instant_mode.route('/<int:range_id>')
+class InstantModeRangeResource(MethodView):
+
+    @login_required
+    @blp_instant_mode.response(200, InstantModeRangeSchema())
+    def delete(self, range_id):
+        """Delete an instant mode range (admin only)."""
+        if not is_admin(current_user):
+            abort(403, message="Admin only")
+        r = db.session.get(InstantModeRange, range_id)
+        if not r:
+            abort(404, message="Range not found")
+        db.session.delete(r)
+        db.session.commit()
+        return r
