@@ -9,6 +9,8 @@
 // https://v2.quasar.dev/quasar-cli-webpack/quasar-config-js
 
 import { defineConfig } from '#q-app/wrappers';
+import dotenv from 'dotenv';
+dotenv.config(); // loads .env for local development; CI uses real env vars
 
 export default defineConfig((ctx) => {
   return {
